@@ -18,7 +18,7 @@ export interface CardLayout extends Rect {
   radius: number // fraction of base width
 }
 
-export type Bezel = 'studio' | 'violet' | 'ink' | 'teal' | 'mono'
+export type Bezel = 'studio' | 'space' | 'violet' | 'ink' | 'teal' | 'mono'
 
 export interface Scene {
   id: string

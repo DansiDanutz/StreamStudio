@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useDirector } from '../../director/store'
 import { useStage } from '../store'
 
@@ -27,7 +28,9 @@ export function AvatarCard() {
   const onAir = playing && !!segClip
   const src = onAir ? segClip! : (override ?? DEFAULT[orientation])
   const cutout = useStage((s) => s.cutout)
-  const alpha = cutout ? CUTOUT[src] : undefined
+  const [missing, setMissing] = useState<Record<string, true>>({})
+  const wanted = cutout ? CUTOUT[src] : undefined
+  const alpha = wanted && !missing[wanted] ? wanted : undefined // fall back to the raw clip until a cut-out exists
   const stand = STAND[orientation]
   // With a cut-out the card is see-through: the studio plate shows behind, and the presenter stands at the desk.
   const style = alpha
@@ -38,7 +41,7 @@ export function AvatarCard() {
       <video key={(alpha ?? src) + (onAir ? '-air' : '')} className={alpha ? 'cutout' : 'fill cover'} style={style}
         src={alpha ?? src} autoPlay loop={!onAir} muted={!onAir} playsInline
         onEnded={() => onAir && next()}
-        onError={(e) => ((e.target as HTMLVideoElement).style.opacity = '0')} />
+        onError={(e) => (alpha ? setMissing((m) => ({ ...m, [alpha]: true })) : ((e.target as HTMLVideoElement).style.opacity = '0'))} />
       <label className="avatar-pick" onPointerDown={(e) => e.stopPropagation()} title="Replace avatar clip">
         ⤓
         <input type="file" accept="video/*" hidden onChange={(e) => {
