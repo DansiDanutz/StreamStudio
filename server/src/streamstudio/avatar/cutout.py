@@ -65,12 +65,23 @@ def segment(frames: list[Path], out: Path, model: str = "u2net_human_seg") -> li
     return results
 
 
+def fit_cover(img: Image.Image, size: tuple[int, int]) -> Image.Image:
+    """Resize + centre-crop to `size` (like CSS object-fit: cover)."""
+    w, h = img.size
+    k = max(size[0] / w, size[1] / h)
+    img = img.resize((round(w * k), round(h * k)), Image.LANCZOS)
+    left = (img.width - size[0]) // 2
+    top = (img.height - size[1]) // 2
+    return img.crop((left, top, left + size[0], top + size[1]))
+
+
 def composite(
-    cutouts: list[Path], plate: Path, out: Path, *, scale: float, anchor_y: float, x: float
+    cutouts: list[Path], plate: Path, out: Path, *, scale: float, anchor_y: float, x: float,
+    size: tuple[int, int] = (1920, 1080),
 ) -> None:
-    """Place each RGBA cut-out on the plate: height = scale*plate_h, bottom edge at anchor_y, centred at x."""
+    """Place each RGBA cut-out on the plate at output size: height = scale*H, bottom at anchor_y, centred at x."""
     out.mkdir(parents=True, exist_ok=True)
-    bg = Image.open(plate).convert("RGB")
+    bg = fit_cover(Image.open(plate).convert("RGB"), size)
     pw, ph = bg.size
     for p in cutouts:
         fg = Image.open(p).convert("RGBA")
@@ -105,19 +116,26 @@ def run(clip: Path, plate: Path, out_dir: Path, *, scale: float, anchor_y: float
     out_dir.mkdir(parents=True, exist_ok=True)
     info = probe(clip)
     work = Path(tempfile.mkdtemp(prefix="cutout_"))
+    cache = out_dir / "cache" / clip.stem  # segmented RGBA frames: the slow part, kept between runs
     try:
         print(f"frames…  ({info['w']}x{info['h']} @ {info['fps']:.3g} fps)", flush=True)
         frames = extract_frames(clip, work / "frames")
-        print(f"segmenting {len(frames)} frames…", flush=True)
-        cut = segment(frames, work / "cut")
+        cached = sorted(cache.glob("f*.png"))
+        if len(cached) == len(frames):
+            print(f"using {len(cached)} cached segmented frames", flush=True)
+            cut = cached
+        else:
+            print(f"segmenting {len(frames)} frames…", flush=True)
+            cut = segment(frames, cache)
         print("compositing…", flush=True)
-        composite(cut, plate, work / "comp", scale=scale, anchor_y=anchor_y, x=x)
+        size = (1920, 1080) if info["w"] >= info["h"] else (1080, 1920)
+        composite(cut, plate, work / "comp", scale=scale, anchor_y=anchor_y, x=x, size=size)
         stem = clip.stem
         webm = out_dir / f"{stem}.cutout.webm"
         mp4 = out_dir / f"{stem}.on-plate.mp4"
         still = out_dir / f"{stem}.on-plate.jpg"
         print("encoding…", flush=True)
-        encode_alpha_webm(work / "cut", info["fps"], clip, webm)
+        encode_alpha_webm(cache, info["fps"], clip, webm)
         encode_mp4(work / "comp", info["fps"], clip, mp4)
         Image.open(sorted((work / "comp").glob("*.png"))[len(frames) // 3]).save(still, quality=92)
         return {"cutout_webm": str(webm), "composite_mp4": str(mp4), "still": str(still), **info}

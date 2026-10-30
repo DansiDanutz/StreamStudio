@@ -38,5 +38,6 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
+per-file-ignores = { "src/streamstudio/avatar/cutout.py" = ["E501"] }  # ffmpeg argv lines
 select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["B008"]  # Depends() in defaults is the FastAPI idiom
