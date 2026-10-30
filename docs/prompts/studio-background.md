@@ -31,5 +31,5 @@ GPT Image won (assets/studio/plate-landscape-v1-gpt.png, 1680×945). Gemini: goo
 v2 fixes: desk only in bottom third, camera at seated chest height, Fake-Real monitor fully right of centre, 4K.
 
 ## Round 2 result
-Chosen: assets/studio/plate-landscape-v2-final.png (frontal, desk bottom third, monitors fully right, clear centre).
-Backup: plate-landscape-v2-alt.png. Still 1680×945 → needs a 4K upscale before use. Portrait plate still to generate.
+Chosen by Dan: assets/studio/plate-landscape-final.png (diagonal depth version). Frontal alternates kept as plate-landscape-v2-frontal.png / -alt.png.
+Composite note: desk is tall (bottom ~35%), so the avatar is placed lower and scaled so the hands meet the near desk edge. Still 1680×945 → needs a 4K upscale before use. Portrait plate still to generate.
