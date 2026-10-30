@@ -134,7 +134,12 @@ Consequences for the Avatar card:
    once) and placed in the 16 % presenter card.
 3. **Live mode comes second**: a streaming avatar provider (HeyGen Streaming Avatar, WebRTC) or the local
    mic-driven 2D/VRM fallback, behind the same card and the same hotkeys.
-4. **25 fps source** on a 30 fps stage: the compositor must resample or run the stage at 25 fps when an
+4. **Per-orientation avatar clips.** `Dans_Lab___Brian_Studio_Avatar_1.mp4` is the portrait twin: 1080×1920,
+   25 fps, 11 s, same studio set, framed close (head and shoulders, hands gesturing at the bottom edge, so
+   the body moves, not just the face), no subtitle track. So every avatar segment exists as a 16:9 wide shot
+   and a 9:16 close-up, and the orientation toggle swaps the clip, not just the layout. Portrait clips are
+   framed for the Shorts safe area: the face sits in the top 45 %, leaving the lower half for overlays.
+5. **25 fps source** on a 30 fps stage: the compositor must resample or run the stage at 25 fps when an
    avatar clip is the main source. Output presets will offer 25 and 30.
 
 ## 4. Tech notes from the research
