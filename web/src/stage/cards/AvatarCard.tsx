@@ -13,9 +13,11 @@ const CUTOUT: Record<string, string> = {
   '/avatar/dan-landscape-test.mp4': '/avatar/cutout/dan-landscape-test.cutout.webm',
   '/avatar/dan-portrait-test.mp4': '/avatar/cutout/dan-portrait-test.cutout.webm',
 }
-/** Where the cut-out stands when the card is full-frame: bottom edge at `anchorY`, height `scale`, centred at `x`.
- *  Matches the defaults in cutout.py so the preview and the composite agree. */
-const STAND = { landscape: { x: 0.46, anchorY: 0.88, scale: 0.78 }, portrait: { x: 0.5, anchorY: 0.95, scale: 0.9 } }
+/** Seating when the card is full-frame: presenter height `scale`, hands (at 85% of the clip) land at `handsY`,
+ *  centred at `x`; the desk layer is drawn over the presenter so they sit behind it. Matches cutout.py. */
+const HANDS_IN_CLIP = 0.85
+const SEAT = { landscape: { x: 0.47, handsY: 0.68, scale: 0.66 }, portrait: { x: 0.5, handsY: 0.8, scale: 0.75 } }
+const DESK: Record<'landscape' | 'portrait', string> = { landscape: '/studio/plate-landscape-final.desk.png', portrait: '/studio/plate-portrait-final.desk.png' }
 
 export function AvatarCard() {
   const orientation = useStage((s) => s.orientation)
@@ -31,17 +33,23 @@ export function AvatarCard() {
   const [missing, setMissing] = useState<Record<string, true>>({})
   const wanted = cutout ? CUTOUT[src] : undefined
   const alpha = wanted && !missing[wanted] ? wanted : undefined // fall back to the raw clip until a cut-out exists
-  const stand = STAND[orientation]
-  // With a cut-out the card is see-through: the studio plate shows behind, and the presenter stands at the desk.
+  const seat = SEAT[orientation]
+  const bottomY = seat.handsY + (1 - HANDS_IN_CLIP) * seat.scale
+  // With a cut-out the card is see-through: the plate shows behind, the presenter sits at the desk,
+  // and the desk layer (plate cut to the desk) is drawn on top so they are behind it.
   const style = alpha
-    ? { position: 'absolute' as const, left: `${stand.x * 100}%`, bottom: `${(1 - stand.anchorY) * 100}%`, height: `${stand.scale * 100}%`, width: 'auto', transform: 'translateX(-50%)', objectFit: 'contain' as const, background: 'transparent' }
+    ? { position: 'absolute' as const, left: `${seat.x * 100}%`, bottom: `${(1 - bottomY) * 100}%`, height: `${seat.scale * 100}%`, width: 'auto', transform: 'translateX(-50%)', objectFit: 'contain' as const, background: 'transparent' }
     : undefined
+  const fullFrame = useStage((s) => { const l = s.active().layouts[s.orientation].avatar; return l.w >= 0.999 && l.h >= 0.999 })
+  const liveFull = useDirector((s) => { const l = s.live?.avatar; return l ? l.w >= 0.999 && l.h >= 0.999 : undefined })
+  const showDesk = !!alpha && (liveFull ?? fullFrame)
   return (
     <div className={`avatar-wrap ${alpha ? 'is-cutout' : ''}`}>
       <video key={(alpha ?? src) + (onAir ? '-air' : '')} className={alpha ? 'cutout' : 'fill cover'} style={style}
         src={alpha ?? src} autoPlay loop={!onAir} muted={!onAir} playsInline
         onEnded={() => onAir && next()}
         onError={(e) => (alpha ? setMissing((m) => ({ ...m, [alpha]: true })) : ((e.target as HTMLVideoElement).style.opacity = '0'))} />
+      {showDesk && <img className="desk" src={DESK[orientation]} alt="" draggable={false} onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
       <label className="avatar-pick" onPointerDown={(e) => e.stopPropagation()} title="Replace avatar clip">
         ⤓
         <input type="file" accept="video/*" hidden onChange={(e) => {

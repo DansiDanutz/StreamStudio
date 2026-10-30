@@ -5,9 +5,11 @@ Pipeline (all local, free):
            → cutout.webm (VP9 + alpha, for the browser)            [Chrome/Edge/Firefox]
            → composite.mp4 (cutout placed on the plate)             [preview + Safari fallback]
 
-Usage: python -m streamstudio.avatar.cutout CLIP PLATE OUT_DIR [--scale 0.92] [--anchor-y 0.86] [--x 0.5]
-`anchor-y` is where the bottom of the cut-out lands on the plate (fraction of plate height);
-`scale` is cut-out height relative to plate height. Audio is carried over from the clip.
+Usage: python -m streamstudio.avatar.cutout CLIP PLATE OUT_DIR [--scale 0.66] [--hands-y 0.68] [--x 0.47]
+Seating: the presenter sits BEHIND the desk. `scale` is cut-out height relative to the frame; `hands-y` is
+where the presenter's hands (at HANDS_IN_CLIP of the clip height) land on the plate; `x` is the centre.
+If `<plate>.desk.png` exists next to the plate (the desk cut out as RGBA, see tools/desk_layer.py), it is
+composited over the presenter so the desk occludes them from its far edge down. Audio comes from the clip.
 """
 
 from __future__ import annotations
@@ -75,22 +77,35 @@ def fit_cover(img: Image.Image, size: tuple[int, int]) -> Image.Image:
     return img.crop((left, top, left + size[0], top + size[1]))
 
 
+HANDS_IN_CLIP = 0.85  # where the presenter's hands sit in Dan's clips (fraction of clip height)
+
+
+def desk_layer_for(plate: Path) -> Path | None:
+    p = plate.with_suffix(".desk.png")
+    return p if p.exists() else None
+
+
 def composite(
-    cutouts: list[Path], plate: Path, out: Path, *, scale: float, anchor_y: float, x: float,
+    cutouts: list[Path], plate: Path, out: Path, *, scale: float, hands_y: float, x: float,
     size: tuple[int, int] = (1920, 1080),
 ) -> None:
-    """Place each RGBA cut-out on the plate at output size: height = scale*H, bottom at anchor_y, centred at x."""
+    """plate → presenter → desk layer. Presenter height = scale*H, hands at hands_y, centred at x."""
     out.mkdir(parents=True, exist_ok=True)
-    bg = fit_cover(Image.open(plate).convert("RGB"), size)
+    bg = fit_cover(Image.open(plate).convert("RGB"), size).convert("RGBA")
+    desk_path = desk_layer_for(plate)
+    desk = fit_cover(Image.open(desk_path).convert("RGBA"), size) if desk_path else None
     pw, ph = bg.size
+    bottom_y = hands_y + (1 - HANDS_IN_CLIP) * scale
     for p in cutouts:
         fg = Image.open(p).convert("RGBA")
         fw, fh = fg.size
         th = int(ph * scale)
         tw = int(fw * th / fh)
         fg = fg.resize((tw, th), Image.LANCZOS)
-        canvas = bg.convert("RGBA")
-        canvas.alpha_composite(fg, (int(pw * x - tw / 2), int(ph * anchor_y - th)))
+        canvas = bg.copy()
+        canvas.alpha_composite(fg, (int(pw * x - tw / 2), int(ph * bottom_y - th)))
+        if desk is not None:
+            canvas.alpha_composite(desk)
         canvas.convert("RGB").save(out / p.name)
 
 
@@ -112,7 +127,7 @@ def encode_mp4(frames_dir: Path, fps: float, clip: Path, out: Path) -> None:
     )  # fmt: skip
 
 
-def run(clip: Path, plate: Path, out_dir: Path, *, scale: float, anchor_y: float, x: float, keep: bool) -> dict:
+def run(clip: Path, plate: Path, out_dir: Path, *, scale: float, hands_y: float, x: float, keep: bool) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     info = probe(clip)
     work = Path(tempfile.mkdtemp(prefix="cutout_"))
@@ -129,7 +144,7 @@ def run(clip: Path, plate: Path, out_dir: Path, *, scale: float, anchor_y: float
             cut = segment(frames, cache)
         print("compositing…", flush=True)
         size = (1920, 1080) if info["w"] >= info["h"] else (1080, 1920)
-        composite(cut, plate, work / "comp", scale=scale, anchor_y=anchor_y, x=x, size=size)
+        composite(cut, plate, work / "comp", scale=scale, hands_y=hands_y, x=x, size=size)
         stem = clip.stem
         webm = out_dir / f"{stem}.cutout.webm"
         mp4 = out_dir / f"{stem}.on-plate.mp4"
@@ -149,12 +164,12 @@ def main() -> None:
     ap.add_argument("clip", type=Path)
     ap.add_argument("plate", type=Path)
     ap.add_argument("out_dir", type=Path)
-    ap.add_argument("--scale", type=float, default=0.78)
-    ap.add_argument("--anchor-y", type=float, default=0.88)
-    ap.add_argument("--x", type=float, default=0.46)
+    ap.add_argument("--scale", type=float, default=0.66)
+    ap.add_argument("--hands-y", type=float, default=0.68)
+    ap.add_argument("--x", type=float, default=0.47)
     ap.add_argument("--keep", action="store_true")
     a = ap.parse_args()
-    print(json.dumps(run(a.clip, a.plate, a.out_dir, scale=a.scale, anchor_y=a.anchor_y, x=a.x, keep=a.keep), indent=2))
+    print(json.dumps(run(a.clip, a.plate, a.out_dir, scale=a.scale, hands_y=a.hands_y, x=a.x, keep=a.keep), indent=2))
 
 
 if __name__ == "__main__":
