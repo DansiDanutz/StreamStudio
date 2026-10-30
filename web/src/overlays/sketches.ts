@@ -7,7 +7,7 @@ export interface Glyph { id: string; x: number; y: number; scale?: number; strok
 export interface Sketch { id: string; glyphs: Glyph[]; keep?: boolean; crossout?: string[] }
 
 const heart: Glyph = {
-  id: 'heart', x: 500, y: 170, label: 'in love with AI', labelDy: 120,
+  id: 'heart', x: 500, y: 170, scale: 1.5, label: 'in love with AI', labelDy: 120,
   strokes: [
     { d: 'M0,20 C-40,-30 -110,10 -60,70 L0,130 L60,70 C110,10 40,-30 0,20 Z' },
     { d: 'M-25,70 L-10,70 L-2,50 L8,90 L16,70 L30,70', delay: 0.8, color: 'warm', width: 2 }, // tiny trace

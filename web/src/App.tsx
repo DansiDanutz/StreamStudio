@@ -6,7 +6,31 @@ import { ScriptPanel } from './director/ScriptPanel'
 import { useDirector } from './director/store'
 import type { Cue } from './director/types'
 
+const RENDER = new URLSearchParams(location.search).get('render') === '1'
+const AUTOPLAY = new URLSearchParams(location.search).get('autoplay') === '1'
+
+/** Output-clean view used by the headless renderer and (later) the live compositor. */
+function RenderView() {
+  useEffect(() => {
+    document.documentElement.classList.add('render-mode')
+    const st = useStage.getState()
+    if (st.guides) st.toggleGuides()
+    ;(window as unknown as { __director: typeof useDirector }).__director = useDirector
+    // Open directly on the first segment's cue (no tween from the editor layout), then play.
+    const d = useDirector.getState()
+    const first = d.script.segments[0]
+    if (first) d.applyCue(first.cue, first.zoom ?? null, 0)
+    if (AUTOPLAY) setTimeout(() => useDirector.getState().play(0), 800)
+  }, [])
+  return <div className="render-root"><Stage /></div>
+}
+
 export default function App() {
+  if (RENDER) return <RenderView />
+  return <Editor />
+}
+
+function Editor() {
   const scenes = useStage((s) => s.scenes)
   const activeId = useStage((s) => s.activeId)
   const scene = useStage((s) => s.active())
