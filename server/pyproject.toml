@@ -2,7 +2,6 @@
 name = "streamstudio"
 version = "0.1.0"
 description = "StreamStudio — local-first AI-assisted YouTube editing studio (API + worker)"
-readme = "../README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
@@ -40,3 +39,4 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]  # Depends() in defaults is the FastAPI idiom

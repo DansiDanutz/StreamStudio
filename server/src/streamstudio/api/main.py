@@ -14,7 +14,11 @@ from ..core.config import Settings, get_settings
 from ..core.netguard import NetGuardMiddleware
 from .routes import jobs, projects, system
 
-WEB_DIST = Path(__file__).resolve().parents[4] / "web" / "dist"
+REPO = Path(__file__).resolve().parents[4]
+WEB_DIST = REPO / "web" / "dist"
+REPO_ASSETS = (
+    REPO / "assets"
+)  # studio plates, avatar clips: served at the web root like Vite's publicDir
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -36,9 +40,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         @app.get("/{path:path}", include_in_schema=False)
         def spa(path: str) -> FileResponse:
-            f = (WEB_DIST / path).resolve()
-            if path and f.is_file() and WEB_DIST in f.parents:
-                return FileResponse(f)
+            for root in (WEB_DIST, REPO_ASSETS):
+                f = (root / path).resolve()
+                if path and f.is_file() and root in f.parents:
+                    return FileResponse(f)
             return FileResponse(WEB_DIST / "index.html")
 
     return app

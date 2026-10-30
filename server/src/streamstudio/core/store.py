@@ -44,7 +44,9 @@ def get_project(conn: sqlite3.Connection, pid: str) -> dict[str, Any] | None:
 
 
 def rename_project(conn: sqlite3.Connection, pid: str, name: str) -> dict[str, Any] | None:
-    conn.execute("UPDATE projects SET name = ?, updated_at = ? WHERE id = ?", (name, now_iso(), pid))
+    conn.execute(
+        "UPDATE projects SET name = ?, updated_at = ? WHERE id = ?", (name, now_iso(), pid)
+    )
     return get_project(conn, pid)
 
 
