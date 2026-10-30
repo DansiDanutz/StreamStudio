@@ -13,7 +13,8 @@ export default function App() {
   const orientation = useStage((s) => s.orientation)
   const guides = useStage((s) => s.guides)
   const selected = useStage((s) => s.selected)
-  const { toggleOrientation, toggleMenu, toggleGuides, setActive, saveAs, deleteScene, loadPreset, toggleLocked, toggleVisible } = useStage.getState()
+  const { toggleOrientation, toggleMenu, toggleGuides, setActive, saveAs, deleteScene, loadPreset, toggleLocked, toggleVisible, toggleCutout } = useStage.getState()
+  const cutout = useStage((s) => s.cutout)
   const [health, setHealth] = useState<string>('…')
   const cue = useDirector((s) => s.cue)
   const live = useDirector((s) => s.live)
@@ -57,6 +58,7 @@ export default function App() {
           <button onClick={toggleOrientation} title="O">{orientation === 'landscape' ? '16:9' : '9:16'}</button>
           <button onClick={toggleMenu} className={scene.menuShown ? 'on' : ''} title="M">Menu {scene.menuShown ? 'shown' : 'transparent'}</button>
           <button onClick={toggleGuides} className={guides ? 'on' : ''} title="G">Guides</button>
+          <button onClick={toggleCutout} className={cutout ? 'on' : ''} title="Presenter cut out of the clip and placed in the studio">Cut-out</button>
         </div>
         <div className="group cuebar" role="group" aria-label="Cue">
           {(['avatar', 'duo', 'split', 'content', 'full'] as Cue[]).map((c) => (

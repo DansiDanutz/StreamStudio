@@ -33,12 +33,16 @@ button, select { font: inherit }
 .bezel-ink { background: radial-gradient(120% 90% at 20% 0%, #0b3a9c, #050a1a 70%) }
 .bezel-teal { background: radial-gradient(60% 55% at 50% 45%, rgba(0,220,190,.22), transparent 70%), #0d1716 }
 .bezel-mono { background: #171717 }
-.plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none }
+.backdrop { position: absolute; inset: 0; opacity: 0; transition: opacity .8s ease; pointer-events: none; z-index: 0 }
+.backdrop.is-on { opacity: 1 }
+.plate { width: 100%; height: 100%; object-fit: cover }
+.starfield { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none }
+.bezel-space, .bezel-studio { background: #07070d }
 .safe { position: absolute; inset: 4em; border: 1px dashed rgba(255,255,255,.22); border-radius: 1em; pointer-events: none; z-index: 50 }
 .base-label { position: absolute; left: 1em; bottom: .8em; font-family: var(--mono); font-size: .9em; color: rgba(255,255,255,.45); pointer-events: none; z-index: 50 }
 
 /* ---- cards ---- */
-.card { position: absolute; overflow: hidden; background: #15131d; border: 1px solid var(--line); box-shadow: 0 2em 6em rgba(0,0,0,.55); cursor: grab; outline: 0 solid transparent; transition: outline-color .12s }
+.card { position: absolute; z-index: 2; overflow: hidden; background: #15131d; border: 1px solid var(--line); box-shadow: 0 2em 6em rgba(0,0,0,.55); cursor: grab; outline: 0 solid transparent; transition: outline-color .12s }
 .card:active { cursor: grabbing }
 .card.is-live { transition: opacity .3s; box-shadow: 0 2em 6em rgba(0,0,0,.65) }
 .card.is-fullframe, .card-avatar.is-fullframe { border: 0; border-radius: 0 !important; box-shadow: none }
@@ -58,6 +62,11 @@ button, select { font: inherit }
 
 .card-avatar { border: .15em solid rgba(255,255,255,.85) }
 .card-avatar .card-body { background: linear-gradient(180deg, #2a2440, #141120) }
+/* cut-out mode: the card is a transparent window onto the plate */
+.card-avatar:has(.is-cutout) { background: transparent; border-color: transparent; box-shadow: none }
+.card-avatar:has(.is-cutout) .card-body { background: transparent }
+.card-avatar.is-selected:has(.is-cutout) { border-color: rgba(255,255,255,.35) }
+.cutout { display: block; max-width: none }
 .avatar-wrap { position: absolute; inset: 0 }
 .avatar-pick { position: absolute; left: .6em; bottom: .5em; width: 2.2em; height: 2.2em; border-radius: 50%; display: grid; place-items: center; background: rgba(0,0,0,.5); color: #fff; cursor: pointer; font-size: 1em; opacity: 0; transition: opacity .15s }
 .card-avatar:hover .avatar-pick { opacity: 1 }

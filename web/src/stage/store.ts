@@ -13,6 +13,8 @@ interface State {
   // sources (object URLs for now; the backend asset library replaces this in S2)
   mainSrc: string | null
   avatarSrc: string | null
+  /** Use the transparent cut-out of the avatar (presenter in the studio) instead of the raw clip. */
+  cutout: boolean
 
   active: () => Scene
   layout: (kind: CardKind) => CardLayout
@@ -30,6 +32,7 @@ interface State {
   setActive: (id: string) => void
   deleteScene: (id: string) => void
   setSource: (kind: 'main' | 'avatar', url: string | null) => void
+  toggleCutout: () => void
 }
 
 const persisted = (): Scene[] | null => {
@@ -68,6 +71,7 @@ export const useStage = create<State>((set, get) => {
     selected: null,
     mainSrc: null,
     avatarSrc: null,
+    cutout: true,
 
     active: () => get().scenes.find((s) => s.id === get().activeId) ?? get().scenes[0],
     layout: (kind) => get().active().layouts[get().orientation][kind],
@@ -128,5 +132,6 @@ export const useStage = create<State>((set, get) => {
         return { scenes, activeId: st.activeId === id ? scenes[0].id : st.activeId }
       }),
     setSource: (kind, url) => set(kind === 'main' ? { mainSrc: url } : { avatarSrc: url }),
+    toggleCutout: () => set((s) => ({ cutout: !s.cutout })),
   }
 })
