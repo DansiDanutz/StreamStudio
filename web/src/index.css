@@ -1,0 +1,80 @@
+/* StreamStudio control room. Inside .base, 1em = 1% of the Base card width, so every
+   card style scales with the output frame (see docs/DESIGN.md for the measurements). */
+:root {
+  --bg: #0c0b10; --panel: #15131d; --fg: #ece9f3; --muted: #8f8aa3; --line: rgba(255,255,255,.1);
+  --accent: #e8674a; --accent-2: #b9a7ff; --ok: #58f0b0;
+  --glass: rgba(18,16,26,.58);
+  --display: 'Manrope', system-ui, sans-serif; --serif: 'Instrument Serif', Georgia, serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+html, body, #root { height: 100% }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--display); font-size: 14px }
+button, select { font: inherit }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr auto }
+.bar { display: flex; align-items: center; gap: 18px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel) }
+.brand { font-weight: 800; letter-spacing: -.02em; font-size: 18px }
+.brand em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--accent-2) }
+.group { display: flex; gap: 6px }
+.bar button, .bar select { background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer }
+.bar button.on { background: var(--fg); color: var(--bg) }
+.bar button:disabled { opacity: .4; cursor: default }
+.status { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted) }
+.hints { padding: 8px 16px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line) }
+.hints b { color: var(--fg); font-family: var(--mono); font-weight: 600 }
+
+/* ---- base card ---- */
+.stage-host { display: grid; place-items: center; padding: 20px; min-height: 0; overflow: hidden }
+.base { position: relative; overflow: hidden; border-radius: 0.8em; box-shadow: 0 30px 80px rgba(0,0,0,.6); background: #000; user-select: none; touch-action: none }
+.bezel-violet { background: radial-gradient(120% 90% at 70% 0%, #3a2370, #120f1a 70%) }
+.bezel-ink { background: radial-gradient(120% 90% at 20% 0%, #0b3a9c, #050a1a 70%) }
+.bezel-teal { background: radial-gradient(60% 55% at 50% 45%, rgba(0,220,190,.22), transparent 70%), #0d1716 }
+.bezel-mono { background: #171717 }
+.plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none }
+.safe { position: absolute; inset: 4em; border: 1px dashed rgba(255,255,255,.22); border-radius: 1em; pointer-events: none; z-index: 50 }
+.base-label { position: absolute; left: 1em; bottom: .8em; font-family: var(--mono); font-size: .9em; color: rgba(255,255,255,.45); pointer-events: none; z-index: 50 }
+
+/* ---- cards ---- */
+.card { position: absolute; overflow: hidden; background: #15131d; border: 1px solid var(--line); box-shadow: 0 2em 6em rgba(0,0,0,.55); cursor: grab; outline: 0 solid transparent; transition: outline-color .12s }
+.card:active { cursor: grabbing }
+.card.is-selected { outline: .25em solid var(--accent-2) }
+.card.is-locked { cursor: default }
+.card-body { position: absolute; inset: 0 }
+.card-tag { position: absolute; left: 0; top: 0; background: var(--accent-2); color: #14102a; font-family: var(--mono); font-size: .9em; padding: .15em .6em; border-bottom-right-radius: .6em; z-index: 5 }
+.handle { position: absolute; width: 1.4em; height: 1.4em; background: var(--fg); border: .15em solid var(--accent-2); border-radius: 50%; z-index: 6; transform: translate(-50%, -50%) }
+.handle-n { left: 50%; top: 0; cursor: ns-resize } .handle-s { left: 50%; top: 100%; cursor: ns-resize }
+.handle-e { left: 100%; top: 50%; cursor: ew-resize } .handle-w { left: 0; top: 50%; cursor: ew-resize }
+.handle-ne { left: 100%; top: 0; cursor: nesw-resize } .handle-sw { left: 0; top: 100%; cursor: nesw-resize }
+.handle-nw { left: 0; top: 0; cursor: nwse-resize } .handle-se { left: 100%; top: 100%; cursor: nwse-resize }
+.fill { width: 100%; height: 100%; display: block; object-fit: contain; background: #000 }
+.fill.cover { object-fit: cover }
+
+.card-avatar { border: .15em solid rgba(255,255,255,.85) }
+.card-avatar .card-body { background: linear-gradient(180deg, #2a2440, #141120) }
+.avatar-wrap { position: absolute; inset: 0 }
+.avatar-pick { position: absolute; left: .6em; bottom: .5em; width: 2.2em; height: 2.2em; border-radius: 50%; display: grid; place-items: center; background: rgba(0,0,0,.5); color: #fff; cursor: pointer; font-size: 1em; opacity: 0; transition: opacity .15s }
+.card-avatar:hover .avatar-pick { opacity: 1 }
+.lipsync { position: absolute; right: .8em; top: .8em; display: flex; gap: .25em; align-items: end; height: 1.6em }
+.lipsync i { width: .35em; background: var(--ok); border-radius: .2em; animation: bar 1s ease-in-out infinite }
+.lipsync i:nth-child(2) { animation-delay: .2s } .lipsync i:nth-child(3) { animation-delay: .4s } .lipsync i:nth-child(4) { animation-delay: .1s }
+@keyframes bar { 0%, 100% { height: 30% } 50% { height: 100% } }
+
+.drop { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: .6em; padding: 2em; cursor: pointer; background: repeating-linear-gradient(45deg, #15131d 0 1.2em, #19172300 1.2em 2.4em) }
+.drop-title { font-size: 2em; font-weight: 800 } .drop-sub { font-size: 1.1em; color: var(--muted); max-width: 32em }
+
+/* menu card: ghost when transparent in output, glass when shown */
+.card-menu { background: transparent; border: 0; box-shadow: none }
+.card-ghost { border: .12em dashed rgba(255,255,255,.35) }
+.card-ghost .menu { opacity: .45 }
+.menu { position: absolute; inset: 0; padding: 1.1em; display: grid; gap: .8em; align-content: start; font-size: 1.05em; color: var(--fg) }
+.menu-on { background: var(--glass); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,.14) }
+.menu .lbl { font-family: var(--mono); font-size: .8em; letter-spacing: .18em; text-transform: uppercase; color: var(--muted) }
+.menu .segs { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.5em, 1fr)); gap: .4em }
+.menu .segs.two { grid-template-columns: 1fr 1fr }
+.menu .segs button { border: 0; border-radius: .6em; padding: .5em 0; background: rgba(255,255,255,.08); color: var(--fg); cursor: pointer; font-size: .95em }
+.menu .segs button.on { background: var(--fg); color: var(--bg); font-weight: 800 }
+.menu .rec { display: flex; justify-content: space-between; align-items: center; padding: .5em .7em; border-radius: .6em; background: rgba(232,103,74,.18); color: #ffb3a3; font-weight: 800 }
+.menu .rec::before { content: ""; width: .8em; height: .8em; border-radius: 50%; background: var(--accent); box-shadow: 0 0 .8em var(--accent) }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }

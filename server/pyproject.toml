@@ -1,0 +1,42 @@
+[project]
+name = "streamstudio"
+version = "0.1.0"
+description = "StreamStudio — local-first AI-assisted YouTube editing studio (API + worker)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+]
+
+[project.scripts]
+streamstudio-api = "streamstudio.api.main:run"
+streamstudio-worker = "streamstudio.worker.main:run"
+streamstudio-schema = "streamstudio.edl.export:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/streamstudio"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]  # Depends() in defaults is the FastAPI idiom
