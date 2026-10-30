@@ -25,3 +25,7 @@ Same prompts at 9:16 (`--ar 9:16`), plus: "vertical composition, the shelf with 
 - 4 generations each; judge on centre clearance, teal match with the avatar clips, sign legibility.
 - Export ≥ 3840×2160 (upscale if needed) for the click-zoom effect.
 - Winners (landscape + portrait) → `assets/studio/`. A 10 s "living plate" (LED flicker, moving charts) is made from the still later.
+
+## Round 1 result (2026-10-30)
+GPT Image won (assets/studio/plate-landscape-v1-gpt.png, 1680×945). Gemini: good brands, bad composition (corner, no desk centre). Midjourney: rejected.
+v2 fixes: desk only in bottom third, camera at seated chest height, Fake-Real monitor fully right of centre, 4K.
