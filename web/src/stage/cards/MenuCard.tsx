@@ -18,7 +18,7 @@ export function MenuCard() {
     <div className={`menu ${scene.menuShown ? 'menu-on' : 'menu-ghost'}`} onPointerDown={stop}>
       <div className="lbl">Cue</div>
       <div className="segs">
-        {(['avatar', 'split', 'content', 'full'] as Cue[]).map((c) => (
+        {(['avatar', 'duo', 'split', 'content', 'full'] as Cue[]).map((c) => (
           <button key={c} className={cue === c ? 'on' : ''} onClick={() => applyCue(c)}>{c}</button>
         ))}
       </div>

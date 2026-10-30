@@ -52,7 +52,7 @@ export function Card({ kind, baseW, baseH, className = '', children }: Props) {
   if (!layout.visible) return null
   return (
     <div
-      className={`card card-${kind} ${selected ? 'is-selected' : ''} ${layout.locked ? 'is-locked' : ''} ${live ? 'is-live' : ''} ${className}`}
+      className={`card card-${kind} ${selected ? 'is-selected' : ''} ${layout.locked ? 'is-locked' : ''} ${live ? 'is-live' : ''} ${layout.w >= 0.999 && layout.h >= 0.999 ? 'is-fullframe' : ''} ${className}`}
       style={{
         left: `${layout.x * 100}%`, top: `${layout.y * 100}%`,
         width: `${layout.w * 100}%`, height: `${layout.h * 100}%`,

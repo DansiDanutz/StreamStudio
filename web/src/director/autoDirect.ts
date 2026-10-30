@@ -49,7 +49,7 @@ export interface Proposal {
 }
 
 export function propose(text: string, index: number, total: number): Proposal {
-  const score: Record<Cue, number> = { avatar: 0, split: 0.5, content: 0, full: 0 }
+  const score: Record<Cue, number> = { avatar: 0, duo: 0, split: 0.5, content: 0, full: 0 }
   const reasons: string[] = []
   for (const r of RULES) {
     if (r.test.test(text)) {
@@ -61,7 +61,9 @@ export function propose(text: string, index: number, total: number): Proposal {
   if (index === 0) { score.avatar += 2; reasons.push('opening') }
   if (index === total - 1 && total > 1) { score.avatar += 2; reasons.push('closing') }
 
-  const cue = (Object.keys(score) as Cue[]).reduce((a, b) => (score[b] > score[a] ? b : a))
+  let cue = (Object.keys(score) as Cue[]).reduce((a, b) => (score[b] > score[a] ? b : a))
+  // Presenter segments: clean full-frame when nothing on screen is referenced, otherwise keep a small content window.
+  if (cue === 'avatar' && reasons.some((r) => r === 'demo' || r === 'look' || r === 'walkthrough')) cue = 'duo'
   let zoom: Zoom | undefined
   if (cue === 'content' && reasons.includes('detail')) {
     zoom = ZOOM_HINTS.find((z) => z.test.test(text))?.zoom ?? { x: 0.5, y: 0.5, scale: 1.5 }

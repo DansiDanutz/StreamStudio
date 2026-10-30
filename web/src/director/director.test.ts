@@ -5,9 +5,12 @@ import { PRESETS } from '../stage/presets'
 import { estimateMs, newSegment } from './types'
 
 describe('auto-direct rules', () => {
-  it('opens and closes on the presenter', () => {
+  it('opens and closes on the presenter, full frame', () => {
     expect(propose("Welcome to Dan's Lab. I'm Dan.", 0, 5).cue).toBe('avatar')
     expect(propose('If this is useful, subscribe.', 4, 5).cue).toBe('avatar')
+  })
+  it('presenter segments that mention the screen keep a small content window (duo)', () => {
+    expect(propose('Welcome back. Today we look at the new dashboard.', 0, 5).cue).toBe('duo')
   })
   it('points at the screen → content', () => {
     expect(propose('Look at the dashboard on the screen: this is the merchant view.', 1, 5).cue).toBe('content')
@@ -55,6 +58,14 @@ describe('cue layouts', () => {
     const f = layoutForCue('full', saved, 'landscape')
     expect(f.main).toMatchObject({ x: 0, y: 0, w: 1, h: 1 })
     expect(f.avatar.visible).toBe(false)
+  })
+  it('avatar is full frame with no content; duo keeps a small content window', () => {
+    const a = layoutForCue('avatar', saved, 'landscape')
+    expect(a.avatar).toMatchObject({ x: 0, y: 0, w: 1, h: 1, radius: 0 })
+    expect(a.main.visible).toBe(false)
+    const d = layoutForCue('duo', saved, 'landscape')
+    expect(d.main.visible).toBe(true)
+    expect(d.main.w).toBeLessThan(0.5)
   })
   it('never mutates the saved layout', () => {
     const before = JSON.stringify(saved)

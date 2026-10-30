@@ -16,6 +16,12 @@ export function layoutForCue(cue: Cue, saved: Layouts, orientation: Orientation)
     case 'split':
       return L
     case 'avatar': {
+      // Presenter fills the frame with no card chrome (the aiTrends look). Content hidden.
+      L.avatar = { ...L.avatar, visible: true, x: 0, y: 0, w: 1, h: 1, z: 1, radius: 0 }
+      L.main = { ...L.main, visible: false }
+      return L
+    }
+    case 'duo': {
       // Presenter large and centred-left; content shrinks to a small window top-right.
       L.avatar = { ...L.avatar, visible: true, x: land ? 0.08 : 0.05, y: land ? 0.1 : 0.12, w: land ? 0.42 : 0.9, h: land ? 0.86 : 0.6, z: 2 }
       L.main = { ...L.main, visible: true, x: land ? 0.58 : 0.3, y: land ? 0.1 : 0.74, w: land ? 0.36 : 0.65, h: land ? 0.36 : 0.2, z: 1 }
