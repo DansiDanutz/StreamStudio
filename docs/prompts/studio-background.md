@@ -29,3 +29,7 @@ Same prompts at 9:16 (`--ar 9:16`), plus: "vertical composition, the shelf with 
 ## Round 1 result (2026-10-30)
 GPT Image won (assets/studio/plate-landscape-v1-gpt.png, 1680×945). Gemini: good brands, bad composition (corner, no desk centre). Midjourney: rejected.
 v2 fixes: desk only in bottom third, camera at seated chest height, Fake-Real monitor fully right of centre, 4K.
+
+## Round 2 result
+Chosen: assets/studio/plate-landscape-v2-final.png (frontal, desk bottom third, monitors fully right, clear centre).
+Backup: plate-landscape-v2-alt.png. Still 1680×945 → needs a 4K upscale before use. Portrait plate still to generate.
