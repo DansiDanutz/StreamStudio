@@ -5,7 +5,8 @@ import type { Cue } from './types'
 import { tagUrl } from '../stage/media'
 
 const CUES: { id: Cue; label: string; hint: string }[] = [
-  { id: 'avatar', label: 'Avatar', hint: 'You, large. Content small.' },
+  { id: 'avatar', label: 'Avatar', hint: 'You fill the frame. No card, no content.' },
+  { id: 'duo', label: 'Duo', hint: 'You large, content small.' },
   { id: 'split', label: 'Split', hint: 'The scene as you laid it out.' },
   { id: 'content', label: 'Content', hint: 'Content maximized, you minimized.' },
   { id: 'full', label: 'Full', hint: 'Content fills the frame, you hidden.' },

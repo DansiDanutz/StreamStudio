@@ -33,7 +33,7 @@ export default function App() {
       if (k === 'l' && selected) toggleLocked(selected)
       if (k === 'h' && selected) toggleVisible(selected)
       if (/^[1-6]$/.test(k)) loadPreset(PRESETS[Number(k) - 1].id)
-      const cues: Record<string, Cue> = { a: 'avatar', s: 'split', c: 'content', f: 'full' }
+      const cues: Record<string, Cue> = { a: 'avatar', d: 'duo', s: 'split', c: 'content', f: 'full' }
       if (cues[k]) applyCue(cues[k])
       if (k === 'escape') stop()
       if (k === 'z') applyCue('content', { x: 0.5, y: 0.5, scale: 1.6 })
@@ -59,7 +59,7 @@ export default function App() {
           <button onClick={toggleGuides} className={guides ? 'on' : ''} title="G">Guides</button>
         </div>
         <div className="group cuebar" role="group" aria-label="Cue">
-          {(['avatar', 'split', 'content', 'full'] as Cue[]).map((c) => (
+          {(['avatar', 'duo', 'split', 'content', 'full'] as Cue[]).map((c) => (
             <button key={c} className={live && cue === c ? 'on' : ''} onClick={() => applyCue(c)} title={c[0].toUpperCase()}>{c}</button>
           ))}
           {live && <button onClick={stop} title="Esc">reset</button>}
@@ -71,7 +71,7 @@ export default function App() {
         <ScriptPanel />
       </main>
       <footer className="hints">
-        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–6</b> presets · cues <b>A</b> avatar <b>S</b> split <b>C</b> content <b>F</b> full <b>Z</b> zoom <b>Esc</b> reset
+        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–6</b> presets · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>Z</b> zoom <b>Esc</b> reset
       </footer>
     </div>
   )

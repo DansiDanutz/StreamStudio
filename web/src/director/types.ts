@@ -1,7 +1,9 @@
 /** Director model. The script is the master clock: each segment carries the voice (avatar clip),
  *  the visual (Main-card source), and a cue that decides the layout and zoom. */
 
-export type Cue = 'avatar' | 'split' | 'content' | 'full'
+/** avatar = presenter fills the frame, no card chrome; duo = presenter large + small content;
+ *  split = the saved scene layout; content = content maximized, presenter small; full = content only. */
+export type Cue = 'avatar' | 'duo' | 'split' | 'content' | 'full'
 
 export interface Zoom {
   /** Centre of the zoom in fractions of the Main card (0..1). */

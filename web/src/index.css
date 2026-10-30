@@ -41,6 +41,8 @@ button, select { font: inherit }
 .card { position: absolute; overflow: hidden; background: #15131d; border: 1px solid var(--line); box-shadow: 0 2em 6em rgba(0,0,0,.55); cursor: grab; outline: 0 solid transparent; transition: outline-color .12s }
 .card:active { cursor: grabbing }
 .card.is-live { transition: opacity .3s; box-shadow: 0 2em 6em rgba(0,0,0,.65) }
+.card.is-fullframe, .card-avatar.is-fullframe { border: 0; border-radius: 0 !important; box-shadow: none }
+.card-avatar.is-fullframe .lipsync { right: 2em; top: 2em }
 .zoom { position: absolute; inset: 0; transition: transform .6s cubic-bezier(.65,0,.35,1), transform-origin .6s cubic-bezier(.65,0,.35,1); will-change: transform }
 .card.is-selected { outline: .25em solid var(--accent-2) }
 .card.is-locked { cursor: default }
