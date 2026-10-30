@@ -33,3 +33,9 @@ v2 fixes: desk only in bottom third, camera at seated chest height, Fake-Real mo
 ## Round 2 result
 Chosen by Dan: assets/studio/plate-landscape-final.png (diagonal depth version). Frontal alternates kept as plate-landscape-v2-frontal.png / -alt.png.
 Composite note: desk is tall (bottom ~35%), so the avatar is placed lower and scaled so the hands meet the near desk edge. Still 1680×945 → needs a 4K upscale before use. Portrait plate still to generate.
+
+## Rule (Dan, 2026-10-30)
+Always the **3D studio view**: a real room with depth, camera looking diagonally into the set, desk receding
+in perspective (like `plate-landscape-final.png`). Never the flat, frontal "wall + desk" composition. The frontal
+alternates were removed from `assets/`. Every future plate (portrait, variants, living plate) must keep this
+perspective, and the portrait plate should be generated with the final landscape plate attached as reference.
