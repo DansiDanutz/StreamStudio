@@ -18,4 +18,4 @@ Production: `make build` then `make api`; FastAPI serves the built UI and `/asse
 Config via env (`STREAMSTUDIO_*`): `DATA_DIR`, `IMPORT_ROOTS`, `PORT`, `ALLOW_TAILNET`.
 
 ## Status
-S0 Foundation and S1 Stage & cards are in. Next: S2 Main-card sources (screen/tab share, URL, camera).
+S0 Foundation, S1 Stage & cards and the first S3 Director (script → cues → layout, zoom, auto-direct) are in. Next: S2 Main-card sources (screen/tab share, URL, camera) and avatar clips per segment.

@@ -1,5 +1,7 @@
 import { PRESETS } from '../presets'
 import { useStage } from '../store'
+import { useDirector } from '../../director/store'
+import type { Cue } from '../../director/types'
 
 /** Menu card: controls the stage. Transparent in the output by default (ghost outline in the editor);
  *  when `menuShown` is on it is drawn into the output with the glass skin. */
@@ -9,9 +11,17 @@ export function MenuCard() {
   const { setOrientation, loadPreset, toggleMenu, toggleVisible } = useStage.getState()
   const avatarVisible = useStage((s) => s.active().layouts[s.orientation].avatar.visible)
   const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+  const cue = useDirector((s) => s.cue)
+  const applyCue = useDirector((s) => s.applyCue)
 
   return (
     <div className={`menu ${scene.menuShown ? 'menu-on' : 'menu-ghost'}`} onPointerDown={stop}>
+      <div className="lbl">Cue</div>
+      <div className="segs">
+        {(['avatar', 'split', 'content', 'full'] as Cue[]).map((c) => (
+          <button key={c} className={cue === c ? 'on' : ''} onClick={() => applyCue(c)}>{c}</button>
+        ))}
+      </div>
       <div className="lbl">Scene</div>
       <div className="segs">
         {PRESETS.map((p) => (

@@ -67,7 +67,10 @@ Base card with a landscape/portrait toggle, margins and safe-area guides, and a 
 **S2 — Main card sources**
 Screen, window and tab share; camera; video and image files; web page URL (headless Chromium on the Mac). Live source switching, crop/fit/fill, and rounded corners and borders.
 
-**S3 — Menu card**
+**S3 — Director (script-driven stage)** ← the core
+The script is the master clock. It is split into segments; each segment carries the spoken text, its avatar clip (voice), the visual to show in the Main card, and a **cue**: `avatar` (presenter full), `split` (presenter + content), `content` (content maximized, presenter minimized), `full` (content fills the frame, presenter hidden), with an optional **zoom** target inside the Main card. **Auto-direct** proposes the cues from the text (rules first, Ollama later): talking to the audience → avatar; "look at this / on screen / here" → content; "this button / in the corner" → zoom; intro and outro → avatar full. Playback tweens the cards between layouts, switches and zooms the Main source, and plays the avatar clip with its audio as the voice; a segment ends when its clip ends, so image, voice and layout never drift. Dan can override any cue live, and the Menu card exposes the same cues as buttons and hotkeys.
+
+**S3b — Menu card**
 Transparent by default, with a toggle to show it in the output (button and hotkey, with fade). Submenus control sources, scenes, orientation, avatar, record and live, and mic. The menu's look when it is visible is styled to match the brand.
 
 **S4 — Avatar card**
