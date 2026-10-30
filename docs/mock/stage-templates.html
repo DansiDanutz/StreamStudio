@@ -1,0 +1,231 @@
+<title>StreamStudio Stage Templates</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a dark control room. Each template is a 16:9 (or 9:16) Base card rendered at output proportions. */
+:root{
+  --bg:#0c0b10; --fg:#ece9f3; --muted:#8f8aa3;
+  --bezel-a:#3a2370; --bezel-b:#120f1a;
+  --card:#15131d; --line:rgba(255,255,255,.1);
+  --accent:#e8674a; --accent-2:#b9a7ff;
+  --glass:rgba(18,16,26,.58);
+  --display:'Manrope',system-ui,sans-serif; --serif:'Instrument Serif',Georgia,serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--display);padding-block:28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:28px}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:end;justify-content:space-between}
+h1{font-size:clamp(26px,3.4vw,40px);margin:0;letter-spacing:-.02em;font-weight:800;text-wrap:balance}
+h1 em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--accent-2)}
+.sub{color:var(--muted);max-width:60ch;margin:6px 0 0;line-height:1.5}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-family:var(--mono);font-size:12px}
+.seg button{background:transparent;color:var(--muted);border:0;padding:8px 12px;cursor:pointer;font:inherit}
+.seg button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+.seg button:focus-visible{outline:2px solid var(--accent-2);outline-offset:-2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:22px}
+.tpl{display:grid;gap:10px;min-width:0}
+.tpl h2{font-size:14px;margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.tpl h2 small{font-family:var(--mono);font-weight:400;color:var(--muted);font-size:11px}
+.tpl p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+
+/* ---- BASE CARD ---- */
+.base{position:relative;width:100%;max-width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:radial-gradient(120% 90% at 70% 0%,var(--bezel-a),var(--bezel-b) 70%);container-type:inline-size;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.base::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:5cqw 5cqw;pointer-events:none}
+.portrait .base{aspect-ratio:9/16;max-width:360px;margin:0 auto}
+.base.teal{background:radial-gradient(60% 55% at 50% 45%,rgba(0,220,190,.22),transparent 70%),#0d1716}
+.base.ink{background:radial-gradient(120% 90% at 20% 0%,#0b3a9c,#050a1a 70%)}
+.base.mono{background:#171717}.base.mono::before{display:none}
+.safe{position:absolute;inset:4cqw;border:1px dashed rgba(255,255,255,.14);border-radius:1cqw;pointer-events:none}
+
+/* ---- MAIN CARD ---- */
+.main{position:absolute;left:3cqw;top:3cqw;right:3cqw;bottom:3cqw;border-radius:1.2cqw;background:var(--card);border:1px solid var(--line);box-shadow:0 2cqw 6cqw rgba(0,0,0,.55);overflow:hidden}
+.main.side{left:24cqw}
+.main.full{inset:0;border-radius:0;border:0;box-shadow:none}
+.portrait .main{left:4cqw;right:4cqw;top:4cqw;bottom:34cqw}
+.portrait .main.side{left:4cqw}
+.chrome{height:3.2cqw;display:flex;align-items:center;gap:.6cqw;padding:0 1.2cqw;border-bottom:1px solid var(--line);background:#1b1826}
+.chrome i{width:1cqw;height:1cqw;border-radius:50%;background:#3a3550;display:block}
+.chrome b{margin-left:1cqw;flex:1;height:1.6cqw;border-radius:.8cqw;background:#262238}
+.fake{padding:2cqw;display:grid;gap:1.2cqw;font-size:1.2cqw}
+.fake .row{height:1.4cqw;border-radius:.7cqw;background:#2a2639}
+.fake .row.w{width:62%}.fake .row.n{width:38%}
+.fake .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:1cqw}
+.fake .tiles div{aspect-ratio:4/3;border-radius:.8cqw;background:linear-gradient(135deg,#2c2745,#1d1a2a)}
+.graph{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,rgba(185,167,255,.25),transparent 30%),radial-gradient(circle at 35% 45%,rgba(232,103,74,.25),transparent 22%),radial-gradient(circle at 65% 40%,rgba(80,200,255,.22),transparent 20%),#0a0a0f}
+.graph::after{content:"";position:absolute;inset:18%;border:1px solid rgba(255,255,255,.12);border-radius:50%}
+
+/* ---- AVATAR CARD ---- */
+.avatar{position:absolute;left:5cqw;bottom:6cqw;width:16cqw;aspect-ratio:4/5;border-radius:1.4cqw;overflow:hidden;background:linear-gradient(180deg,#2a2440,#141120);border:.15cqw solid rgba(255,255,255,.85);box-shadow:0 1.5cqw 4cqw rgba(0,0,0,.6)}
+.avatar.side{left:2cqw;width:20cqw;top:50%;bottom:auto;transform:translateY(-50%)}
+.avatar.full{inset:0;width:auto;aspect-ratio:auto;border-radius:0;border:0;background:radial-gradient(70% 60% at 50% 40%,#4a2b2b,#140b0b 80%)}
+.portrait .avatar{left:4cqw;bottom:4cqw;width:40cqw;aspect-ratio:4/5}
+.portrait .avatar.full{inset:0;width:auto}
+/* a neutral person silhouette, drawn in CSS so no real face is needed */
+.person{position:absolute;left:50%;bottom:0;width:70%;aspect-ratio:1;transform:translateX(-50%)}
+.person::before{content:"";position:absolute;left:50%;top:8%;width:38%;aspect-ratio:1;border-radius:50%;background:#d8c2b0;transform:translateX(-50%)}
+.person::after{content:"";position:absolute;left:50%;bottom:-20%;width:90%;aspect-ratio:1;border-radius:50% 50% 0 0;background:#e8674a;transform:translateX(-50%)}
+.avatar.full .person{width:38%;bottom:0}
+.lipsync{position:absolute;right:.8cqw;top:.8cqw;display:flex;gap:.25cqw;align-items:end;height:1.6cqw}
+.lipsync i{width:.35cqw;background:#58f0b0;border-radius:.2cqw;animation:bar 1s ease-in-out infinite}
+.lipsync i:nth-child(2){animation-delay:.2s}.lipsync i:nth-child(3){animation-delay:.4s}.lipsync i:nth-child(4){animation-delay:.1s}
+@keyframes bar{0%,100%{height:30%}50%{height:100%}}
+
+/* ---- MENU CARD ---- */
+.menu{position:absolute;right:4cqw;top:4cqw;width:19cqw;border-radius:1.1cqw;background:var(--glass);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.14);padding:1.1cqw;display:grid;gap:.9cqw;font-size:1.05cqw;transition:opacity .35s ease;z-index:3}
+.portrait .menu{right:4cqw;bottom:4cqw;top:auto;width:46cqw}
+.menu-off .menu{opacity:0}
+.menu-off .menu.ghost{opacity:1;background:transparent;backdrop-filter:none;border:1px dashed rgba(255,255,255,.28)}
+.menu-off .menu.ghost > *{opacity:.35}
+.menu .lbl{font-family:var(--mono);font-size:.8cqw;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.menu .segs{display:grid;grid-template-columns:repeat(3,1fr);gap:.4cqw}
+.menu .segs span{text-align:center;padding:.5cqw 0;border-radius:.6cqw;background:rgba(255,255,255,.08)}
+.menu .segs span.on{background:var(--fg);color:var(--bg);font-weight:800}
+.menu .sl{height:.35cqw;border-radius:1cqw;background:rgba(255,255,255,.15);position:relative}
+.menu .sl::after{content:"";position:absolute;left:62%;top:50%;width:1.1cqw;height:1.1cqw;border-radius:50%;background:var(--accent);transform:translate(-50%,-50%)}
+.menu .rec{display:flex;justify-content:space-between;align-items:center;padding:.5cqw .7cqw;border-radius:.6cqw;background:rgba(232,103,74,.18);color:#ffb3a3;font-weight:800}
+.menu .rec::before{content:"";width:.8cqw;height:.8cqw;border-radius:50%;background:var(--accent);box-shadow:0 0 .8cqw var(--accent)}
+
+/* ---- OVERLAYS ---- */
+.glass{position:absolute;background:var(--glass);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.14);border-radius:1.2cqw;padding:1.2cqw 1.5cqw;font-size:1.9cqw;line-height:1.5;z-index:2}
+.glass .eyebrow{font-size:.95cqw;color:#f3c27a;margin-bottom:.4cqw;font-weight:600}
+.pill{position:absolute;padding:.7cqw 1.3cqw;border-radius:99cqw;background:var(--accent);color:#fff;font-weight:800;font-size:1.3cqw;box-shadow:0 .6cqw 2cqw rgba(0,0,0,.4);z-index:2}
+.phone{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24cqw;aspect-ratio:9/19;border-radius:3.4cqw;background:#0a0a0a;border:.6cqw solid #1f1f1f;box-shadow:0 0 6cqw rgba(0,220,190,.25),0 3cqw 6cqw rgba(0,0,0,.6);overflow:hidden}
+.phone .scr{position:absolute;inset:0;background:#0f1a1a}
+.phone .note{position:absolute;left:8%;right:8%;top:22%;background:#fff;color:#111;border-radius:1cqw;padding:1cqw;font-size:1.05cqw;line-height:1.35}
+.phone .note b{display:block;font-size:.9cqw;margin-bottom:.4cqw}
+.phone.tilt{left:20cqw;top:52%;width:17cqw;transform:translate(-50%,-50%) perspective(60cqw) rotateY(14deg);box-shadow:0 3cqw 6cqw rgba(0,0,0,.6)}
+.portrait .phone.tilt{left:50%;top:40%;width:50cqw}
+.callout{position:absolute;left:6cqw;top:10cqw;z-index:2;font-size:1.3cqw}
+.callout .chip{background:#f4efe6;color:#1a1a1a;border-radius:1cqw;padding:.8cqw 1.4cqw;display:flex;gap:.8cqw;align-items:center;box-shadow:0 1cqw 3cqw rgba(0,0,0,.4)}
+.callout .chip i{width:2.2cqw;height:2.2cqw;border-radius:50%;background:#7b9ad0;display:block}
+.callout .line{width:.2cqw;height:6cqw;margin-left:6cqw;background:linear-gradient(#5eead4,transparent);box-shadow:0 0 1cqw #5eead4}
+.callout .tag{background:#0f766e;color:#fff;border-radius:.8cqw;padding:.8cqw 1.2cqw;font-weight:800;display:inline-block}
+.mascot{position:absolute;right:-3cqw;bottom:10cqw;width:12cqw;aspect-ratio:1;border-radius:50% 50% 45% 45%;background:radial-gradient(circle at 35% 35%,#8fb4ff,#3159d6 70%);box-shadow:0 2cqw 4cqw rgba(0,0,0,.5);animation:peek 3s ease-in-out infinite}
+@keyframes peek{0%,100%{transform:translateX(2cqw)}50%{transform:translateX(0)}}
+
+/* ---- SLIDE ---- */
+.slide{position:absolute;inset:0;padding:5cqw 6cqw;display:grid;grid-template-rows:auto auto 1fr;gap:1.6cqw}
+.slide .eb{display:flex;justify-content:space-between;font-family:var(--mono);font-size:1cqw;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.slide .eb span:last-child{color:var(--muted)}
+.slide h3{margin:0;font-size:5.2cqw;letter-spacing:-.03em;line-height:1.05;font-weight:800}
+.slide h3 em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--accent-2)}
+.slide .media{margin-left:22cqw;border-radius:1cqw;border:1px solid var(--line);background:var(--card);overflow:hidden;align-self:start;max-height:100%}
+.slide .cards{margin-left:22cqw;display:grid;grid-template-columns:1fr 1fr;gap:1cqw;align-self:start}
+.slide .cards div{border:1px solid var(--line);border-radius:.9cqw;background:rgba(255,255,255,.04);padding:1cqw;font-size:1.3cqw;display:flex;gap:.8cqw;align-items:center}
+.slide .cards b{width:2cqw;height:2cqw;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-size:1cqw;flex:none;font-family:var(--mono)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>StreamStudio <em>stage templates</em></h1>
+      <p class="sub">Seven Base-card presets reverse-engineered from the reference frames. Each one is the same four cards: Base, Main, Avatar, Menu. Flip orientation and toggle the Menu to see how the output changes.</p>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Orientation">
+        <button id="o-land" aria-pressed="true">16:9 Landscape</button><button id="o-port" aria-pressed="false">9:16 Portrait</button>
+      </div>
+      <div class="seg" role="group" aria-label="Menu card in output">
+        <button id="m-off" aria-pressed="true">Menu: transparent</button><button id="m-on" aria-pressed="false">Menu: shown</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid" id="stage">
+
+    <section class="tpl">
+      <h2>Browser + Cam <small>ref 4 · 13</small></h2>
+      <div class="base">
+        <div class="safe"></div>
+        <div class="main"><div class="chrome"><i></i><i></i><i></i><b></b></div><div class="fake"><div class="row w"></div><div class="row n"></div><div class="tiles"><div></div><div></div><div></div></div><div class="row"></div><div class="row w"></div></div></div>
+        <div class="avatar"><div class="person"></div><div class="lipsync"><i></i><i></i><i></i><i></i></div></div>
+        <div class="menu ghost"><div class="lbl">Source</div><div class="segs"><span class="on">Tab</span><span>File</span><span>URL</span></div><div class="lbl">Scene</div><div class="segs"><span>Slide</span><span class="on">Browser</span><span>Raw</span></div><div class="lbl">Zoom on click</div><div class="sl"></div><div class="rec">REC 12:04<span>LIVE</span></div></div>
+      </div>
+      <p>Bezel, content card with 3% padding, presenter card 16% wide bottom-left. Click-zoom on the content card.</p>
+    </section>
+
+    <section class="tpl">
+      <h2>Slide <small>ref 6 · 10 · 16</small></h2>
+      <div class="base">
+        <div class="slide">
+          <div class="eb"><span>02 / the plan</span><span>2 / 29</span></div>
+          <h3>Four cards, <em>one stage.</em></h3>
+          <div class="cards"><div><b>1</b>Base card is the frame</div><div><b>2</b>Main card captures</div><div><b>3</b>Avatar talks</div><div><b>4</b>Menu controls</div></div>
+        </div>
+        <div class="avatar"><div class="person"></div><div class="lipsync"><i></i><i></i><i></i><i></i></div></div>
+        <div class="menu ghost"><div class="lbl">Deck</div><div class="segs"><span>◀</span><span class="on">2/29</span><span>▶</span></div><div class="lbl">Theme</div><div class="segs"><span class="on">Violet</span><span>Ink</span><span>Teal</span></div><div class="rec">REC 12:04<span>LIVE</span></div></div>
+      </div>
+      <p>Built-in slide renderer: mono eyebrow + counter, 800-weight headline with one serif-italic accent, cards or media on the right of the presenter.</p>
+    </section>
+
+    <section class="tpl">
+      <h2>App + Menu shown <small>ref 9</small></h2>
+      <div class="base">
+        <div class="main"><div class="graph"></div></div>
+        <div class="avatar"><div class="person"></div><div class="lipsync"><i></i><i></i><i></i><i></i></div></div>
+        <div class="menu force"><div class="lbl">Layout</div><div class="segs"><span>Force</span><span>Hex</span><span class="on">Rings</span></div><div class="lbl">Link springs</div><div class="sl"></div><div class="lbl">Node size</div><div class="sl"></div><div class="segs"><span>Expand</span><span>Collapse</span><span class="on">Bake</span></div></div>
+      </div>
+      <p>The Menu card toggled ON on purpose, as a visible on-screen panel while walking through options. Same card as the transparent one, just drawn into the output.</p>
+    </section>
+
+    <section class="tpl">
+      <h2>Avatar stage <small>ref 8 · 12 · 15</small></h2>
+      <div class="base" style="background:radial-gradient(70% 60% at 50% 40%,#4a2b2b,#140b0b 80%)">
+        <div class="avatar full"><div class="person"></div><div class="lipsync"><i></i><i></i><i></i><i></i></div></div>
+        <div class="glass" style="right:6cqw;top:12cqw;width:34cqw"><div class="eyebrow">Everything you need</div>+ Story script<br>+ Voiceover<br>+ Visuals<br>+ Final cut</div>
+        <div class="pill" style="right:6cqw;bottom:14cqw">⏱ 6 tools · hours of work</div>
+        <div class="menu ghost"><div class="lbl">Avatar</div><div class="segs"><span>Cam</span><span class="on">2D</span><span>VRM</span></div><div class="lbl">Overlay</div><div class="segs"><span class="on">List</span><span>Thumbs</span><span>Icons</span></div><div class="rec">REC 12:04<span>LIVE</span></div></div>
+      </div>
+      <p>Avatar fills the Base card; glass list types in line by line, stat pill pops. Mic drives the mouth (bars top-right).</p>
+    </section>
+
+    <section class="tpl">
+      <h2>Device <small>ref 1 · 3 · 11</small></h2>
+      <div class="base teal">
+        <div class="phone"><div class="scr"></div><div class="note"><b>Transcribing voice note…</b>Just did the concrete pour for the east section. Weather was good. No issues.</div></div>
+        <div class="menu ghost"><div class="lbl">Device</div><div class="segs"><span class="on">iPhone</span><span>Mac</span><span>None</span></div><div class="lbl">Screen feed</div><div class="segs"><span>Tab</span><span class="on">File</span><span>Mirror</span></div><div class="rec">REC 12:04<span>LIVE</span></div></div>
+      </div>
+      <p>Phone frame centred on a teal glow; the screen is fed by a file, a tab, or iPhone mirroring. Portrait content in landscape without black bars.</p>
+    </section>
+
+    <section class="tpl">
+      <h2>Cam + callouts <small>ref 11 · 14</small></h2>
+      <div class="base ink">
+        <div class="avatar full" style="background:radial-gradient(70% 60% at 60% 40%,#2b3a4a,#0b1420 80%)"><div class="person"></div></div>
+        <div class="phone tilt"><div class="scr"></div></div>
+        <div class="callout"><div class="chip"><i></i>Charles Hayes</div><div class="line"></div><div class="tag">Women's Marketing Coach</div></div>
+        <div class="menu ghost"><div class="lbl">Overlay</div><div class="segs"><span>Device</span><span class="on">Callout</span><span>Lower 3rd</span></div><div class="lbl">Enter</div><div class="segs"><span class="on">Draw</span><span>Pop</span><span>Fade</span></div><div class="rec">REC 12:04<span>LIVE</span></div></div>
+      </div>
+      <p>Camera full-frame with a tilted device mockup and a connector callout that draws its line, then pops the label.</p>
+    </section>
+
+    <section class="tpl">
+      <h2>Raw + mascot <small>ref 2 · 5</small></h2>
+      <div class="base mono">
+        <div class="main full" style="background:#171717"><div class="fake" style="padding:4cqw 12cqw"><div class="row w"></div><div class="row"></div><div class="row n"></div><div class="row"></div></div></div>
+        <div class="mascot"></div>
+        <div class="menu ghost"><div class="lbl">Bezel</div><div class="segs"><span>Violet</span><span>Ink</span><span class="on">None</span></div><div class="lbl">Mascot</div><div class="segs"><span class="on">Peek</span><span>Idle</span><span>Off</span></div><div class="rec">REC 12:04<span>LIVE</span></div></div>
+      </div>
+      <p>No bezel, no camera: the capture is the frame. A mascot sticker peeks in from the edge and idles.</p>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const stage=document.getElementById('stage');
+  const set=(ids,on)=>ids.forEach(([id,v])=>document.getElementById(id).setAttribute('aria-pressed',String(v)));
+  document.getElementById('o-land').onclick=()=>{stage.classList.remove('portrait');set([['o-land',true],['o-port',false]])};
+  document.getElementById('o-port').onclick=()=>{stage.classList.add('portrait');set([['o-land',false],['o-port',true]])};
+  const menus=[...document.querySelectorAll('.base')];
+  const menuOff=()=>{menus.forEach(b=>{if(!b.querySelector('.menu.force'))b.classList.add('menu-off')});set([['m-off',true],['m-on',false]])};
+  const menuOn=()=>{menus.forEach(b=>b.classList.remove('menu-off'));set([['m-off',false],['m-on',true]])};
+  document.getElementById('m-off').onclick=menuOff;document.getElementById('m-on').onclick=menuOn;
+  menuOff();
+})();
+</script>
