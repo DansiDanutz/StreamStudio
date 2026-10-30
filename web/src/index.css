@@ -120,3 +120,14 @@ button, select { font: inherit }
 .seg-meta .why { color: var(--accent-2) }
 .seg-meta .file { cursor: pointer; text-decoration: underline dotted }
 .cuebar button { text-transform: capitalize }
+
+/* ---- desk sketch (neon chalk on the table, in perspective) ---- */
+.desk-plane-host { position: absolute; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 3; perspective: 60em; perspective-origin: 50% 0 }
+.desk-plane { position: absolute; left: 2%; right: 2%; top: 0; bottom: 0; transform-origin: 50% 0; transform: rotateX(48deg) scaleY(1.45) }
+.desk-svg { width: 100%; height: 100%; overflow: visible; opacity: .78; mix-blend-mode: screen }
+.chalk { fill: none; stroke-linecap: round; stroke-linejoin: round }
+.chalk-teal { stroke: #5eead4 } .chalk-warm { stroke: #f3c27a } .chalk-red { stroke: #ff6b6b }
+.chalk-label { font-family: 'Caveat', 'Segoe Print', cursive; font-size: 30px; fill: #e9fffa; opacity: 0; letter-spacing: .01em }
+@keyframes draw { to { stroke-dashoffset: 0 } }
+@keyframes fadein { to { opacity: .9 } }
+.sketch-pick { background: var(--bg); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 10.5px; padding: 1px 4px }

@@ -29,6 +29,8 @@ export interface Segment {
   durationMs: number
   /** Set by the user: auto-direct must not overwrite this segment's cue. */
   pinned?: boolean
+  /** Desk sketch to draw when this segment starts (see overlays/sketches.ts). */
+  sketch?: string
 }
 
 export interface Script {

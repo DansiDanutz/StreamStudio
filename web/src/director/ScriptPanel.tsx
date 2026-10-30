@@ -3,6 +3,7 @@ import { propose } from './autoDirect'
 import { useDirector } from './store'
 import type { Cue } from './types'
 import { tagUrl } from '../stage/media'
+import { SKETCHES } from '../overlays/sketches'
 
 const CUES: { id: Cue; label: string; hint: string }[] = [
   { id: 'avatar', label: 'Avatar', hint: 'You fill the frame. No card, no content.' },
@@ -66,6 +67,10 @@ export function ScriptPanel() {
                   <span>{(s.durationMs / 1000).toFixed(1)}s{s.clip ? ' · clip' : ' · no clip (timed)'}</span>
                   {s.zoom && <span>zoom ×{s.zoom.scale} @ {Math.round(s.zoom.x * 100)},{Math.round(s.zoom.y * 100)}</span>}
                   {!s.pinned && p.reasons.length > 0 && <span className="why">why: {p.reasons.join(', ')}</span>}
+                  <select className="sketch-pick" value={s.sketch ?? ''} onChange={(e) => updateSegment(s.id, { sketch: e.target.value || undefined })} title="Desk sketch drawn when this segment starts">
+                    <option value="">no sketch</option>
+                    {Object.keys(SKETCHES).map((k) => <option key={k} value={k}>✎ {k}</option>)}
+                  </select>
                   <label className="file">clip<input type="file" accept="video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) updateSegment(s.id, { clip: tagUrl(f) }) }} /></label>
                   <label className="file">visual<input type="file" accept="video/*,image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) updateSegment(s.id, { visual: tagUrl(f) }) }} /></label>
                 </div>

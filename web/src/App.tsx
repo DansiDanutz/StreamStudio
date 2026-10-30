@@ -38,6 +38,7 @@ export default function App() {
       if (cues[k]) applyCue(cues[k])
       if (k === 'escape') stop()
       if (k === 'z') applyCue('content', { x: 0.5, y: 0.5, scale: 1.6 })
+      if (k === 'x') useDirector.getState().pushSketch(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

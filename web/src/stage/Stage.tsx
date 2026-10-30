@@ -5,6 +5,7 @@ import { MainCard } from './cards/MainCard'
 import { MenuCard } from './cards/MenuCard'
 import { useStage } from './store'
 import { Starfield } from './Starfield'
+import { DeskSketch } from '../overlays/DeskSketch'
 import { useDirector } from '../director/store'
 import { OUTPUT } from './types'
 
@@ -20,6 +21,7 @@ export function Stage() {
   const guides = useStage((s) => s.guides)
   const select = useStage((s) => s.select)
   const live = useDirector((s) => s.live)
+  const sketches = useDirector((s) => s.sketches)
   // Focus rule: the studio plate is for the presenter alone. As soon as any card is on screen
   // (anything but a full-frame avatar), the backdrop recedes to a calm starfield.
   const layouts = scene.layouts[orientation]
@@ -61,6 +63,7 @@ export function Stage() {
               onError={() => plate !== PLATE.landscape && setPlate(PLATE.landscape)} />
           </>
         )}
+        {backdrop === 'studio' && sketches.length > 0 && <DeskSketch stack={sketches} />}
         {guides && <div className="safe" />}
         <Card kind="main" baseW={size.w} baseH={size.h}><MainCard /></Card>
         <Card kind="avatar" baseW={size.w} baseH={size.h}><AvatarCard /></Card>
