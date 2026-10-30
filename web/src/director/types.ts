@@ -31,6 +31,8 @@ export interface Segment {
   pinned?: boolean
   /** Desk sketch to draw when this segment starts (see overlays/sketches.ts). */
   sketch?: string
+  /** Table event when this segment starts: 'arrive:claude', 'react:claude,codex', 'react:all', 'dim:all', 'clear'. */
+  table?: string
 }
 
 export interface Script {

@@ -67,6 +67,8 @@ export function ScriptPanel() {
                   <span>{(s.durationMs / 1000).toFixed(1)}s{s.clip ? ' · clip' : ' · no clip (timed)'}</span>
                   {s.zoom && <span>zoom ×{s.zoom.scale} @ {Math.round(s.zoom.x * 100)},{Math.round(s.zoom.y * 100)}</span>}
                   {!s.pinned && p.reasons.length > 0 && <span className="why">why: {p.reasons.join(', ')}</span>}
+                  <input className="table-ev" value={s.table ?? ''} placeholder="table: arrive:claude" title="Table event: arrive:<id> · react:<ids|all> · dim:all · clear"
+                    onChange={(e) => updateSegment(s.id, { table: e.target.value || undefined })} />
                   <select className="sketch-pick" value={s.sketch ?? ''} onChange={(e) => updateSegment(s.id, { sketch: e.target.value || undefined })} title="Desk sketch drawn when this segment starts">
                     <option value="">no sketch</option>
                     {Object.keys(SKETCHES).map((k) => <option key={k} value={k}>✎ {k}</option>)}

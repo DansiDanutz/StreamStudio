@@ -5,8 +5,10 @@ import { autoDirect, splitScript } from './autoDirect'
 import { layoutForCue } from './cueLayouts'
 import { estimateMs, newSegment, type Cue, type Script, type Segment, type Zoom } from './types'
 import { RESET_ON } from '../overlays/sketches'
+import { OBJECTS } from '../overlays/objects'
+import type { TableState } from '../overlays/ObjectLayer'
 
-const KEY = 'streamstudio.script.v2'
+const KEY = 'streamstudio.script.v3'
 
 export type LiveLayouts = Partial<Record<CardKind, Rect & { visible?: boolean; radius?: number; z?: number }>>
 
@@ -23,6 +25,9 @@ interface State {
   /** Desk sketches currently on the table, in draw order. */
   sketches: string[]
   pushSketch: (id: string | null) => void
+  /** 3D objects on the table and their phase. */
+  table: TableState
+  tableEvent: (ev: string) => void
 
   setText: (text: string) => void
   updateSegment: (id: string, patch: Partial<Segment>) => void
@@ -40,15 +45,16 @@ const persisted = (): Script | null => {
 }
 const persist = (s: Script) => { try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* ok */ } }
 
-// Default script: the "in love with AI" desk-sketch intro (docs/scripts/intro-in-love-with-ai.md).
-const INTRO: { text: string; sketch: string }[] = [
-  { text: "Welcome to Dan's Lab. I'll say it straight: I'm in love with AI. Not the hype, the work. The part where an idea becomes a thing that runs.", sketch: 'heart' },
-  { text: 'This table is big for a reason. Everything I build starts here, with the tools and the agents I trust. So let me draw you the team.', sketch: 'grid' },
-  { text: "Codex writes the code with me. Claude thinks with me, plans with me, and tells me when I'm wrong.", sketch: 'codex' },
-  { text: 'GrokBot trades for me, on paper for now, learning every day. Hermes runs my fleet, the messenger between all my machines.', sketch: 'grokbot' },
-  { text: 'And this one… the OpenClaw lobster. The most exciting, most attractive thing I saw this year. And I gave up on it.', sketch: 'lobster' },
-  { text: "Not because it was bad. Because that's how fast AI moves: what made me fall in love in the first place got replaced in months. That's the lesson, and that's the fun.", sketch: 'lobster-crossout' },
-  { text: "So together, with all of these, we're going to try to make money, in the open, on this table. Let's go.", sketch: 'team' },
+// Default script: "the world of AI" opener (docs/scripts/intro-world-of-ai.md). 3D objects arrive on the table.
+const INTRO: { text: string; table?: string }[] = [
+  { text: 'Let me introduce you to the world of AI. The technology of the future, on this table, today.', table: 'clear' },
+  { text: "First: Claude. This is where I think, plan and write. When I'm wrong, it says so. Best at reasoning, long context, and code review.", table: 'arrive:claude' },
+  { text: 'Codex. My pair programmer in the terminal. Fastest way from an idea to running code.', table: 'arrive:codex' },
+  { text: 'Grok, with GrokBot on top: real-time market data, and my paper-trading agent that learns every day.', table: 'arrive:grok' },
+  { text: 'Hermes. The messenger of my fleet; it runs the machines and talks to every other agent.', table: 'arrive:hermes' },
+  { text: 'Kimi. Long documents, research, the reader of the team.', table: 'arrive:kimi' },
+  { text: 'And GLM. Fast, cheap, local when I need it.', table: 'arrive:glm' },
+  { text: "Six minds, one table. I'm the conductor. Let's make something.", table: 'react:all' },
 ]
 
 let raf = 0
@@ -99,8 +105,8 @@ export const useDirector = create<State>((set, get) => {
   }
 
   const initial = persisted() ?? {
-    id: 'script_intro', title: "I'm in love with AI",
-    segments: INTRO.map((s) => ({ ...newSegment(s.text, 'avatar'), pinned: true, sketch: s.sketch })),
+    id: 'script_world', title: 'The world of AI',
+    segments: INTRO.map((s) => ({ ...newSegment(s.text, 'avatar'), pinned: true, table: s.table })),
   }
 
   return {
@@ -111,6 +117,22 @@ export const useDirector = create<State>((set, get) => {
     zoom: null,
     cue: 'split',
     sketches: [],
+    table: {},
+    tableEvent: (ev) => set((s) => {
+      const [kind, arg = ''] = ev.split(':')
+      if (kind === 'clear') return { table: {} }
+      const ids = arg === 'all' ? Object.keys(s.table).filter((k) => s.table[k].phase !== 'gone') : arg.split(',').map((x) => x.trim()).filter(Boolean)
+      const table: TableState = { ...s.table }
+      for (const id of ids) {
+        if (!OBJECTS.some((o) => o.id === id)) continue
+        const prev = table[id] ?? { phase: 'gone' as const, seq: 0 }
+        if (kind === 'arrive') table[id] = { phase: 'arrive', seq: prev.seq + 1 }
+        if (kind === 'react') table[id] = { phase: 'react', seq: prev.seq + 1, dim: false }
+        if (kind === 'dim') table[id] = { ...prev, dim: true }
+        if (kind === 'remove') table[id] = { phase: 'gone', seq: prev.seq + 1 }
+      }
+      return { table }
+    }),
     pushSketch: (id) => set((s) => (id === null ? { sketches: [] } : RESET_ON.has(id) ? { sketches: [id] } : { sketches: [...s.sketches, id] })),
 
     setText: (text) => save((s) => ({ ...s, segments: splitScript(text).map((t, i) => ({ ...(s.segments[i] ?? newSegment()), text: t, durationMs: estimateMs(t) })) })),
@@ -133,6 +155,7 @@ export const useDirector = create<State>((set, get) => {
       get().applyCue(seg.cue, seg.zoom ?? null, seg.transitionMs)
       if (seg.visual) useStage.getState().setSource('main', seg.visual)
       if (seg.sketch) setTimeout(() => get().playing && get().pushSketch(seg.sketch!), 300)
+      if (seg.table) setTimeout(() => get().playing && get().tableEvent(seg.table!), 400)
       scheduleEnd(seg)
     },
     next: () => {
@@ -143,7 +166,7 @@ export const useDirector = create<State>((set, get) => {
     stop: () => {
       if (timer) clearTimeout(timer)
       cancelAnimationFrame(raf)
-      set({ playing: false, current: -1, live: null, zoom: null, cue: 'split', sketches: [] })
+      set({ playing: false, current: -1, live: null, zoom: null, cue: 'split', sketches: [], table: {} })
     },
   }
 })

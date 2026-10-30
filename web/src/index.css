@@ -139,3 +139,8 @@ button, select { font: inherit }
 .render-root .base { border-radius: 0; box-shadow: none }
 .render-mode .card-ghost, .render-mode .base-label, .render-mode .safe, .render-mode .card-tag, .render-mode .handle, .render-mode .avatar-pick, .render-mode .lipsync { display: none !important }
 .render-mode .card.is-selected { outline: 0 }
+
+/* ---- 3D objects on the table (clips on black, screen-blended) ---- */
+.object-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; mix-blend-mode: screen }
+.object-clip { position: absolute; mix-blend-mode: screen; transition: opacity .5s ease; max-width: none }
+.table-ev { background: var(--bg); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; font: inherit; font-family: var(--mono); font-size: 10.5px; padding: 1px 6px; width: 11em }
