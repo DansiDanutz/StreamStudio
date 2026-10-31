@@ -38,7 +38,7 @@ def pip_rect(width: int, height: int, shape: Shape = "circle") -> tuple[int, int
 
 
 def pip_card(
-    face: Image.Image, frame_size: tuple[int, int], shape: Shape = "circle", face_y: float = 0.28
+    face: Image.Image, frame_size: tuple[int, int], shape: Shape = "circle", face_y: float = 0.36
 ) -> tuple[Image.Image, tuple[int, int]]:
     """Crop `face` (a raw clip frame) to the small card, face-centred.
 
@@ -50,7 +50,6 @@ def pip_card(
     sx = (scaled.width - w) // 2
     sy = min(max(0, round(scaled.height * face_y - h / 2)), scaled.height - h)
     card = scaled.crop((sx, sy, sx + w, sy + h)).convert("RGBA")
-    ring = max(2, w // 60)
     mask = Image.new("L", (w, h), 0)
     d = ImageDraw.Draw(mask)
     if shape == "circle":
@@ -58,15 +57,6 @@ def pip_card(
     else:
         d.rounded_rectangle((0, 0, w - 1, h - 1), radius=w // 10, fill=255)
     card.putalpha(mask)
-    border = Image.new("RGBA", (w, h), (255, 255, 255, 0))
-    bd = ImageDraw.Draw(border)
-    if shape == "circle":
-        bd.ellipse((0, 0, w - 1, h - 1), outline=(255, 255, 255, 230), width=ring)
-    else:
-        bd.rounded_rectangle(
-            (0, 0, w - 1, h - 1), radius=w // 10, outline=(255, 255, 255, 230), width=ring
-        )
-    card.alpha_composite(border)
     return card, (x, y)
 
 
