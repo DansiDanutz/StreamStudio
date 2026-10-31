@@ -3,6 +3,9 @@ from __future__ import annotations
 import platform
 import shutil
 import sqlite3
+import subprocess
+from functools import lru_cache
+from pathlib import Path
 
 from fastapi import APIRouter, Depends
 
@@ -14,6 +17,21 @@ from ..deps import conn, settings
 
 router = APIRouter(prefix="/api", tags=["system"])
 
+#: The checkout this server runs from (server/src/streamstudio/api/routes → repo root).
+ROOT = Path(__file__).resolve().parents[5]
+
+
+@lru_cache(maxsize=1)
+def code_rev() -> str | None:
+    """Git revision of the running code, so the Mac app can spot a stale server."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return out.stdout.strip() or None
+
 
 @router.get("/health")
 def health(s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)) -> dict:
@@ -23,6 +41,8 @@ def health(s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn
     return {
         "ok": True,
         "version": __version__,
+        "rev": code_rev(),
+        "root": str(ROOT),
         "platform": f"{platform.system()} {platform.machine()}",
         "python": platform.python_version(),
         "data_dir": str(s.data_dir),

@@ -4,6 +4,7 @@
 # Later runs: updates it, makes sure the server is running, and opens the window.
 # Logs: ~/StreamStudioData/logs. The server keeps running after the window closes
 # (open the app again to get the window back; `pkill -f streamstudio` stops it).
+# A server that is not the current version from this folder is replaced on start.
 
 set -u
 APPDIR="${STREAMSTUDIO_HOME:-$HOME/StreamStudio/app}"
@@ -17,19 +18,41 @@ mkdir -p "$LOG"
 say()  { osascript -e "display notification \"$1\" with title \"StreamStudio\"" >/dev/null 2>&1; }
 fail() { osascript -e "display alert \"StreamStudio could not start\" message \"$1\" as critical" >/dev/null 2>&1; exit 1; }
 up()   { curl -s -m 1 "$URL/api/health" 2>/dev/null | grep -q '"ok":true'; }
+field(){ curl -s -m 2 "$URL/api/health" 2>/dev/null | /usr/bin/python3 -c "import json,sys; print(json.load(sys.stdin).get('$1') or '')" 2>/dev/null; }
+RUN="$DATA/run"; mkdir -p "$RUN"
+stop_server() {
+  # Our own api/worker (pid files), then any older StreamStudio still holding the port.
+  for f in "$RUN"/*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; rm -f "$f"; done
+  for pid in $(lsof -ti tcp:8787 -sTCP:LISTEN 2>/dev/null); do
+    ps -o command= -p "$pid" | grep -q streamstudio && kill "$pid" 2>/dev/null
+  done
+  pkill -f "streamstudio.worker.main" 2>/dev/null
+  for _ in $(seq 1 20); do up || break; sleep 0.25; done
+}
 
-if ! up; then
-  # 1. code
-  if [ ! -d "$APPDIR/.git" ]; then
-    say "First start: downloading StreamStudio…"
-    mkdir -p "$(dirname "$APPDIR")"
-    git clone --depth 1 "$REPO" "$APPDIR" >>"$LOG/setup.log" 2>&1 \
-      || fail "Could not download StreamStudio from GitHub. Details: ~/StreamStudioData/logs/setup.log"
+# 1. code: download once, then pick up the latest on every start (offline is fine)
+if [ ! -d "$APPDIR/.git" ]; then
+  say "First start: downloading StreamStudio…"
+  mkdir -p "$(dirname "$APPDIR")"
+  git clone --depth 1 "$REPO" "$APPDIR" >>"$LOG/setup.log" 2>&1 \
+    || fail "Could not download StreamStudio from GitHub. Details: ~/StreamStudioData/logs/setup.log"
+else
+  git -C "$APPDIR" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=5 pull --ff-only >>"$LOG/setup.log" 2>&1 || true
+fi
+REV="$(git -C "$APPDIR" rev-parse HEAD)"
+
+# A server already answering is kept only if it is this version, running from this folder.
+if up; then
+  if [ "$(field root)" = "$APPDIR" ] && [ "$(field rev)" = "$REV" ]; then
+    CURRENT=1
   else
-    git -C "$APPDIR" pull --ff-only >>"$LOG/setup.log" 2>&1 || true   # offline is fine
+    echo "$(date '+%F %T') replacing server: root=$(field root) rev=$(field rev) → $REV" >>"$LOG/setup.log"
+    say "Updating StreamStudio…"
+    stop_server
   fi
-  REV="$(git -C "$APPDIR" rev-parse HEAD)"
+fi
 
+if [ -z "${CURRENT:-}" ]; then
   # 2. server (Python 3.12+; uv is used when installed, and fetches Python by itself)
   if [ ! -x "$APPDIR/server/.venv/bin/python" ] || [ "$(cat "$APPDIR/server/.venv/.rev" 2>/dev/null)" != "$REV" ]; then
     say "Setting up the server (one time)…"
@@ -57,8 +80,8 @@ if ! up; then
 
   # 4. start api + worker in the background
   cd "$APPDIR" || exit 1
-  nohup server/.venv/bin/python -m streamstudio.api.main    >>"$LOG/api.log"    2>&1 &
-  nohup server/.venv/bin/python -m streamstudio.worker.main >>"$LOG/worker.log" 2>&1 &
+  nohup server/.venv/bin/python -m streamstudio.api.main    >>"$LOG/api.log"    2>&1 & echo $! >"$RUN/api.pid"
+  nohup server/.venv/bin/python -m streamstudio.worker.main >>"$LOG/worker.log" 2>&1 & echo $! >"$RUN/worker.pid"
   for _ in $(seq 1 60); do up && break; sleep 0.5; done
   up || fail "The server did not start. Details: ~/StreamStudioData/logs/api.log"
 fi
