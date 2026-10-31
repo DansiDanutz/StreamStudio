@@ -8,7 +8,7 @@ import { RESET_ON } from '../overlays/sketches'
 import { OBJECTS } from '../overlays/objects'
 import type { TableState } from '../overlays/ObjectLayer'
 
-const KEY = 'streamstudio.script.v5'
+const KEY = 'streamstudio.script.v6'
 
 export type LiveLayouts = Partial<Record<CardKind, Rect & { visible?: boolean; radius?: number; z?: number }>>
 
@@ -55,8 +55,8 @@ const INTRO: { text: string; table?: string }[] = [
   { text: 'Kimi. Long documents, research, the reader of the team.', table: 'arrive:kimi' },
   { text: 'And GLM. Fast, cheap, local when I need it.', table: 'arrive:glm' },
   { text: 'And one more. OpenClaw, the lobster. The most exciting, most attractive thing I saw this year. And I gave up on it.', table: 'arrive:openclaw' },
-  { text: "Not because it was bad. That's how fast AI moves: the thing that made me fall in love got replaced in months.", table: 'dim:openclaw' },
-  { text: "Six minds, one table. I'm the conductor. Let's make something.", table: 'remove:openclaw;react:all' },
+  { text: "Not because it was bad. That's how fast AI moves: the thing that made me fall in love got replaced in months.", table: 'leave:openclaw' },
+  { text: "Six minds, one table. I'm the conductor. Let's make something.", table: 'react:all' },
 ]
 
 let raf = 0
@@ -126,7 +126,7 @@ export const useDirector = create<State>((set, get) => {
       set((s) => {
       const [kind, arg = ''] = ev.split(':')
       if (kind === 'clear') return { table: {} }
-      const ids = arg === 'all' ? Object.keys(s.table).filter((k) => s.table[k].phase !== 'gone') : arg.split(',').map((x) => x.trim()).filter(Boolean)
+      const ids = arg === 'all' ? Object.keys(s.table).filter((k) => s.table[k].phase !== 'gone' && s.table[k].phase !== 'leave') : arg.split(',').map((x) => x.trim()).filter(Boolean)
       const table: TableState = { ...s.table }
       for (const id of ids) {
         if (!OBJECTS.some((o) => o.id === id)) continue
@@ -135,6 +135,7 @@ export const useDirector = create<State>((set, get) => {
         if (kind === 'react') table[id] = { phase: 'react', seq: prev.seq + 1, dim: false }
         if (kind === 'dim') table[id] = { ...prev, dim: true }
         if (kind === 'remove') table[id] = { phase: 'gone', seq: prev.seq + 1 }
+        if (kind === 'leave') table[id] = { phase: 'leave', seq: prev.seq + 1 }
       }
       return { table }
     })

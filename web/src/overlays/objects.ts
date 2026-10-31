@@ -2,7 +2,7 @@
  *  (`assets/objects/<id>/{arrive,idle,react}.mp4`) composited with a screen blend, so glow and
  *  reflections come through with no matte. Positions are fractions of the frame (desk scale). */
 
-export type ObjectPhase = 'arrive' | 'idle' | 'react' | 'gone'
+export type ObjectPhase = 'arrive' | 'idle' | 'react' | 'leave' | 'gone'
 
 export interface ObjectDef {
   id: string
@@ -30,8 +30,8 @@ export const OBJECTS: ObjectDef[] = [
 export const HERO = { x: 0.5, y: 0.88, scale: 0.2 }
 export const objectStill = (o: ObjectDef) => `/objects/${o.dir ?? o.id}/cutout.png`
 
-export const objectClip = (o: ObjectDef, phase: Exclude<ObjectPhase, 'gone'>) => `/objects/${o.dir ?? o.id}/${phase}.mp4`
-export const PLACEHOLDER = (phase: Exclude<ObjectPhase, 'gone'>) => `/objects/_placeholder/${phase}.mp4`
+/** Transparent (VP9 alpha) clips made by objects/dissolve.py + avatar/object_clip.py. */
+export const objectClip = (o: ObjectDef, clip: 'arrive' | 'leave') => `/objects/${o.dir ?? o.id}/${clip}.webm`
 
 /** Director events on the table, from a segment's `table` field:
  *  "arrive:claude" · "react:claude,codex" · "react:all" · "dim:all" · "clear" */

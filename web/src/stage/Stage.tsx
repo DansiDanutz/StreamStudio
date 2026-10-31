@@ -66,7 +66,7 @@ export function Stage() {
           </>
         )}
         {backdrop === 'studio' && sketches.length > 0 && <DeskSketch stack={sketches} />}
-        {backdrop === 'studio' && Object.keys(table).length > 0 && <ObjectLayer table={table} />}
+        {backdrop === 'studio' && Object.keys(table).length > 0 && <ObjectLayer table={table} onGone={(id) => useDirector.getState().tableEvent(`remove:${id}`)} />}
         {guides && <div className="safe" />}
         <Card kind="main" baseW={size.w} baseH={size.h}><MainCard /></Card>
         <Card kind="avatar" baseW={size.w} baseH={size.h}><AvatarCard /></Card>
