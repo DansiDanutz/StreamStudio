@@ -44,7 +44,8 @@ export function AvatarCard() {
   // The cut-out is seated at the studio desk, so it only makes sense full frame; small cards show the raw clip.
   const cutout = cutoutPref && isFull
   const [missing, setMissing] = useState<Record<string, true>>({})
-  const wanted = cutout ? CUTOUT[src] : undefined
+  // Rendered clips get their cut-out next to them: /avatar/clips/<k>.mp4 → /avatar/clips/<k>.cutout.webm
+  const wanted = cutout ? (CUTOUT[src] ?? (/^\/avatar\/(clips|gestures)\/[^/]+\.mp4$/.test(src) ? src.replace(/\.mp4$/, '.cutout.webm') : undefined)) : undefined
   const alpha = wanted && !missing[wanted] ? wanted : undefined // fall back to the raw clip until a cut-out exists
   const seat = SEAT[orientation]
   const bottomY = seat.handsY + (1 - HANDS_IN_CLIP) * seat.scale

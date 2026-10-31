@@ -99,3 +99,120 @@ def finish_recording(ctx: JobContext) -> dict[str, Any]:
     )  # fmt: skip
     tmp.replace(dst)
     return {"mp4": dst.name, "encoder": "videotoolbox" if hw else "x264"}
+
+
+# ---------------------------------------------------------------- HeyGen avatar clips
+
+#: Tests replace these: the HTTP transport, the poll interval, and the cut-out step.
+HEYGEN_TRANSPORT = None
+HEYGEN_POLL_S = 8.0
+
+
+def _cutout_clip(mp4: Path, out_webm: Path, plate: Path) -> bool:
+    """Cut Dan out of a rendered clip (local rembg). False if the cut-out tools are missing."""
+    import shutil
+
+    try:
+        from ..avatar.cutout import run as cutout_run
+    except ImportError:
+        return False
+    tmp = out_webm.parent / f".work-{out_webm.stem}"
+    res = cutout_run(mp4, plate, tmp, scale=0.66, hands_y=0.68, x=0.47, keep=False)
+    shutil.move(res["cutout_webm"], out_webm)
+    shutil.rmtree(tmp, ignore_errors=True)
+    return True
+
+
+CUTOUT = _cutout_clip
+
+
+@handler("heygen_clip")
+def heygen_clip(ctx: JobContext) -> dict[str, Any]:
+    """Render one avatar clip on HeyGen (paid), download it, cut it out. Idempotent and resumable:
+    the HeyGen video id is saved before polling, so a retried job never pays twice."""
+    import json
+    import time
+    import urllib.request
+
+    from ..core import heygen
+
+    p = ctx.job.get("payload") or {}
+    if isinstance(p, str):
+        p = json.loads(p)
+    s = ctx.settings
+    kind = p["kind"]
+    name = p["gesture"] if kind == "gesture" else p["key"]
+    out_dir = s.assets_dir / "avatar" / ("gestures" if kind == "gesture" else "clips")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    mp4 = out_dir / f"{name}.mp4"
+    webm = out_dir / f"{name}.cutout.webm"
+    url = f"/avatar/{out_dir.name}/{mp4.name}"
+    state_dir = s.data_dir / "heygen"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state_file = state_dir / f"{p['key']}.json"
+    state = json.loads(state_file.read_text()) if state_file.exists() else {}
+
+    if not mp4.exists():
+        cfg = heygen.load_config(s.data_dir)
+        client = heygen.Client(cfg["api_key"], HEYGEN_TRANSPORT)
+        if not state.get("video_id"):
+            audio = None
+            if p.get("silent_s"):
+                audio = client.upload_asset(
+                    "silence.wav", heygen.silence_wav(p["silent_s"]), "audio/wav"
+                )
+            spec = heygen.video_spec(
+                p["look"], p["voice"], script=p.get("script"), audio_asset_id=audio,
+                motion=p.get("motion"), title=f"StreamStudio · {name}",
+            )  # fmt: skip
+            ctx.progress(0.05, "sent to HeyGen")
+            state["video_id"] = client.create_video(spec)
+            state_file.write_text(json.dumps(state))
+        deadline = time.time() + 30 * 60
+        while True:
+            v = client.get_video(state["video_id"])
+            st = v.get("status")
+            if st == "completed" and v.get("video_url"):
+                break
+            if st == "failed":
+                state_file.unlink(missing_ok=True)  # a failed render can be retried as a new one
+                raise ValueError(
+                    f"HeyGen failed: {v.get('failure_message') or v.get('failure_code')}"
+                )
+            if time.time() > deadline:
+                raise TimeoutError("HeyGen is still rendering after 30 minutes")
+            if ctx.cancelled():
+                return {"cancelled": True, "video_id": state["video_id"]}
+            ctx.progress(0.1 + 0.6 * (st == "processing"), f"HeyGen: {st}")
+            time.sleep(HEYGEN_POLL_S)
+        ctx.progress(0.75, "downloading")
+        part = mp4.with_suffix(".part")
+        req = urllib.request.Request(v["video_url"])  # presigned: no key sent
+        if HEYGEN_TRANSPORT:
+            _, data = HEYGEN_TRANSPORT(req)
+            part.write_bytes(data)
+        else:
+            with urllib.request.urlopen(req, timeout=300) as r, part.open("wb") as f:  # noqa: S310
+                shutil_copy(r, f)
+        part.replace(mp4)
+    cut = None
+    if not webm.exists() or webm.stat().st_mtime < mp4.stat().st_mtime:
+        ctx.progress(0.85, "cutting out")
+        plate = s.assets_dir / "studio" / "plate-landscape-final.png"
+        if CUTOUT and CUTOUT(mp4, webm, plate):
+            cut = f"/avatar/{out_dir.name}/{webm.name}"
+    else:
+        cut = f"/avatar/{out_dir.name}/{webm.name}"
+    return {
+        "clip": url,
+        "cutout": cut,
+        "kind": kind,
+        "name": name,
+        "video_id": state.get("video_id"),
+    }
+
+
+def shutil_copy(src: Any, dst: Any) -> None:
+    import shutil
+
+    shutil.copyfileobj(src, dst, 1024 * 1024)

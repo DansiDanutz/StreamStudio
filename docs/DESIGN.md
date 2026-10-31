@@ -285,3 +285,26 @@ The take can also be downloaded straight from the window.
 - **End live** keeps recording.
 - **Stop** ends both.
 - One broadcast runs at a time; a second one gets close code 4409.
+
+## HeyGen rendering (paid)
+
+**Script tab → HeyGen** renders Dan's clips from the script.
+
+**The API key:**
+- Dan pastes it himself.
+- It's stored in `<data_dir>/heygen.json` (0600), shown masked, and sent only to api.heygen.com, never to the download host.
+
+**Two buttons:**
+- **Voice my script:** renders every line that has no lip-synced clip, as Dan's look and voice. A segment's gesture becomes a motion prompt inside its clip.
+- **Make the gesture clips:** the 8 source gestures, each 3 s on silent audio so the mouth stays closed.
+
+**Cost gate:**
+- `POST /api/heygen/render` without `confirm` only returns the estimate: seconds, clips, and how many use custom motion (about 2× cost).
+- The panel shows that next to the balance from `/v3/users/me`.
+- Only the explicit click queues jobs.
+
+**The `heygen_clip` job:**
+- Each clip is keyed by its look, voice, script, motion and silence, so a clip that's already rendered is never paid for again.
+- The HeyGen video id is saved before polling, so a retried job resumes instead of creating a new render.
+- When the render is done, it downloads the clip to `assets/avatar/{clips,gestures}/` and cuts it out (local rembg).
+- The clip is attached to its segment with `voice: 'clip'`, so the lip-sync guard allows that segment full frame.
