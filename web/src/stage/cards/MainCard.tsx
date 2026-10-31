@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDirector } from '../../director/store'
 import { useStage } from '../store'
-import { isImageUrl, isUrlSource, onSharedTab, shareTab, sharedTab, tagUrl, toUrlSource, urlOf } from '../media'
+import { isImageUrl, isUrlSource, liveKindOf, liveStream, onLiveStream, shareCamera, shareTab, tagUrl, toUrlSource, urlOf, type LiveKind } from '../media'
 
 /** Browser frame: the page renders at a desktop size and is scaled to the card, so a card that
  *  grows out of the studio monitor looks like the same screen coming closer. */
@@ -30,6 +30,7 @@ export function MainCard() {
               </form>
             : <button className="btn" onClick={() => setAsking(true)}>Web page</button>}
           <button className="btn" onClick={async () => { const s = await shareTab(); if (s) setSource('main', s) }}>Share a tab</button>
+          <button className="btn" onClick={async () => { const s = await shareCamera(); if (s) setSource('main', s) }}>Camera</button>
         </div>
       </div>
     )
@@ -40,7 +41,7 @@ export function MainCard() {
     : { transform: 'scale(1)', transformOrigin: '50% 50%' }
   return (
     <div className="zoom" style={style}>
-      {src === 'tab:' ? <TabView />
+      {liveKindOf(src) ? <LiveView kind={liveKindOf(src)!} />
         : isUrlSource(src) ? <BrowserView url={urlOf(src)} />
         : isImageUrl(src) ? <img className="fill" src={src} alt="" />
         : <video className="fill" src={src} autoPlay loop muted playsInline />}
@@ -72,17 +73,18 @@ function BrowserView({ url }: { url: string }) {
   )
 }
 
-function TabView() {
+function LiveView({ kind }: { kind: LiveKind }) {
   const v = useRef<HTMLVideoElement>(null)
   const [, bump] = useState(0)
-  useEffect(() => onSharedTab(() => bump((n) => n + 1)), [])
-  const stream = sharedTab()
+  useEffect(() => onLiveStream(() => bump((n) => n + 1)), [])
+  const stream = liveStream(kind)
   useEffect(() => { if (v.current) v.current.srcObject = stream }, [stream])
   if (!stream) {
+    // A stream lives in one window: the Program window (or a reload) needs its own.
     return (
-      <div className="drop" onPointerDown={(e) => e.stopPropagation()}>
-        <span className="drop-sub">The shared tab stopped.</span>
-        <button className="btn" onClick={() => void shareTab()}>Share a tab again</button>
+      <div className="drop live-ask" onPointerDown={(e) => e.stopPropagation()}>
+        <span className="drop-sub">{kind === 'tab' ? 'Share the tab to show here.' : 'Connect the camera here.'}</span>
+        <button className="btn" onClick={() => void (kind === 'tab' ? shareTab() : shareCamera())}>{kind === 'tab' ? 'Share a tab' : 'Use the camera'}</button>
       </div>
     )
   }
