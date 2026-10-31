@@ -14,6 +14,8 @@
 
 **The server keeps running** when the window closes. Open the app again to get the window back. To stop the server, run `pkill -f streamstudio`.
 
+**Always the latest version.** Each start pulls the newest code. If a server is already running but is an older version, or was started from somewhere else (for example `make dev`), the app stops it and starts the current one from `~/StreamStudio/app`. `/api/health` reports `rev` and `root` so you can check which code is answering.
+
 **If something's missing,** the app says so in a dialog. The fixes:
 - `brew install uv`
 - `brew install node`

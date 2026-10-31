@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -22,6 +24,9 @@ def test_health(env):
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] and "ffmpeg" in body["tools"]
+    # the Mac app compares these with its own checkout to spot a stale server
+    assert (Path(body["root"]) / "server" / "pyproject.toml").exists()
+    assert body["rev"] is None or len(body["rev"]) == 40
 
 
 def test_project_lifecycle_and_edl_versions(env):
