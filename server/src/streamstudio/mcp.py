@@ -58,11 +58,24 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
+        "name": "studio_guide",
+        "description": "Read first: how a StreamStudio video is built (segments, cues, gestures, "
+        "the lip-sync rule) and the typical moves.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "studio_timeline",
+        "description": "The current video as a timeline: each segment's start/end, the layout that "
+        "really plays, voice, gesture, table, Main card, and warnings to fix.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "studio_do",
         "description": (
             "Run a stage action in the open editor. Use the 'actions' listed by library_list "
-            "(e.g. scene.activate, cue.apply, point.at, gesture.play, table.event, media.add, "
-            "main.source, workflow.insert, script.play, script.stop). Needs the editor open."
+            "(e.g. timeline.get, segment.update, segment.add, segment.preview, scene.activate, "
+            "cue.apply, point.at, table.event, media.add, workflow.insert, script.play). Needs the "
+            "editor open."
         ),
         "inputSchema": {
             "type": "object",
@@ -110,6 +123,10 @@ def call(name: str, args: dict[str, Any]) -> Any:
         return _http("GET", f"/api/library/{urllib.parse.quote(args['id'], safe=':')}")
     if name == "studio_state":
         return _http("GET", "/api/agent/state")
+    if name == "studio_guide":
+        return _http("GET", "/api/agent/guide")["guide"]
+    if name == "studio_timeline":
+        return _http("GET", "/api/agent/timeline")
     if name == "studio_do":
         return _http(
             "POST", "/api/agent/do", {"action": args["action"], "args": args.get("args") or {}}
@@ -135,7 +152,8 @@ def handle(msg: dict[str, Any]) -> dict[str, Any] | None:
         p = msg.get("params") or {}
         try:
             out = call(p.get("name", ""), p.get("arguments") or {})
-            result = {"content": [{"type": "text", "text": json.dumps(out, indent=1)}]}
+            text = out if isinstance(out, str) else json.dumps(out, indent=1)
+            result = {"content": [{"type": "text", "text": text}]}
         except Exception as e:  # tool errors go back to the agent, not as protocol errors
             result = {"content": [{"type": "text", "text": str(e)}], "isError": True}
     elif method == "ping":

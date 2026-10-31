@@ -31,6 +31,18 @@ from ..deps import conn, settings
 router = APIRouter(prefix="/api", tags=["agent"])
 
 DO_TIMEOUT_S = 15.0
+STATE_KEYS = {
+    "scene",
+    "cue",
+    "playing",
+    "segment",
+    "orientation",
+    "gesture",
+    "table",
+    "program",
+    "timeline",
+}
+GUIDE = Path(__file__).resolve().parents[5] / "docs" / "AGENT_GUIDE.md"
 
 
 class Bus:
@@ -188,14 +200,26 @@ def result(cid: str, body: ResultIn) -> None:
 
 @router.get("/agent/state")
 def state() -> dict[str, Any]:
-    return {"editor_online": bool(BUS.listeners), "updated": BUS.state_at, **BUS.state}
+    rest = {k: v for k, v in BUS.state.items() if k != "timeline"}
+    return {"editor_online": bool(BUS.listeners), "updated": BUS.state_at, **rest}
+
+
+@router.get("/agent/timeline")
+def timeline() -> dict[str, Any]:
+    """The script as a timeline (last posted by the editor): what plays when, after the rules."""
+    tl = BUS.state.get("timeline")
+    if tl is None:
+        raise HTTPException(404, "no timeline yet: open the StreamStudio editor once")
+    return {"editor_online": bool(BUS.listeners), **tl}
+
+
+@router.get("/agent/guide")
+def guide() -> dict[str, str]:
+    """How a StreamStudio video is put together: segments, cues, rules, typical moves."""
+    return {"guide": GUIDE.read_text() if GUIDE.exists() else "docs/AGENT_GUIDE.md is missing"}
 
 
 @router.post("/agent/state", status_code=204)
 def post_state(body: dict[str, Any]) -> None:
-    BUS.state = {
-        k: v
-        for k, v in body.items()
-        if k in {"scene", "cue", "playing", "segment", "orientation", "gesture", "table", "program"}
-    }
+    BUS.state = {k: v for k, v in body.items() if k in STATE_KEYS}
     BUS.state_at = time.time()

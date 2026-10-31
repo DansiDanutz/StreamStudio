@@ -59,6 +59,10 @@ interface State {
   /** `guard` = enforce the lip-sync rule on the resulting layout (always on during play). */
   applyCue: (cue: Cue, zoom?: Zoom | null, ms?: number, guard?: boolean, via?: Rect | null) => void
   play: (from?: number) => void
+  /** When the segment on air started (performance.now), for the timeline playhead. */
+  segStartedAt: number
+  /** Show a segment's state on stage without playing it (scene, layout, table, Main source). */
+  preview: (index: number) => void
   stop: () => void
   next: () => void
 }
@@ -153,6 +157,20 @@ export const useDirector = create<State>((set, get) => {
     cue: 'split',
     guarded: false,
     gesture: null,
+    segStartedAt: 0,
+    preview: (index) => {
+      const segs = get().script.segments
+      const seg = segs[index]
+      if (!seg) return
+      get().stop()
+      const stage = useStage.getState()
+      // what is in effect at this segment: the last scene/visual set at or before it, all table events so far
+      for (let i = index; i >= 0; i--) if (segs[i].scene && stage.scenes.some((x) => x.id === segs[i].scene)) { stage.setActive(segs[i].scene!); break }
+      for (let i = index; i >= 0; i--) if (segs[i].visual) { stage.setSource('main', segs[i].visual!); break }
+      for (let i = 0; i <= index; i++) if (segs[i].table) get().tableEvent(segs[i].table!)
+      set({ current: index })
+      get().applyCue(guardCue(seg.cue, seg), seg.zoom ?? null, 400, !lipsMatch(seg), null)
+    },
     doGesture: (id, to = null) => {
       const g = findGesture(id) ?? GESTURES[0]
       const seq = ++gestureSeq // never reused: a stale safety timer must not end a newer gesture
@@ -251,7 +269,7 @@ export const useDirector = create<State>((set, get) => {
       const cue = guardCue(seg.cue, seg)
       const guard = !lipsMatch(seg)
       if (seg.scene && useStage.getState().scenes.some((x) => x.id === seg.scene)) useStage.getState().setActive(seg.scene)
-      set({ playing: true, current: from, guarded: guard && cue !== seg.cue })
+      set({ playing: true, current: from, guarded: guard && cue !== seg.cue, segStartedAt: performance.now() })
       const via = hotspot(seg.via)?.rect ?? null
       // Gesture first (point, then the layout follows the hand); the voice starts when the gesture ends.
       let lead = 0

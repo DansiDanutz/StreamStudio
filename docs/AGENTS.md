@@ -16,6 +16,8 @@ The connection is plain HTTP on the same API, so it's open to localhost and the 
 |---|---|---|
 | `library_list(kind?, query?)` | `GET /api/library` | All artifacts, or one kind |
 | `library_get(id)` | `GET /api/library/{id}` | One artifact |
+| `studio_guide()` | `GET /api/agent/guide` | **Read first:** how a video is built (`docs/AGENT_GUIDE.md`) |
+| `studio_timeline()` | `GET /api/agent/timeline` | The video as a timeline: what plays when, after the rules, with warnings |
 | `studio_state()` | `GET /api/agent/state` | What is on stage now |
 | `studio_do(action, args)` | `POST /api/agent/do` | Run an action in the open editor |
 | `heygen_estimate(items)` | `POST /api/heygen/render` with `confirm:false` | Cost estimate only |
@@ -35,6 +37,14 @@ The connection is plain HTTP on the same API, so it's open to localhost and the 
 | workflow | `workflow:browser` | `workflow.insert {id, fields?, mode}` |
 | clip | `clip:<key>` | a rendered HeyGen clip (Dan's own voice) |
 | recording | `recording:rec_…` | a finished MP4 at its `url` |
+
+**Script and timeline actions:**
+- `timeline.get`;
+- `segment.preview {index}`;
+- `segment.update {index, patch}`;
+- `segment.add {after?, segment}`;
+- `segment.remove {index}`;
+- `script.set {segments}`.
 
 **More actions:**
 - `media.remove {id}`;
