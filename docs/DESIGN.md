@@ -261,3 +261,27 @@ The take can also be downloaded straight from the window.
 **Live sources (tab, camera):**
 - A MediaStream belongs to one window, so the Program window asks once for its own.
 - The empty-card picker never appears in the output.
+
+## Going live
+
+**◉ Go live** (in the Program window) streams to YouTube and always records at the same time.
+
+**How the stream travels:**
+1. One capture feeds both outputs: the Program window's MediaRecorder sends its WebM chunks (500 ms each) to the take and to a WebSocket (`/api/live/ws`).
+2. On the Mac Studio, ffmpeg re-encodes to H.264 at 6 Mb/s (VideoToolbox when available), 30 fps with a keyframe every 2 s, plus AAC audio at 160 kb/s.
+3. It pushes FLV to `rtmp://a.rtmp.youtube.com/live2/<key>`, or to any other RTMP/RTMPS server.
+
+**Why WebM, not MP4:**
+- Chrome's MP4 recorder holds most of the data until the end of the take, so it can't feed a live stream.
+- Takes use WebM whenever a server is present. The server makes the MP4 afterwards.
+- A take without a server is MP4, for direct download.
+
+**The stream key:**
+- It's set in the Program window (⚙) and stored in `<data_dir>/live.json` with mode 0600.
+- It's only ever shown masked (••••1234), and it's scrubbed from ffmpeg errors.
+
+**Lifecycle:**
+- Joining live mid-take replays the take's header chunk first.
+- **End live** keeps recording.
+- **Stop** ends both.
+- One broadcast runs at a time; a second one gets close code 4409.

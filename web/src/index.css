@@ -289,3 +289,11 @@ input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; bor
 .render-mode .live-ask { display: grid !important }
 /* the output never shows the empty-card picker (only the "share again" prompt a live source needs) */
 .render-mode .card-main .drop:not(.live-ask) { visibility: hidden }
+.program-bar .live { font-weight: 800 }
+.program-bar .live.on { background: #d4002a; color: #fff; border-color: #d4002a; animation: livepulse 1.6s ease-in-out infinite }
+@keyframes livepulse { 50% { box-shadow: 0 0 0 4px rgba(212,0,42,.35) } }
+.live-cfg { position: absolute; top: 44px; right: 12px; z-index: 100; width: 340px; display: grid; gap: 8px; padding: 14px; background: #15131d; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.6); font-size: 12px; color: var(--muted) }
+.live-cfg b { color: var(--fg); font-size: 14px }
+.live-cfg p { margin: 0 }
+.live-cfg label { display: grid; gap: 4px }
+.live-cfg input { font: inherit; color: var(--fg); background: #0f0e16; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px }

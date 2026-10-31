@@ -182,3 +182,60 @@ def test_recording_upload_becomes_mp4(env, tmp_path):
     bad = client.get("/api/recordings/..%2Fsecret.mp4")
     assert bad.status_code in (404, 422)
     assert client.get("/api/recordings/rec_bad.mp4").status_code == 422
+
+
+def test_live_config_keeps_the_key_secret(env):
+    client, settings = env
+    assert client.get("/api/live/config").json()["has_key"] is False
+    r = client.put("/api/live/config", json={"stream_key": "abcd-efgh-ijkl-mnop-1234"})
+    assert r.status_code == 200 and r.json()["stream_key"] == "••••1234"
+    assert "abcd" not in r.text
+    assert oct((settings.data_dir / "live.json").stat().st_mode)[-3:] == "600"
+    # changing the server keeps the saved key
+    r = client.put("/api/live/config", json={"rtmp_url": "rtmps://live.example.com/app"})
+    assert r.json() == {
+        "rtmp_url": "rtmps://live.example.com/app",
+        "stream_key": "••••1234",
+        "has_key": True,
+    }
+    assert client.put("/api/live/config", json={"rtmp_url": "http://evil"}).status_code == 422
+    assert client.put("/api/live/config", json={"stream_key": "bad key!"}).status_code == 422
+
+
+def test_live_ingest_pushes_through_ffmpeg(env, tmp_path):
+    import subprocess
+
+    client, settings = env
+    with client.websocket_connect("/api/live/ws") as ws:  # no key yet: refused
+        msg = ws.receive()
+        assert msg["type"] == "websocket.close" and msg["code"] == 4400
+    client.put("/api/live/config", json={"stream_key": "test-key-0001"})
+    take = tmp_path / "in.webm"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=320x180:rate=30:duration=2",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-c:v", "libvpx-vp9", "-b:v", "300k",
+         "-c:a", "libopus", "-shortest", str(take)],
+        check=True,
+    )  # fmt: skip
+    out = tmp_path / "out.flv"
+    client.app.state.live_target_override = str(out)
+    data = take.read_bytes()
+    with client.websocket_connect("/api/live/ws") as ws:
+        for i in range(0, len(data), 16384):
+            ws.send_bytes(data[i : i + 16384])
+        ws.send_text("stop")
+        assert ws.receive()["type"] == "websocket.close"  # the server closes once ffmpeg is done
+    import time
+
+    for _ in range(100):  # ffmpeg flushes after the socket closes
+        st = client.get("/api/live").json()
+        if not st["live"]:
+            break
+        time.sleep(0.1)
+    assert st["live"] is False and st["bytes_in"] == len(data) and st["error"] is None
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0",
+         str(out)],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()  # fmt: skip
+    assert probe == ["h264", "aac"]

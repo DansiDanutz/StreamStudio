@@ -13,13 +13,13 @@ const DIRECTOR_KEYS = ['script', 'playing', 'current', 'live', 'zoom', 'cue', 'g
 type Msg =
   | { t: 'hello' }
   | { t: 'state'; stage: Record<string, unknown>; director: Record<string, unknown> }
-  | { t: 'status'; recording: boolean; seconds: number }
+  | { t: 'status'; recording: boolean; seconds: number; live?: boolean }
   | { t: 'bye' }
 
 export const IS_PROGRAM = typeof location !== 'undefined' && new URLSearchParams(location.search).get('program') === '1'
 
 /** What the editor knows about the Program window. */
-export const useProgram = create<{ connected: boolean; recording: boolean; seconds: number }>(() => ({ connected: false, recording: false, seconds: 0 }))
+export const useProgram = create<{ connected: boolean; recording: boolean; seconds: number; live: boolean }>(() => ({ connected: false, recording: false, seconds: 0, live: false }))
 
 const pick = <T extends object, K extends readonly (keyof T)[]>(o: T, keys: K) =>
   Object.fromEntries(keys.map((k) => [k, o[k]])) as Record<string, unknown>
@@ -43,7 +43,7 @@ export function startController() {
   c.onmessage = (e: MessageEvent<Msg>) => {
     const m = e.data
     if (m.t === 'hello') { lastSeen = Date.now(); useProgram.setState({ connected: true }); post() }
-    if (m.t === 'status') { lastSeen = Date.now(); useProgram.setState({ connected: true, recording: m.recording, seconds: m.seconds }) }
+    if (m.t === 'status') { lastSeen = Date.now(); useProgram.setState({ connected: true, recording: m.recording, seconds: m.seconds, live: !!m.live }) }
     if (m.t === 'bye') useProgram.setState({ connected: false, recording: false })
   }
   const alive = setInterval(() => { if (useProgram.getState().connected && Date.now() - lastSeen > 5000) useProgram.setState({ connected: false, recording: false }) }, 2000)
@@ -51,7 +51,7 @@ export function startController() {
 }
 
 /** Program side: say hello, mirror every state message, report recording status. */
-export function startProgram(status: () => { recording: boolean; seconds: number }) {
+export function startProgram(status: () => { recording: boolean; seconds: number; live: boolean }) {
   const c = chan()
   if (!c) return () => {}
   c.onmessage = (e: MessageEvent<Msg>) => {
