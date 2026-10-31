@@ -1,0 +1,14 @@
+{
+  "gestures": {
+    "point-up-right": 6.0,
+    "point-right": 6.0,
+    "present-right": 3.0,
+    "welcome": 3.0,
+    "thumbs-up": 3.0,
+    "wave": 3.0,
+    "think": 3.0
+  },
+  "missing": [
+    "point-down-right"
+  ]
+}
