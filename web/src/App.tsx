@@ -7,10 +7,10 @@ import { IS_PROGRAM, openProgram, startController, useProgram } from './output/l
 import { ProgramView } from './output/ProgramView'
 import { loadGestureManifest } from './avatar/gestures'
 import { startAgentBridge } from './agent/bridge'
-import { ArtifactsPanel } from './agent/ArtifactsPanel'
+import { LibraryPanel } from './library/LibraryPanel'
 import { initSceneSync } from './stage/sceneSync'
 import { ScriptPanel } from './director/ScriptPanel'
-import { Library, fileToItem } from './stage/Library'
+import { fileToItem } from './stage/Library'
 import { useDirector } from './director/store'
 import { guardCue, lipsMatch, type Cue } from './director/types'
 
@@ -49,7 +49,7 @@ function Editor() {
   const cutout = useStage((s) => s.cutout)
   const [health, setHealth] = useState<string>('…')
   const [bottom, setBottom] = useState<'scenes' | 'timeline'>('scenes')
-  const [tab, setTab] = useState<'library' | 'artifacts' | 'script'>('library')
+  const [tab, setTab] = useState<'library' | 'script'>('library')
   const cue = useDirector((s) => s.cue)
   const live = useDirector((s) => s.live)
   const { applyCue, stop } = useDirector.getState()
@@ -131,12 +131,11 @@ function Editor() {
         <aside className="side">
           <div className="tabs" role="tablist">
             <button role="tab" aria-selected={tab === 'library'} className={tab === 'library' ? 'on' : ''} onClick={() => setTab('library')}>Library</button>
-            <button role="tab" aria-selected={tab === 'artifacts'} className={tab === 'artifacts' ? 'on' : ''} onClick={() => setTab('artifacts')}>Artifacts</button>
             <button role="tab" aria-selected={tab === 'script'} className={tab === 'script' ? 'on' : ''} onClick={() => setTab('script')}>Script</button>
           </div>
           {tab === 'library'
-            ? <Library onAddFile={(f) => { const it = fileToItem(f); useStage.getState().addMedia({ label: it.label, src: it.src, playback: it.playback, framed: it.framed, at: { x: 0.5, y: 0.45 }, w: it.w, aspect: it.aspect }) }} />
-            : tab === 'artifacts' ? <ArtifactsPanel /> : <ScriptPanel />}
+            ? <LibraryPanel onAddFile={(f) => { const it = fileToItem(f); useStage.getState().addMedia({ label: it.label, src: it.src, playback: it.playback, framed: it.framed, at: { x: 0.5, y: 0.45 }, w: it.w, aspect: it.aspect }) }} />
+            : <ScriptPanel />}
         </aside>
       </main>
       <footer className="hints">

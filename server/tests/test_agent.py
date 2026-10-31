@@ -60,8 +60,9 @@ def test_mcp_speaks_json_rpc_and_never_renders(monkeypatch):
         for t in mcp.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})["result"]["tools"]
     ]
     assert names == [
-        "library_list", "library_get", "studio_state", "studio_guide", "studio_timeline",
-        "studio_do", "heygen_estimate",
+        "library_list", "library_get", "library_name", "vault_status", "vault_backup",
+        "vault_fetch", "studio_state", "studio_guide", "studio_timeline", "studio_do",
+        "heygen_estimate",
     ]  # fmt: skip
     do = {"name": "studio_do", "arguments": {"action": "point.at", "args": {"target": "main"}}}
     out = mcp.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": do})

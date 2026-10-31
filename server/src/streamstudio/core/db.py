@@ -70,6 +70,21 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX scenes_order ON scenes(collection, position);
     """,
+    # 3 — the library's own names and tags for artifacts, and what the off-machine vault holds
+    """
+    CREATE TABLE artifact_meta (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        tags TEXT NOT NULL DEFAULT '[]',
+        updated_at TEXT NOT NULL
+    );
+    CREATE TABLE vault_objects (
+        key TEXT PRIMARY KEY,
+        bytes INTEGER NOT NULL,
+        sha256 TEXT,
+        pushed_at TEXT NOT NULL
+    );
+    """,
 ]
 
 

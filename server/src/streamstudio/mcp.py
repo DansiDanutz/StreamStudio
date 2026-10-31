@@ -6,7 +6,8 @@ stage through the running StreamStudio API:
     claude mcp add streamstudio -- python -m streamstudio.mcp
     (STREAMSTUDIO_URL defaults to http://127.0.0.1:8787)
 
-Tools: library_list, library_get, studio_state, studio_do, heygen_estimate. Nothing here spends
+Tools: library_list, library_get, library_name, studio_state, studio_guide, studio_timeline,
+studio_do, heygen_estimate, vault_status, vault_backup, vault_fetch. Nothing here spends
 money or starts a capture: HeyGen renders and record / go live stay a human click in the editor.
 """
 
@@ -35,11 +36,17 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
+                "group": {
+                    "type": "string",
+                    "description": "Library tab: Scenes, Avatar, Media, Recordings, Workflows, "
+                    "Layouts.",
+                },
                 "kind": {
                     "type": "string",
                     "description": "Only this kind, e.g. 'gesture', 'scene'.",
                 },
-                "query": {"type": "string", "description": "Free-text filter."},
+                "tag": {"type": "string", "description": "Only artifacts with this tag."},
+                "query": {"type": "string", "description": "Words that must all appear."},
             },
         },
     },
@@ -50,6 +57,40 @@ TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {"id": {"type": "string"}},
             "required": ["id"],
+        },
+    },
+    {
+        "name": "library_name",
+        "description": "Give an artifact its own name and/or tags (empty title = default name).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "title": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "vault_status",
+        "description": "Where the off-machine copies live, and how many artifacts are not "
+        "backed up yet. Each artifact's 'storage' says {local, vault}.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "vault_backup",
+        "description": "Copy new or changed clips, takes and the catalog to the vault (a job).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "vault_fetch",
+        "description": "Bring a vault-only clip or take back to this machine before using it. "
+        "Pass the artifact's storage.key.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
         },
     },
     {
@@ -117,10 +158,26 @@ def _http(method: str, path: str, body: Any = None) -> Any:
 
 def call(name: str, args: dict[str, Any]) -> Any:
     if name == "library_list":
-        q = {k: v for k, v in {"kind": args.get("kind"), "q": args.get("query")}.items() if v}
+        q = {
+            k: v
+            for k, v in {
+                "group": args.get("group"), "kind": args.get("kind"),
+                "tag": args.get("tag"), "q": args.get("query"),
+            }.items()
+            if v
+        }  # fmt: skip
         return _http("GET", "/api/library" + (f"?{urllib.parse.urlencode(q)}" if q else ""))
     if name == "library_get":
         return _http("GET", f"/api/library/{urllib.parse.quote(args['id'], safe=':')}")
+    if name == "library_name":
+        body = {k: args[k] for k in ("title", "tags") if k in args}
+        return _http("PATCH", f"/api/library/{urllib.parse.quote(args['id'], safe=':')}", body)
+    if name == "vault_status":
+        return _http("GET", "/api/vault")
+    if name == "vault_backup":
+        return _http("POST", "/api/vault/push")
+    if name == "vault_fetch":
+        return _http("POST", "/api/vault/fetch", {"key": args["key"]})
     if name == "studio_state":
         return _http("GET", "/api/agent/state")
     if name == "studio_guide":

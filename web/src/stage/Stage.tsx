@@ -11,7 +11,7 @@ import { useDirector } from '../director/store'
 import { OUTPUT } from './types'
 import { MediaCardView } from './MediaCardView'
 import { PointerCue } from '../overlays/PointerCue'
-import { DRAG_MIME, LIBRARY, fileToItem } from './Library'
+import { DRAG_MIME, DRAG_SRC_MIME, LIBRARY, fileToItem, type LibraryItem } from './Library'
 
 const NO_MEDIA: never[] = []
 
@@ -64,7 +64,7 @@ export function Stage() {
       <div
         ref={baseRef}
         onDragOver={(e) => {
-          if (e.dataTransfer.types.includes(DRAG_MIME) || e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDropHint(true) }
+          if (e.dataTransfer.types.includes(DRAG_MIME) || e.dataTransfer.types.includes(DRAG_SRC_MIME) || e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDropHint(true) }
         }}
         onDragLeave={() => setDropHint(false)}
         onDrop={(e) => {
@@ -73,7 +73,14 @@ export function Stage() {
           const at = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }
           const id = e.dataTransfer.getData(DRAG_MIME)
           const f = e.dataTransfer.files?.[0]
-          const it = id ? LIBRARY.find((x) => x.id === id) : f ? fileToItem(f) : undefined
+          const srcDrag = e.dataTransfer.getData(DRAG_SRC_MIME)
+          const fromSrc = (): LibraryItem | undefined => {
+            try {
+              const v = JSON.parse(srcDrag) as { label: string; src: string }
+              return { id: 'src', label: v.label, src: v.src, poster: '', playback: 'loop', framed: true, w: 0.36, aspect: 16 / 9 }
+            } catch { return undefined }
+          }
+          const it = id ? LIBRARY.find((x) => x.id === id) : srcDrag ? fromSrc() : f ? fileToItem(f) : undefined
           if (!it) return
           e.preventDefault()
           useStage.getState().addMedia({ label: it.label, src: it.src, poster: it.poster || undefined, playback: it.playback, framed: it.framed, at, w: it.w, aspect: it.aspect })

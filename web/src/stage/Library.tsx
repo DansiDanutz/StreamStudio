@@ -26,32 +26,8 @@ export const LIBRARY: LibraryItem[] = OBJECTS.map((o) => ({
 }))
 
 export const DRAG_MIME = 'application/x-streamstudio-item'
-
-/** Library panel: drag an item (or a video/image file) onto the stage to add it as a card. */
-export function Library({ onAddFile }: { onAddFile: (f: File) => void }) {
-  return (
-    <div className="library">
-      <div className="lib-head">
-        <div className="lbl">Library</div>
-        <p>Drag onto the stage to add a card. Drop a video on any card to replace what plays in it.</p>
-      </div>
-      <div className="lib-grid">
-        {LIBRARY.map((it) => (
-          <div key={it.id} className="lib-item" draggable title={`Drag ${it.label} onto the stage`}
-            onDragStart={(e) => { e.dataTransfer.setData(DRAG_MIME, it.id); e.dataTransfer.effectAllowed = 'copy' }}>
-            <img src={it.poster} alt="" draggable={false} />
-            <span>{it.label}</span>
-          </div>
-        ))}
-        <label className="lib-item lib-upload" title="Add your own video or image as a card">
-          <span className="plus">+</span>
-          <span>Video or image</span>
-          <input type="file" accept="video/*,image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddFile(f) }} />
-        </label>
-      </div>
-    </div>
-  )
-}
+/** A clip or take dragged from the Library: JSON {label, src}. */
+export const DRAG_SRC_MIME = 'application/x-streamstudio-src'
 
 export const fileToItem = (f: File): LibraryItem => ({
   id: 'file', label: f.name.replace(/\.[^.]+$/, ''), src: tagUrl(f), poster: '', playback: f.type.startsWith('image/') ? 'once' : 'loop',

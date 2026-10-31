@@ -14,13 +14,25 @@ The connection is plain HTTP on the same API, so it's open to localhost and the 
 
 | MCP tool | HTTP | What it does |
 |---|---|---|
-| `library_list(kind?, query?)` | `GET /api/library` | All artifacts, or one kind |
+| `library_list(group?, kind?, tag?, query?)` | `GET /api/library` | All artifacts, or one tab / kind / tag; every query word must match |
 | `library_get(id)` | `GET /api/library/{id}` | One artifact |
+| `library_name(id, title?, tags?)` | `PATCH /api/library/{id}` | Give an artifact its own name and tags (empty title = default) |
+| `vault_status()` | `GET /api/vault` | Where the off-machine copies live; how much is not backed up |
+| `vault_backup()` | `POST /api/vault/push` | Back up new or changed clips, takes and the catalog (a job) |
+| `vault_fetch(key)` | `POST /api/vault/fetch` | Bring a vault-only file back (pass the artifact's `storage.key`) |
 | `studio_guide()` | `GET /api/agent/guide` | **Read first:** how a video is built (`docs/AGENT_GUIDE.md`) |
 | `studio_timeline()` | `GET /api/agent/timeline` | The video as a timeline: what plays when, after the rules, with warnings |
 | `studio_state()` | `GET /api/agent/state` | What is on stage now |
 | `studio_do(action, args)` | `POST /api/agent/do` | Run an action in the open editor |
 | `heygen_estimate(items)` | `POST /api/heygen/render` with `confirm:false` | Cost estimate only |
+
+## Library tabs, names, storage
+
+Every artifact has a `group` (the Library tab: Scenes, Avatar, Media, Recordings, Workflows,
+Layouts), a specific `name` (renamed ones keep `default_name`), `tags`, and for files a
+`storage: {key, local, vault}`. A file that is only in the vault (`local:false`) still works:
+the server fetches it the first time it is played or downloaded; call `vault_fetch` first to avoid
+the wait.
 
 ## Artifact kinds
 
