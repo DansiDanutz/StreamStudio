@@ -71,6 +71,8 @@ interface State {
   /** Move a scene into `collection`, before `beforeId` (or at the end of that collection). */
   moveScene: (id: string, collection: string, beforeId?: string | null) => void
   importScenes: (list: Scene[]) => number
+  /** Make sure a template scene exists in the library (workflows reference templates by id). */
+  ensureTemplate: (id: string) => boolean
 }
 
 const persisted = (): Scene[] | null => {
@@ -267,6 +269,13 @@ export const useStage = create<State>((set, get) => {
       persist(scenes)
       return { scenes }
     }),
+    ensureTemplate: (id) => {
+      if (get().scenes.some((s) => s.id === id)) return true
+      const t = PRESETS.find((p) => p.id === id)
+      if (!t) return false
+      set((st) => { const scenes = [...st.scenes, clone(t)]; persist(scenes); return { scenes } })
+      return true
+    },
     importScenes: (list) => {
       const valid = list.filter((s) => s && typeof s.name === 'string' && s.layouts?.landscape && s.layouts?.portrait)
       if (!valid.length) return 0

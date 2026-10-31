@@ -59,7 +59,7 @@ describe('server sync', () => {
   })
   it('server wins on load, then changes are written back (debounced) and deletes are sent', async () => {
     vi.useFakeTimers()
-    const remote = [{ ...PRESETS[2], position: 0 }]
+    const remote = [{ ...PRESETS.find((p) => p.id === 'studio-circle')!, position: 0 }]
     const calls: [string, string][] = []
     const f = vi.fn(async (url: string, init?: RequestInit) => {
       calls.push([init?.method ?? 'GET', url])

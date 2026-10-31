@@ -92,6 +92,7 @@ export type Collection = (typeof COLLECTIONS)[number]
 /** Templates: the starting scenes, and what "+ New" builds from. */
 export const PRESETS: Scene[] = [
   { id: 'world-of-ai', name: 'World of AI', collection: 'Openers', bezel: 'studio', menuShown: false, layouts: worldOfAi },
+  { id: 'studio-solo', name: 'Studio Solo', collection: 'Talk', bezel: 'studio', menuShown: false, layouts: worldOfAi },
   { id: 'studio-desk', name: 'Studio Desk', collection: 'Talk', bezel: 'studio', menuShown: false, layouts: studioDesk },
   { id: 'studio-circle', name: 'Studio + Circle', collection: 'Talk', bezel: 'studio', menuShown: false, layouts: studioCircle },
   { id: 'avatar-stage', name: 'Avatar Stage', collection: 'Talk', bezel: 'mono', menuShown: false, layouts: avatarStage },

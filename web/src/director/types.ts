@@ -40,6 +40,14 @@ export interface Segment {
   pinned?: boolean
   /** Desk sketch to draw when this segment starts (see overlays/sketches.ts). */
   sketch?: string
+  /** Scene to switch to when this segment starts (scene id from the strip). Empty keeps the current one. */
+  scene?: string
+  /** Presenter gesture at the start of the segment: 'auto' aims at `target`; or a gesture id. */
+  gesture?: string
+  /** What the presenter points at: 'main', 'hotspot:<id>' (the studio monitor…), or 'media:<card id>'. */
+  target?: string
+  /** Hotspot the Main card opens out of / closes back into ("enter the monitor"). */
+  via?: string
   /** Table event when this segment starts: 'arrive:claude', 'react:claude,codex', 'react:all', 'dim:all', 'clear'. */
   table?: string
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useDirector } from '../../director/store'
 import { lipsMatch } from '../../director/types'
+import { gesture as findGesture, gestureClip } from '../../avatar/gestures'
 import { useStage } from '../store'
 
 /** Avatar card. S1: plays an avatar clip (Dan's lip-sync render) matched to the orientation.
@@ -49,12 +50,24 @@ export function AvatarCard() {
     ? { position: 'absolute' as const, left: `${seat.x * 100}%`, bottom: `${(1 - bottomY) * 100}%`, height: `${seat.scale * 100}%`, width: 'auto', transform: 'translateX(-50%)', objectFit: 'contain' as const, background: 'transparent' }
     : undefined
   const showDesk = !!alpha && isFull
+  // A gesture on air replaces the base clip until it ends (its voice clip starts after it).
+  const gest = useDirector((s) => s.gesture)
+  const g = gest && !gest.missing ? findGesture(gest.id) : undefined
+  const gClip = g ? gestureClip(g) : undefined
+  const seatedStyle = { position: 'absolute' as const, left: `${seat.x * 100}%`, bottom: `${(1 - bottomY) * 100}%`, height: `${seat.scale * 100}%`, width: 'auto', objectFit: 'contain' as const, background: 'transparent' }
+  const gStyle = isFull
+    ? { ...seatedStyle, transform: `translateX(-50%)${g?.mirrorOf ? ' scaleX(-1)' : ''}` }
+    : { transform: g?.mirrorOf ? 'scaleX(-1)' : undefined }
   return (
     <div className={`avatar-wrap ${alpha ? 'is-cutout' : ''}`}>
-      <video key={(alpha ?? src) + (onAir ? '-air' : '')} className={alpha ? 'cutout' : 'fill cover'} style={style}
-        src={alpha ?? src} autoPlay loop={!onAir} muted={!onAir} playsInline
-        onEnded={() => onAir && next()}
-        onError={(e) => (alpha ? setMissing((m) => ({ ...m, [alpha]: true })) : ((e.target as HTMLVideoElement).style.opacity = '0'))} />
+      {gClip && gest
+        ? <video key={`g${gest.seq}`} className={isFull ? 'cutout' : 'fill cover'} style={gStyle} src={gClip} autoPlay muted playsInline
+            onEnded={() => useDirector.getState().endGesture(gest.seq)}
+            onError={() => useDirector.getState().markGestureMissing(gest.seq)} />
+        : <video key={(alpha ?? src) + (onAir ? '-air' : '')} className={alpha ? 'cutout' : 'fill cover'} style={style}
+            src={alpha ?? src} autoPlay loop={!onAir} muted={!onAir} playsInline
+            onEnded={() => onAir && next()}
+            onError={(e) => (alpha ? setMissing((m) => ({ ...m, [alpha]: true })) : ((e.target as HTMLVideoElement).style.opacity = '0'))} />}
       {narration && <audio key={narration} src={narration} autoPlay onEnded={() => next()} />}
       {showDesk && <img className="desk" src={DESK[orientation]} alt="" draggable={false} onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
       <label className="avatar-pick" onPointerDown={(e) => e.stopPropagation()} title="Replace avatar clip">
