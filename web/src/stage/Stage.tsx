@@ -9,6 +9,10 @@ import { DeskSketch } from '../overlays/DeskSketch'
 import { ObjectLayer } from '../overlays/ObjectLayer'
 import { useDirector } from '../director/store'
 import { OUTPUT } from './types'
+import { MediaCardView } from './MediaCardView'
+import { DRAG_MIME, LIBRARY, fileToItem } from './Library'
+
+const NO_MEDIA: never[] = []
 
 const PLATE: Record<'landscape' | 'portrait', string> = {
   landscape: '/studio/plate-landscape-final.png',
@@ -21,6 +25,9 @@ export function Stage() {
   const scene = useStage((s) => s.active())
   const guides = useStage((s) => s.guides)
   const select = useStage((s) => s.select)
+  const media = useStage((s) => s.active().media?.[s.orientation] ?? NO_MEDIA)
+  const baseRef = useRef<HTMLDivElement>(null)
+  const [dropHint, setDropHint] = useState(false)
   const live = useDirector((s) => s.live)
   const sketches = useDirector((s) => s.sketches)
   const table = useDirector((s) => s.table)
@@ -52,9 +59,25 @@ export function Stage() {
   useLayoutEffect(() => setPlate(PLATE[orientation]), [orientation])
 
   return (
-    <div ref={host} className="stage-host" onPointerDown={() => select(null)}>
+    <div ref={host} className="stage-host" onPointerDown={() => { select(null); useStage.getState().selectMedia(null) }}>
       <div
-        className={`base bezel-${backdrop} ${orientation}`}
+        ref={baseRef}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes(DRAG_MIME) || e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDropHint(true) }
+        }}
+        onDragLeave={() => setDropHint(false)}
+        onDrop={(e) => {
+          setDropHint(false)
+          const r = baseRef.current!.getBoundingClientRect()
+          const at = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }
+          const id = e.dataTransfer.getData(DRAG_MIME)
+          const f = e.dataTransfer.files?.[0]
+          const it = id ? LIBRARY.find((x) => x.id === id) : f ? fileToItem(f) : undefined
+          if (!it) return
+          e.preventDefault()
+          useStage.getState().addMedia({ label: it.label, src: it.src, poster: it.poster || undefined, playback: it.playback, framed: it.framed, at, w: it.w, aspect: it.aspect })
+        }}
+        className={`base bezel-${backdrop} ${orientation} ${dropHint ? 'is-drop' : ''}`}
         style={{ width: size.w, height: size.h, fontSize: orientation === 'landscape' ? size.w / 100 : size.w / 56 /* 1em ≈ 1% of the long edge */ }}
       >
         {scene.bezel === 'studio' && (
@@ -70,6 +93,7 @@ export function Stage() {
         {guides && <div className="safe" />}
         <Card kind="main" baseW={size.w} baseH={size.h}><MainCard /></Card>
         <Card kind="avatar" baseW={size.w} baseH={size.h}><AvatarCard /></Card>
+        {media.map((m) => <MediaCardView key={m.id} card={m} baseW={size.w} baseH={size.h} />)}
         <Card kind="menu" baseW={size.w} baseH={size.h} className={scene.menuShown ? '' : 'card-ghost'}><MenuCard /></Card>
         <div className="base-label">{OUTPUT[orientation].w}×{OUTPUT[orientation].h} · {scene.name}</div>
       </div>

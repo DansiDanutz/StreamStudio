@@ -3,6 +3,7 @@ import { PRESETS } from './stage/presets'
 import { Stage } from './stage/Stage'
 import { useStage } from './stage/store'
 import { ScriptPanel } from './director/ScriptPanel'
+import { Library, fileToItem } from './stage/Library'
 import { useDirector } from './director/store'
 import type { Cue } from './director/types'
 
@@ -40,6 +41,7 @@ function Editor() {
   const { toggleOrientation, toggleMenu, toggleGuides, setActive, saveAs, deleteScene, loadPreset, toggleLocked, toggleVisible, toggleCutout } = useStage.getState()
   const cutout = useStage((s) => s.cutout)
   const [health, setHealth] = useState<string>('…')
+  const [tab, setTab] = useState<'library' | 'script'>('library')
   const cue = useDirector((s) => s.cue)
   const live = useDirector((s) => s.live)
   const { applyCue, stop } = useDirector.getState()
@@ -63,6 +65,8 @@ function Editor() {
       if (k === 'escape') stop()
       if (k === 'z') applyCue('content', { x: 0.5, y: 0.5, scale: 1.6 })
       if (k === 'x') useDirector.getState().pushSketch(null)
+      const sm = useStage.getState().selectedMedia
+      if (sm && (k === 'delete' || k === 'backspace')) useStage.getState().removeMedia(sm)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -95,10 +99,18 @@ function Editor() {
       </header>
       <main className="work">
         <Stage />
-        <ScriptPanel />
+        <aside className="side">
+          <div className="tabs" role="tablist">
+            <button role="tab" aria-selected={tab === 'library'} className={tab === 'library' ? 'on' : ''} onClick={() => setTab('library')}>Library</button>
+            <button role="tab" aria-selected={tab === 'script'} className={tab === 'script' ? 'on' : ''} onClick={() => setTab('script')}>Script</button>
+          </div>
+          {tab === 'library'
+            ? <Library onAddFile={(f) => { const it = fileToItem(f); useStage.getState().addMedia({ label: it.label, src: it.src, playback: it.playback, framed: it.framed, at: { x: 0.5, y: 0.45 }, w: it.w, aspect: it.aspect }) }} />
+            : <ScriptPanel />}
+        </aside>
       </main>
       <footer className="hints">
-        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–6</b> presets · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>Z</b> zoom <b>Esc</b> reset
+        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–6</b> presets · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>Z</b> zoom <b>Esc</b> reset · drag from Library to add a card · <b>Del</b> removes it
       </footer>
     </div>
   )
