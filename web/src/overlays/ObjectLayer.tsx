@@ -20,7 +20,10 @@ export function ObjectLayer({ table, onGone }: { table: TableState; onGone?: (id
 }
 
 const HOLD_MS = 2600 // time at the hero spot while Dan introduces it
-const DISC_PX = 520 // every clip and still is normalised so the light disc is this wide
+const DISC_PX = 520
+const ARRIVE_RATE = 2.2 // 8 s generated clip → ~3.6 s on stage
+const LEAVE_RATE = 1.6
+const SETTLE_DELAY_MS = 700 // beat at centre after the object has formed // every clip and still is normalised so the light disc is this wide
 
 function ObjectView({ o, phase, seq, dim, onGone }: { o: ObjectDef; phase: Exclude<ObjectPhase, 'gone'>; seq: number; dim: boolean; onGone: () => void }) {
   const [atHero, setAtHero] = useState(phase === 'arrive')
@@ -30,14 +33,17 @@ function ObjectView({ o, phase, seq, dim, onGone }: { o: ObjectDef; phase: Exclu
   useEffect(() => {
     if (phase !== 'arrive') return
     setAtHero(true)
+    // still-only objects settle on a timer; clip objects settle after their arrive clip ends (see onEnded)
+    if (!noClip) return
     const t = setTimeout(() => setAtHero(false), HOLD_MS)
     return () => clearTimeout(t)
-  }, [phase, seq])
+  }, [phase, seq, noClip])
   const clip = phase === 'leave' ? 'leave' : 'arrive'
   // arrive plays once and freezes on its last frame; for idle/react (no arrival seen) jump straight to the end
   const onMeta = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const v = e.currentTarget
     setNatW(v.videoWidth || 880)
+    v.playbackRate = phase === 'leave' ? LEAVE_RATE : ARRIVE_RATE
     if (phase === 'idle' || phase === 'react') { v.pause(); v.currentTime = Math.max(0, v.duration - 0.05) }
   }
   const spot = atHero ? HERO : o
@@ -51,7 +57,7 @@ function ObjectView({ o, phase, seq, dim, onGone }: { o: ObjectDef; phase: Exclu
       {noClip
         ? <img className="object-media" src={objectStill(o)} alt="" draggable={false} onLoad={(e) => setNatW(e.currentTarget.naturalWidth)} />
         : <video ref={vid} key={clip + seq} className="object-media" src={objectClip(o, clip)} autoPlay={phase === 'arrive' || phase === 'leave'} muted playsInline
-            onLoadedMetadata={onMeta} onEnded={() => { if (phase === 'leave') onGone() }} onError={() => { setNoClip(true); if (phase === 'leave') onGone() }} />}
+            onLoadedMetadata={onMeta} onEnded={() => { if (phase === 'leave') onGone(); if (phase === 'arrive') setTimeout(() => setAtHero(false), SETTLE_DELAY_MS) }} onError={() => { setNoClip(true); if (phase === 'leave') onGone() }} />}
     </div>
   )
 }
