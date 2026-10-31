@@ -375,3 +375,51 @@ video.cutout { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%
 .script-head .group button { font-size: 11.5px; padding: 3px 8px }
 .mcard.is-live { transition: left .6s cubic-bezier(.65,0,.35,1), top .6s cubic-bezier(.65,0,.35,1), width .6s cubic-bezier(.65,0,.35,1), height .6s cubic-bezier(.65,0,.35,1) }
 .tl-m.crd { color: #c9b6ff }
+
+/* Library: tabs, filters, names, storage */
+.lib2, .vault { display: grid; grid-template-rows: auto 1fr; min-height: 0 }
+.lib-top { display: flex; align-items: center; justify-content: space-between; gap: 8px }
+.lib-top button { font-size: 11px; padding: 2px 9px }
+.lib-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px }
+.lib-tabs button { font-size: 11.5px; padding: 3px 9px; border-radius: 8px }
+.lib-tabs button span { color: var(--muted); margin-left: 2px; font-size: 10.5px }
+.lib-tabs button { background: transparent; color: var(--muted); border: 1px solid var(--line) }
+.lib-tabs button.on { background: var(--accent-2); color: #14102a; border-color: var(--accent-2); font-weight: 800 }
+.lib-tabs button.on span { color: inherit; opacity: .7 }
+.v-kinds button.on { background: var(--accent-2); color: #14102a; border-color: var(--accent-2); font-weight: 800 }
+.lib-filters { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px }
+.lib-filters select, .lib-filters button { font-size: 11px; padding: 2px 6px; color: var(--fg); background: #0f0e16; border: 1px solid var(--line); border-radius: 6px; max-width: 132px }
+.art-list li.can-drag { cursor: grab }
+.art-list li.can-drag:hover { border-color: rgba(255,255,255,.22) }
+.art-edit { border: 0; background: none; color: var(--muted); padding: 0 4px; font-size: 12px; cursor: pointer }
+.art-edit:hover { color: var(--fg) }
+.art-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 3px; font-size: 10.5px; color: var(--muted) }
+.art-kind { font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; font-size: 9.5px }
+.art-warn { color: var(--accent) }
+.art-store { opacity: .25; filter: grayscale(1) }
+.art-store.on { opacity: 1; filter: none }
+.art-tag { border: 0; background: rgba(185,167,255,.12); color: var(--accent-2); border-radius: 999px; padding: 0 6px; font-size: 10.5px; cursor: pointer }
+.art-btn { font-size: 11px; padding: 1px 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg); text-decoration: none }
+.art-actions > button { font-size: 11px; padding: 1px 7px }
+.art-rename { display: flex; flex-wrap: wrap; gap: 4px }
+.art-rename input { flex: 1 1 140px; min-width: 0; font: inherit; font-size: 12px; color: var(--fg); background: #0f0e16; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px }
+.art-rename button { font-size: 11px; padding: 1px 8px }
+.lib-upload-row { display: block !important; border-style: dashed !important }
+.lib-upload-row label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--muted) }
+.lib-upload-row .plus { font-size: 18px; color: var(--fg) }
+.vault-body { overflow: auto; padding: 12px 14px; display: grid; gap: 10px; align-content: start }
+.v-kinds { display: flex; gap: 4px }
+.v-kinds button { font-size: 12px; padding: 3px 10px }
+.v-field { display: grid; gap: 3px; font-size: 11px; color: var(--muted) }
+.v-field input { font: inherit; font-size: 12.5px; color: var(--fg); background: #0f0e16; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px }
+.v-help { margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.45 }
+.v-row { display: flex; flex-wrap: wrap; gap: 4px }
+.v-row button { font-size: 11.5px; padding: 3px 9px }
+.v-row button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 800 }
+.v-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 10px }
+.v-stats > div:not(.v-where):not(.v-row):not(.v-job) { display: grid }
+.v-stats b { font-size: 18px }
+.v-stats span { font-size: 10.5px; color: var(--muted) }
+.v-where, .v-stats .v-row, .v-job { grid-column: 1 / -1; font: 10.5px var(--mono); color: var(--muted); word-break: break-all }
+.v-job.done { color: var(--ok) }
+.v-job.failed { color: var(--accent) }

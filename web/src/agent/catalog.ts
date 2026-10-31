@@ -47,6 +47,16 @@ export const ACTIONS: ActionSpec[] = [
   { action: 'orientation.set', description: 'Output orientation.', args: { orientation: "'landscape' | 'portrait'" } },
 ]
 
+/** Each layout's own name in the library. */
+const CUE_NAMES: Record<Cue, string> = {
+  avatar: 'Dan full frame',
+  duo: 'Dan large + content',
+  split: 'As laid out',
+  content: 'Content large, Dan small',
+  full: 'Content full frame',
+  pip: 'Dan in the small card',
+}
+
 const CUES: Record<Cue, string> = {
   avatar: 'Dan fills the frame, no cards (only with his own lip-synced voice; else the small card).',
   duo: 'Dan large, content small.',
@@ -62,7 +72,7 @@ export function buildCatalog(): { artifacts: Artifact[]; actions: ActionSpec[] }
     a.push({
       id: `gesture:${g.id}`, kind: 'gesture', name: g.label,
       description: `${g.label}${g.mirrorOf ? ` (mirror of ${g.mirrorOf})` : ''}. ${g.aim ? 'Pointing.' : 'Beat.'} ${hasClip(g.id) ? 'Clip ready.' : 'No clip yet: a pointer cue stands in.'}`,
-      motion_prompt: motionFor(g.id), clip_ready: hasClip(g.id),
+      motion_prompt: motionFor(g.id), clip_ready: hasClip(g.id), clip_of: g.mirrorOf ?? g.id,
       actions: [{ action: 'gesture.play', args: { id: g.id } }],
     })
   }
@@ -94,7 +104,7 @@ export function buildCatalog(): { artifacts: Artifact[]; actions: ActionSpec[] }
       actions: [{ action: 'workflow.insert', args: { id: w.id, mode: 'replace' } }],
     })
   }
-  for (const [cue, d] of Object.entries(CUES)) a.push({ id: `cue:${cue}`, kind: 'cue', name: cue, description: d, actions: [{ action: 'cue.apply', args: { cue } }] })
-  for (const p of PRESETS) a.push({ id: `template:${p.id}`, kind: 'template', name: p.name, description: `Scene template (${p.collection}).`, actions: [{ action: 'scene.new', args: { template: p.id } }] })
+  for (const [cue, d] of Object.entries(CUES)) a.push({ id: `cue:${cue}`, kind: 'cue', name: CUE_NAMES[cue as Cue], description: d, actions: [{ action: 'cue.apply', args: { cue } }] })
+  for (const p of PRESETS) a.push({ id: `template:${p.id}`, kind: 'template', name: `${p.name} template`, description: `Scene template (${p.collection}).`, actions: [{ action: 'scene.new', args: { template: p.id } }] })
   return { artifacts: a, actions: ACTIONS }
 }

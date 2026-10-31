@@ -9,10 +9,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import __version__
-from ..core import db
+from ..core import db, vault
 from ..core.config import Settings, get_settings
 from ..core.netguard import NetGuardMiddleware
 from .routes import agent, heygen, jobs, live, projects, recordings, scenes, system
+from .routes import vault as vault_routes
 
 REPO = Path(__file__).resolve().parents[4]
 WEB_DIST = REPO / "web" / "dist"
@@ -39,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(live.router)
     app.include_router(heygen.router)
     app.include_router(agent.router)
+    app.include_router(vault_routes.router)
 
     if WEB_DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="web-assets")
@@ -52,6 +54,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 f = (root / path).resolve()
                 if path and f.is_file() and root in f.parents:
                     return FileResponse(f)
+            if path.startswith("avatar/") and s.assets_dir == REPO_ASSETS:
+                # a clip kept only in the vault: bring it back, then serve it
+                try:
+                    got = vault.fetch(s, None, f"assets/{path}")
+                except vault.VaultError:
+                    got = None
+                if got is not None:
+                    return FileResponse(got)
             return FileResponse(WEB_DIST / "index.html")
 
     return app

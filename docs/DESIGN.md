@@ -308,3 +308,23 @@ The take can also be downloaded straight from the window.
 - The HeyGen video id is saved before polling, so a retried job resumes instead of creating a new render.
 - When the render is done, it downloads the clip to `assets/avatar/{clips,gestures}/` and cuts it out (local rembg).
 - The clip is attached to its segment with `voice: 'clip'`, so the lip-sync guard allows that segment full frame.
+
+
+## Library and vault
+
+The Library tab holds every artifact in tabs: **Scenes** (scenes, templates), **Avatar**
+(gestures, clips), **Media** (objects, media, cards on stage), **Recordings** (takes),
+**Workflows**, **Layouts** (cues, studio places, cards). Search matches every word against the
+name, id, description and tags. Filters: kind, status (ready / needs a clip), storage (on this
+Mac / in the vault / vault only / not backed up), tag, sort (by tab, A–Z, newest). ✎ renames and
+tags an artifact (`artifact_meta`, migration 3). Media, clips and takes drag onto the stage.
+
+**Vault** (`core/vault.py`): a copy of clips, gesture clips, takes and `catalog.json` (scenes,
+names, tags) off the Mac Studio, in an S3-compatible bucket (Supabase Storage, R2, B2, AWS;
+signed with SigV4, no SDK) or a synced folder (iCloud Drive, Google Drive, Dropbox, NAS). Every
+object carries its sha256: backups upload only what changed (`vault_push` job, queued after each
+finished take and HeyGen clip), and downloads are checked. **Free space** removes a local copy
+only after confirming the vault's copy is identical; the file returns by itself the first time
+it is used (`/avatar/...` and `/api/recordings/...` fetch on a miss). **Sync from vault** on a new
+machine restores scenes and names and lists what can be brought back. Keys live in
+`<data_dir>/vault.json` (0600) and are only ever returned masked.

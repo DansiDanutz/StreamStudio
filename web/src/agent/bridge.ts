@@ -1,6 +1,8 @@
 /** Connects the open editor to the agent bus: publishes the library, runs agent actions on the
  *  stage, and reports what is on stage. Only the editor (the controller) runs this. */
 
+import { loadGestureManifest } from '../avatar/gestures'
+
 import { buildCatalog } from './catalog'
 import { useStage } from '../stage/store'
 import { useDirector } from '../director/store'
@@ -140,8 +142,11 @@ export function snapshot() {
 export function startAgentBridge(): () => void {
   let es: EventSource | null = null
   let stopped = false
-  void fetch('/api/library/web', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(buildCatalog()) })
+  // publish once the gesture manifest is in, so clip_ready is true only for clips that exist
+  void loadGestureManifest()
+    .then(() => fetch('/api/library/web', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(buildCatalog()) }))
     .then((r) => {
+      if (r.ok) window.dispatchEvent(new Event('streamstudio:library'))
       if (!r.ok || stopped) return
       es = new EventSource('/api/agent/stream')
       es.addEventListener('do', (e) => {

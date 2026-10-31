@@ -98,6 +98,7 @@ def finish_recording(ctx: JobContext) -> dict[str, Any]:
         check=True,
     )  # fmt: skip
     tmp.replace(dst)
+    queue_vault_push(ctx.conn, ctx.settings)
     return {"mp4": dst.name, "encoder": "videotoolbox" if hw else "x264"}
 
 
@@ -203,6 +204,7 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
             cut = f"/avatar/{out_dir.name}/{webm.name}"
     else:
         cut = f"/avatar/{out_dir.name}/{webm.name}"
+    queue_vault_push(ctx.conn, s)
     return {
         "clip": url,
         "cutout": cut,
@@ -216,3 +218,28 @@ def shutil_copy(src: Any, dst: Any) -> None:
     import shutil
 
     shutil.copyfileobj(src, dst, 1024 * 1024)
+
+
+# ---------------------------------------------------------------- vault (copies off this machine)
+
+
+def queue_vault_push(conn: sqlite3.Connection, s: Settings) -> dict[str, Any] | None:
+    """Queue a vault backup if a vault is set up and none is already waiting."""
+    from ..core import vault
+
+    if not vault.load_config(s.data_dir).get("kind"):
+        return None
+    j = conn.execute(
+        "SELECT id FROM jobs WHERE kind = 'vault_push' AND status IN ('queued') LIMIT 1"
+    ).fetchone()
+    if j:
+        return store.get_job(conn, j["id"])
+    return store.enqueue(conn, "vault_push")
+
+
+@handler("vault_push")
+def vault_push(ctx: JobContext) -> dict[str, Any]:
+    """Copy new or changed clips, takes and the catalog to the vault. Idempotent by checksum."""
+    from ..core import vault
+
+    return vault.push(ctx.settings, ctx.conn, lambda p, m: ctx.progress(p, m))

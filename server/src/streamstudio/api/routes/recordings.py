@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from ...core import store
+from ...core import store, vault
 from ...core.config import Settings
 from ...core.db import tx
 from ..deps import conn, settings
@@ -93,5 +93,11 @@ def download(rid: str, s: Settings = Depends(settings)) -> FileResponse:
     _check(rid)
     f = _dir(s) / f"{rid}.mp4"
     if not f.exists():
-        raise HTTPException(404, "not ready yet")
+        # only in the vault (local copy removed, or another machine): bring it back first
+        try:
+            got = vault.fetch(s, None, f"recordings/{rid}.mp4")
+        except vault.VaultError as e:
+            raise HTTPException(502, str(e)) from e
+        if got is None:
+            raise HTTPException(404, "not ready yet")
     return FileResponse(f, media_type="video/mp4", filename=f"streamstudio-{rid[4:]}.mp4")
