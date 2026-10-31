@@ -241,15 +241,8 @@ def synth_audio(path: Path) -> None:
     rng = np.random.default_rng(7)
 
     def env(start, attack, hold, release):
-        e = np.zeros(n, np.float32)
-        a0, a1, h1, r1 = (int(x * SR) for x in (start, start + attack, start + attack + hold, start + attack + hold + release))
-        r1 = min(r1, n)
-        if a1 > a0:
-            e[a0:min(a1, n)] = np.linspace(0, 1, a1 - a0)[: max(0, min(a1, n) - a0)]
-        e[min(a1, n):min(h1, n)] = 1
-        if r1 > h1:
-            e[min(h1, n):r1] = np.linspace(1, 0, r1 - h1)[: r1 - min(h1, n)]
-        return e
+        xs = [start, start + attack, start + attack + hold, start + attack + hold + release]
+        return np.interp(t, xs, [0, 1, 1, 0], left=0, right=0).astype(np.float32)
 
     # ambient bed: slow chord pad (A minor 9 → F maj7 → C maj → G), soft detuned sines + sub
     chords = [[110, 164.81, 220, 261.63, 329.63, 493.88], [87.31, 174.61, 220, 261.63, 329.63, 440],
