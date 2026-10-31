@@ -88,7 +88,7 @@ button, select { font: inherit }
 .card-menu { background: transparent; border: 0; box-shadow: none }
 .card-ghost { border: .12em dashed rgba(255,255,255,.35) }
 .card-ghost .menu { opacity: .45 }
-.menu { position: absolute; inset: 0; padding: 1.1em; display: grid; gap: .8em; align-content: start; font-size: 1.05em; color: var(--fg) }
+.menu { position: absolute; inset: 0; padding: 1.1em; display: grid; gap: .8em; align-content: start; font-size: 1.05em; color: var(--fg); overflow-y: auto; scrollbar-width: none }
 .menu-on { background: var(--glass); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,.14) }
 .menu .lbl { font-family: var(--mono); font-size: .8em; letter-spacing: .18em; text-transform: uppercase; color: var(--muted) }
 .menu .segs { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.5em, 1fr)); gap: .4em }
@@ -117,10 +117,14 @@ button, select { font: inherit }
 .segs-list { list-style: none; margin: 0; padding: 10px; display: grid; gap: 10px; overflow: auto; align-content: start }
 .seg { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.02) }
 .seg.on-air { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 24px rgba(232,103,74,.25) }
-.seg-top { display: flex; align-items: center; gap: 6px }
+.seg-top { display: flex; align-items: center; gap: 4px; min-width: 0 }
+.seg-top .icon { flex: none; padding: 2px 4px }
+.segs-list { min-width: 0; overflow-x: hidden }
+.seg { min-width: 0 }
+.seg textarea { box-sizing: border-box; width: 100%; max-width: 100% }
 .seg-n { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 18px }
-.cues { display: flex; gap: 4px; flex: 1 }
-.cues button { padding: 3px 8px; font-size: 11px }
+.cues { display: flex; flex-wrap: wrap; gap: 3px; flex: 1; min-width: 0 }
+.cues button { padding: 2px 6px; font-size: 11px }
 .seg-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; font-family: var(--mono); font-size: 10.5px; color: var(--muted) }
 .seg-meta .why { color: var(--accent-2) }
 .seg-meta .file { cursor: pointer; text-decoration: underline dotted }
