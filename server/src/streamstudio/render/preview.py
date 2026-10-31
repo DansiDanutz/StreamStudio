@@ -4,8 +4,8 @@ Uses Playwright's built-in recorder (VP8 WebM at the viewport size), then ffmpeg
 and muxes the given audio (e.g. the avatar clip's voice). This is the *preview* path; the production
 path (S6) encodes the compositor stream live on the Mac Studio with VideoToolbox.
 
-Usage: python -m streamstudio.render.preview OUT.mp4 [--url http://127.0.0.1:8787] [--audio clip.mp4]
-       [--width 1920 --height 1080] [--max-seconds 120]
+Usage: python -m streamstudio.render.preview OUT.mp4 [--url http://127.0.0.1:8787]
+       [--audio clip.mp4] [--width 1920 --height 1080] [--max-seconds 120]
 """
 
 from __future__ import annotations
@@ -34,7 +34,9 @@ def record(url: str, out_dir: Path, w: int, h: int, max_s: float) -> Path:
         page.wait_for_selector(".base")
         t0 = time.time()
         # wait for the director to start, then to stop
-        page.wait_for_function("() => window.__director && window.__director.getState().playing", timeout=15_000)
+        page.wait_for_function(
+            "() => window.__director && window.__director.getState().playing", timeout=15_000
+        )
         while time.time() - t0 < max_s:
             if not page.evaluate("() => window.__director.getState().playing"):
                 break
@@ -49,8 +51,30 @@ def record(url: str, out_dir: Path, w: int, h: int, max_s: float) -> Path:
 def encode(webm: Path, out: Path, audio: Path | None, lead_in_s: float = 0.8) -> None:
     cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(webm)]
     if audio:
-        cmd += ["-itsoffset", f"{lead_in_s}", "-i", str(audio), "-map", "0:v", "-map", "1:a", "-c:a", "aac"]
-    cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+        cmd += [
+            "-itsoffset",
+            f"{lead_in_s}",
+            "-i",
+            str(audio),
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-c:a",
+            "aac",
+        ]
+    cmd += [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "19",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+    ]
     cmd += [str(out)]
     subprocess.run(cmd, check=True)
 

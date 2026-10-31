@@ -21,6 +21,8 @@ export function Card({ kind, baseW, baseH, className = '', children }: Props) {
   const live = useDirector((s) => s.live?.[kind])
   // While the director drives, cards follow the tweened live geometry (menu is never driven).
   const layout = live ? { ...saved, ...live, visible: live.visible ?? saved.visible, radius: live.radius ?? saved.radius, z: live.z ?? saved.z } : saved
+  // The small presenter card can be a circle (pip/content cues, or whenever the lip-sync guard shrank it).
+  const circle = useDirector((s) => kind === 'avatar' && !!s.live && s.avatarShape === 'circle' && (s.cue === 'pip' || s.cue === 'content' || s.guarded))
   const selected = useStage((s) => s.selected === kind)
   const { setRect, select, bringToFront } = useStage.getState()
   const drag = useRef<{ mode: Mode; sx: number; sy: number; start: typeof layout } | null>(null)
@@ -52,7 +54,7 @@ export function Card({ kind, baseW, baseH, className = '', children }: Props) {
   if (!layout.visible) return null
   return (
     <div
-      className={`card card-${kind} ${selected ? 'is-selected' : ''} ${layout.locked ? 'is-locked' : ''} ${live ? 'is-live' : ''} ${layout.w >= 0.999 && layout.h >= 0.999 ? 'is-fullframe' : ''} ${className}`}
+      className={`card card-${kind} ${selected ? 'is-selected' : ''} ${layout.locked ? 'is-locked' : ''} ${live ? 'is-live' : ''} ${layout.w >= 0.999 && layout.h >= 0.999 ? 'is-fullframe' : ''} ${circle ? 'is-circle' : ''} ${className}`}
       style={{
         left: `${layout.x * 100}%`, top: `${layout.y * 100}%`,
         width: `${layout.w * 100}%`, height: `${layout.h * 100}%`,

@@ -5,7 +5,7 @@ import { useStage } from './stage/store'
 import { ScriptPanel } from './director/ScriptPanel'
 import { Library, fileToItem } from './stage/Library'
 import { useDirector } from './director/store'
-import type { Cue } from './director/types'
+import { guardCue, lipsMatch, type Cue } from './director/types'
 
 const RENDER = new URLSearchParams(location.search).get('render') === '1'
 const AUTOPLAY = new URLSearchParams(location.search).get('autoplay') === '1'
@@ -20,7 +20,7 @@ function RenderView() {
     // Open directly on the first segment's cue (no tween from the editor layout), then play.
     const d = useDirector.getState()
     const first = d.script.segments[0]
-    if (first) d.applyCue(first.cue, first.zoom ?? null, 0)
+    if (first) d.applyCue(guardCue(first.cue, first), first.zoom ?? null, 0, !lipsMatch(first))
     if (AUTOPLAY) setTimeout(() => useDirector.getState().play(0), 800)
   }, [])
   return <div className="render-root"><Stage /></div>
@@ -60,7 +60,7 @@ function Editor() {
       if (k === 'l' && selected) toggleLocked(selected)
       if (k === 'h' && selected) toggleVisible(selected)
       if (/^[1-6]$/.test(k)) loadPreset(PRESETS[Number(k) - 1].id)
-      const cues: Record<string, Cue> = { a: 'avatar', d: 'duo', s: 'split', c: 'content', f: 'full' }
+      const cues: Record<string, Cue> = { a: 'avatar', d: 'duo', s: 'split', c: 'content', f: 'full', p: 'pip' }
       if (cues[k]) applyCue(cues[k])
       if (k === 'escape') stop()
       if (k === 'z') applyCue('content', { x: 0.5, y: 0.5, scale: 1.6 })
@@ -90,7 +90,7 @@ function Editor() {
           <button onClick={toggleCutout} className={cutout ? 'on' : ''} title="Presenter cut out of the clip and placed in the studio">Cut-out</button>
         </div>
         <div className="group cuebar" role="group" aria-label="Cue">
-          {(['avatar', 'duo', 'split', 'content', 'full'] as Cue[]).map((c) => (
+          {(['avatar', 'duo', 'split', 'content', 'full', 'pip'] as Cue[]).map((c) => (
             <button key={c} className={live && cue === c ? 'on' : ''} onClick={() => applyCue(c)} title={c[0].toUpperCase()}>{c}</button>
           ))}
           {live && <button onClick={stop} title="Esc">reset</button>}
@@ -110,7 +110,7 @@ function Editor() {
         </aside>
       </main>
       <footer className="hints">
-        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–6</b> presets · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>Z</b> zoom <b>Esc</b> reset · drag from Library to add a card · <b>Del</b> removes it
+        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–6</b> presets · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>P</b> pip <b>Z</b> zoom <b>Esc</b> reset · drag from Library to add a card · <b>Del</b> removes it
       </footer>
     </div>
   )

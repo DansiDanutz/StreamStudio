@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { propose } from './autoDirect'
 import { useDirector } from './store'
-import type { Cue } from './types'
+import { guardCue, lipsMatch, type Cue } from './types'
 import { tagUrl } from '../stage/media'
 import { SKETCHES } from '../overlays/sketches'
 
@@ -11,6 +11,7 @@ const CUES: { id: Cue; label: string; hint: string }[] = [
   { id: 'split', label: 'Split', hint: 'The scene as you laid it out.' },
   { id: 'content', label: 'Content', hint: 'Content maximized, you minimized.' },
   { id: 'full', label: 'Full', hint: 'Content fills the frame, you hidden.' },
+  { id: 'pip', label: 'Pip', hint: 'You small (circle or portrait) over the studio. Safe with any voice.' },
 ]
 
 /** Right-hand panel: the script as segments, each with its cue, clip and visual. */
@@ -18,7 +19,8 @@ export function ScriptPanel() {
   const script = useDirector((s) => s.script)
   const playing = useDirector((s) => s.playing)
   const current = useDirector((s) => s.current)
-  const { updateSegment, addSegment, removeSegment, runAutoDirect, play, stop, setText } = useDirector.getState()
+  const shape = useDirector((s) => s.avatarShape)
+  const { updateSegment, addSegment, removeSegment, runAutoDirect, play, stop, setText, setAvatarShape } = useDirector.getState()
   const [raw, setRaw] = useState<string | null>(null)
   const total = script.segments.reduce((a, s) => a + s.durationMs, 0)
 
@@ -32,6 +34,7 @@ export function ScriptPanel() {
         <div className="group">
           <button onClick={() => setRaw(raw === null ? script.segments.map((s) => s.text).join('\n\n') : null)}>{raw === null ? 'Paste text' : 'Back'}</button>
           <button onClick={runAutoDirect} title="Propose a cue for every unpinned segment">Auto-direct</button>
+          <button onClick={() => setAvatarShape(shape === 'circle' ? 'portrait' : 'circle')} title="Shape of your small card">{shape === 'circle' ? '◯ circle' : '▯ portrait'}</button>
           {playing
             ? <button className="danger" onClick={stop}>Stop</button>
             : <button className="primary" onClick={() => play(0)}>▶ Play</button>}
@@ -47,6 +50,8 @@ export function ScriptPanel() {
         <ol className="segs-list">
           {script.segments.map((s, i) => {
             const p = propose(s.text, i, script.segments.length)
+            const ok = lipsMatch(s)
+            const shown = guardCue(s.cue, s)
             return (
               <li key={s.id} className={`seg ${i === current ? 'on-air' : ''}`}>
                 <div className="seg-top">
@@ -64,7 +69,15 @@ export function ScriptPanel() {
                 <textarea value={s.text} rows={Math.min(6, Math.max(2, Math.ceil(s.text.length / 60)))} spellCheck={false}
                   onChange={(e) => updateSegment(s.id, { text: e.target.value })} />
                 <div className="seg-meta">
+                  <span className={`lips ${ok ? 'ok' : 'no'}`} title={ok ? 'Voice is the clip’s own lip-synced audio: full-frame face allowed' : 'Lips do not match this voice: your face stays in the small card'}>
+                    lips {ok ? '✓' : '✕'}{shown !== s.cue ? ` · plays as ${shown}` : ''}
+                  </span>
                   <span>{(s.durationMs / 1000).toFixed(1)}s{s.clip ? ' · clip' : ' · no clip (timed)'}</span>
+                  <select value={s.voice ?? 'clip'} title="Voice source" onChange={(e) => updateSegment(s.id, { voice: e.target.value as 'clip' | 'narration' })}>
+                    <option value="clip">voice: clip</option>
+                    <option value="narration">voice: narration</option>
+                  </select>
+                  {s.voice === 'narration' && <label className="file">audio{s.audio ? ' ✓' : ''}<input type="file" accept="audio/*,video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) updateSegment(s.id, { audio: URL.createObjectURL(f) }) }} /></label>}
                   {s.zoom && <span>zoom ×{s.zoom.scale} @ {Math.round(s.zoom.x * 100)},{Math.round(s.zoom.y * 100)}</span>}
                   {!s.pinned && p.reasons.length > 0 && <span className="why">why: {p.reasons.join(', ')}</span>}
                   <input className="table-ev" value={s.table ?? ''} placeholder="table: arrive:claude" title="Table event: arrive:<id> · react:<ids|all> · dim:all · clear"

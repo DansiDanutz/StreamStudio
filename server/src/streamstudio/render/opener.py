@@ -1,9 +1,11 @@
 """Frame-exact render of the reusable opener ("the world of AI").
 
-Layers per frame: studio plate → Dan (cut-out) → desk layer → table objects → titles, then a slow camera
-push-in. Dan speaks only where the real HeyGen clip has his voice (0–9.4 s). While the tools arrive he
-listens: a closed-mouth stretch of the same clip (frames 234–243) played back and forth, with a natural
-blink (243–247) every few seconds. Sound: his voice + a synthesized ambient bed and per-event effects.
+Layers per frame: studio plate → Dan (cut-out) → desk layer → table objects → titles, then a slow
+camera push-in. Dan speaks only where the real HeyGen clip has his voice (0–9.4 s): the lip-sync
+guard (render/lipsync.py) allows the full-frame face only then. While the tools arrive he listens:
+a closed-mouth stretch of the same clip (frames 234–243) played back and forth, with a natural
+blink (243–247) every few seconds.
+Sound: his voice + a synthesized ambient bed and per-event effects.
 
 Usage: python opener.py OUT.mp4 [--fps 25] [--seconds N (debug: stop early)] [--frames-dir DIR]
 """
@@ -38,17 +40,17 @@ TOOLS = [  # id, title, line
     ("glm", "GLM", "fast, cheap, local when I need it"),
 ]
 SLOTS = [0.15, 0.29, 0.43, 0.57, 0.71, 0.85]
-T0 = 9.8          # first arrival
-STEP = 4.2        # seconds per tool
+T0 = 9.8  # first arrival
+STEP = 4.2  # seconds per tool
 ARRIVE_RATE = 2.2
 LEAVE_RATE = 1.6
-HOLD = 3.8        # at centre after arrival start, then glide
+HOLD = 3.8  # at centre after arrival start, then glide
 GLIDE = 0.9
 CLAW_T = T0 + STEP * len(TOOLS) + 0.4
 CLAW_LEAVE = CLAW_T + 4.6
 FINALE = CLAW_LEAVE + 8 / LEAVE_RATE + 0.2
 END = FINALE + 5.6
-HERO = (0.5, 0.88, 0.2)   # x, disc y, disc width (fraction of frame width)
+HERO = (0.5, 0.88, 0.2)  # x, disc y, disc width (fraction of frame width)
 SLOT_Y, SLOT_W = 0.86, 0.11
 
 # Dan seat (matches avatar/cutout.py)
@@ -73,11 +75,24 @@ class Clip:
         self.dir = cache
         if not any(cache.glob("f*.png")):
             cache.mkdir(parents=True, exist_ok=True)
-            subprocess.run(["ffmpeg", "-v", "error", "-c:v", "libvpx-vp9", "-i", str(webm), "-pix_fmt", "rgba",
-                            f"{cache}/f%05d.png"], check=True)
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-c:v",
+                    "libvpx-vp9",
+                    "-i",
+                    str(webm),
+                    "-pix_fmt",
+                    "rgba",
+                    f"{cache}/f%05d.png",
+                ],
+                check=True,
+            )
         self.n = len(list(cache.glob("f*.png")))
 
-    @lru_cache(maxsize=64)
+    @lru_cache(maxsize=64)  # noqa: B019 (a handful of long-lived clips)
     def frame(self, i: int) -> Image.Image:
         i = min(self.n - 1, max(0, i))
         return Image.open(self.dir / f"f{i + 1:05d}.png").convert("RGBA")
@@ -85,7 +100,9 @@ class Clip:
 
 @lru_cache(maxsize=48)
 def dan_frame(i: int) -> Image.Image:
-    im = Image.open(A / "avatar/cutout/cache/dan-landscape-test" / f"f{i + 1:05d}.png").convert("RGBA")
+    im = Image.open(A / "avatar/cutout/cache/dan-landscape-test" / f"f{i + 1:05d}.png").convert(
+        "RGBA"
+    )
     th = int(H * SEAT_SCALE)
     return im.resize((int(im.width * th / im.height), th), Image.BILINEAR)
 
@@ -114,7 +131,9 @@ F_LABEL = font("Inter-Medium.otf", 17)
 F_FINAL = font("InterDisplay-SemiBold.otf", 72)
 
 
-def title_layer(title: str, line: str, alpha: float, label: str | None = None) -> Image.Image | None:
+def title_layer(
+    title: str, line: str, alpha: float, label: str | None = None
+) -> Image.Image | None:
     if alpha <= 0.01:
         return None
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -122,7 +141,13 @@ def title_layer(title: str, line: str, alpha: float, label: str | None = None) -
     a = int(255 * alpha)
     y = int(H * 0.905)
     if label:
-        d.text((W // 2, y - 64), label.upper(), font=F_LABEL, fill=(243, 194, 122, int(a * 0.9)), anchor="mm")
+        d.text(
+            (W // 2, y - 64),
+            label.upper(),
+            font=F_LABEL,
+            fill=(243, 194, 122, int(a * 0.9)),
+            anchor="mm",
+        )
     d.text((W // 2, y - 22), title, font=F_TITLE, fill=(255, 255, 255, a), anchor="mm")
     d.text((W // 2, y + 24), line, font=F_LINE, fill=(214, 220, 230, int(a * 0.85)), anchor="mm")
     shadow = lay.filter(ImageFilter.GaussianBlur(10))
@@ -133,8 +158,16 @@ def title_layer(title: str, line: str, alpha: float, label: str | None = None) -
 
 
 # ---------------------------------------------------------------- objects
-def place(canvas: Image.Image, clip: Clip, idx: int, x: float, y: float, disc_w: float, gain: float = 1.0,
-          lift: float = 0.0) -> None:
+def place(
+    canvas: Image.Image,
+    clip: Clip,
+    idx: int,
+    x: float,
+    y: float,
+    disc_w: float,
+    gain: float = 1.0,
+    lift: float = 0.0,
+) -> None:
     fr = clip.frame(idx)
     w = int(disc_w * W * fr.width / 520)
     h = int(fr.height * w / fr.width)
@@ -162,7 +195,9 @@ def tool_state(i: int, t: float):
     return ci, x, y, w
 
 
-def render_frame(t: float, fps: int, clips: dict[str, Clip], plate: Image.Image, desk: Image.Image) -> Image.Image:
+def render_frame(
+    t: float, fps: int, clips: dict[str, Clip], plate: Image.Image, desk: Image.Image
+) -> Image.Image:
     c = plate.copy()
     # Dan
     df = dan_frame(dan_index(t, fps))
@@ -187,12 +222,19 @@ def render_frame(t: float, fps: int, clips: dict[str, Clip], plate: Image.Image,
     if CLAW_T <= t < CLAW_LEAVE + 8 / LEAVE_RATE:
         if t < CLAW_LEAVE:
             ci = int((t - CLAW_T) * 30 * ARRIVE_RATE)
-            place(c, clips["openclaw-arrive"], min(ci, 239), HERO[0], HERO[1] + (0.003 * math.sin(t * 1.4) if ci >= 240 else 0), HERO[2])
+            place(
+                c,
+                clips["openclaw-arrive"],
+                min(ci, 239),
+                HERO[0],
+                HERO[1] + (0.003 * math.sin(t * 1.4) if ci >= 240 else 0),
+                HERO[2],
+            )
         else:
             ci = int((t - CLAW_LEAVE) * 30 * LEAVE_RATE)
             place(c, clips["openclaw-leave"], min(ci, 239), HERO[0], HERO[1], HERO[2])
     # titles
-    for i, (tid, title, line) in enumerate(TOOLS):
+    for i, (_tid, title, line) in enumerate(TOOLS):
         t0 = T0 + i * STEP
         a = ease((t - t0 - 1.3) / 0.35) * (1 - ease((t - t0 - HOLD - 0.1) / 0.35))
         lay = title_layer(title, line, a, f"{i + 1:02d} / the team")
@@ -210,7 +252,13 @@ def render_frame(t: float, fps: int, clips: dict[str, Clip], plate: Image.Image,
     if af > 0.01:
         lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(lay)
-        d.text((W // 2, int(H * 0.935)), "Six minds. One table.", font=F_FINAL, fill=(255, 255, 255, int(255 * af)), anchor="mm")
+        d.text(
+            (W // 2, int(H * 0.935)),
+            "Six minds. One table.",
+            font=F_FINAL,
+            fill=(255, 255, 255, int(255 * af)),
+            anchor="mm",
+        )
         sh = lay.filter(ImageFilter.GaussianBlur(12))
         base = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         base.paste((0, 0, 0, 255), mask=sh.split()[3].point(lambda p: int(p * 0.75)))
@@ -222,7 +270,11 @@ def render_frame(t: float, fps: int, clips: dict[str, Clip], plate: Image.Image,
     if s > 1.0005:
         cx, cy = W * 0.5, H * 0.62
         cw, ch = W / s, H / s
-        out = out.resize((W, H), Image.BILINEAR, box=(cx - cw * 0.5, cy - ch * 0.62, cx + cw * 0.5, cy + ch * 0.38))
+        out = out.resize(
+            (W, H),
+            Image.BILINEAR,
+            box=(cx - cw * 0.5, cy - ch * 0.62, cx + cw * 0.5, cy + ch * 0.38),
+        )
     # fades
     fade = ease(t / 0.6) * (1 - ease((t - (END - 1.0)) / 1.0))
     if fade < 0.999:
@@ -245,8 +297,12 @@ def synth_audio(path: Path) -> None:
         return np.interp(t, xs, [0, 1, 1, 0], left=0, right=0).astype(np.float32)
 
     # ambient bed: slow chord pad (A minor 9 → F maj7 → C maj → G), soft detuned sines + sub
-    chords = [[110, 164.81, 220, 261.63, 329.63, 493.88], [87.31, 174.61, 220, 261.63, 329.63, 440],
-              [65.41, 130.81, 196, 261.63, 329.63, 392], [98, 146.83, 196, 246.94, 293.66, 392]]
+    chords = [
+        [110, 164.81, 220, 261.63, 329.63, 493.88],
+        [87.31, 174.61, 220, 261.63, 329.63, 440],
+        [65.41, 130.81, 196, 261.63, 329.63, 392],
+        [98, 146.83, 196, 246.94, 293.66, 392],
+    ]
     seg = 8.0
     pad = np.zeros(n, np.float32)
     for k in range(int(END // seg) + 1):
@@ -255,7 +311,7 @@ def synth_audio(path: Path) -> None:
         for j, f in enumerate(ch):
             for det in (-0.12, 0.12):
                 pad += e * (0.05 if j else 0.07) * np.sin(2 * np.pi * (f * (1 + det / 100)) * t + j)
-    swell = 0.55 + 0.45 * np.clip((t - SPEECH_END) / 4, 0, 1)      # rises after the voice
+    swell = 0.55 + 0.45 * np.clip((t - SPEECH_END) / 4, 0, 1)  # rises after the voice
     swell *= 1 - np.clip((t - (END - 2.0)) / 2.0, 0, 1)
     swell *= np.clip(t / 1.2, 0, 1)
     mix += pad * swell * 0.55
@@ -267,8 +323,11 @@ def synth_audio(path: Path) -> None:
             return
         m = min(m, n - i0)
         tt = np.arange(m) / SR
-        sig = sum(np.sin(2 * np.pi * base * r * tt) * a for r, a in ((1, 1), (2.01, 0.45), (3.02, 0.22), (4.2, 0.1)))
-        mix[i0:i0 + m] += (gain * sig * np.exp(-tt * 2.2)).astype(np.float32)
+        sig = sum(
+            np.sin(2 * np.pi * base * r * tt) * a
+            for r, a in ((1, 1), (2.01, 0.45), (3.02, 0.22), (4.2, 0.1))
+        )
+        mix[i0 : i0 + m] += (gain * sig * np.exp(-tt * 2.2)).astype(np.float32)
 
     def shimmer(at, dur, gain=0.11, up=True):
         i0 = int(at * SR)
@@ -284,7 +343,7 @@ def synth_audio(path: Path) -> None:
         sig = np.sin(ph) * 0.4 + np.sin(ph * 1.5) * 0.25
         sig *= 0.5 + 0.5 * np.convolve(np.abs(noise), np.ones(200) / 200, mode="same")
         e = np.sin(np.pi * np.clip(tt / dur, 0, 1)) ** 2
-        mix[i0:i0 + m] += (gain * sig * e).astype(np.float32)
+        mix[i0 : i0 + m] += (gain * sig * e).astype(np.float32)
 
     def whoosh(at, dur=0.9, gain=0.08):
         i0 = int(at * SR)
@@ -296,7 +355,7 @@ def synth_audio(path: Path) -> None:
         lp = np.convolve(noise, k, mode="same")
         tt = np.arange(m) / SR
         e = np.sin(np.pi * tt / dur) ** 2
-        mix[i0:i0 + m] += (gain * lp * e * 3).astype(np.float32)
+        mix[i0 : i0 + m] += (gain * lp * e * 3).astype(np.float32)
 
     notes = [523.25, 587.33, 659.25, 783.99, 880, 987.77]
     for i in range(len(TOOLS)):
@@ -312,7 +371,7 @@ def synth_audio(path: Path) -> None:
     tt = np.arange(m) / SR
     clicks = (rng.random(m) < 0.004 * np.exp(-tt / 2.2)).astype(np.float32) * rng.uniform(-1, 1, m)
     crack = np.convolve(clicks, np.exp(-np.arange(80) / 12), mode="same")
-    mix[i0:i0 + m] += (0.22 * crack).astype(np.float32)
+    mix[i0 : i0 + m] += (0.22 * crack).astype(np.float32)
     shimmer(CLAW_LEAVE, 3.5, gain=0.08, up=False)
     # finale: ascending pulses + low swell
     for i in range(len(TOOLS)):
@@ -320,15 +379,33 @@ def synth_audio(path: Path) -> None:
     i0 = int((FINALE + 1.6) * SR)
     m = min(int(4 * SR), n - i0)
     tt = np.arange(m) / SR
-    mix[i0:i0 + m] += (0.22 * np.sin(2 * np.pi * 55 * tt) * np.exp(-tt * 0.9) * np.clip(tt / 0.05, 0, 1)).astype(np.float32)
+    mix[i0 : i0 + m] += (
+        0.22 * np.sin(2 * np.pi * 55 * tt) * np.exp(-tt * 0.9) * np.clip(tt / 0.05, 0, 1)
+    ).astype(np.float32)
 
     # voice: Dan's real clip audio, 0 → SPEECH_END, ducking the bed
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(A / "avatar/dan-landscape-test.mp4"), "-ac", "1", "-ar",
-                          str(SR), "-f", "s16le", "-"], capture_output=True, check=True).stdout
+    raw = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(A / "avatar/dan-landscape-test.mp4"),
+            "-ac",
+            "1",
+            "-ar",
+            str(SR),
+            "-f",
+            "s16le",
+            "-",
+        ],
+        capture_output=True,
+        check=True,
+    ).stdout
     v = np.frombuffer(raw, np.int16).astype(np.float32) / 32768
     vm = min(len(v), int((SPEECH_END + 0.05) * SR))
     vv = v[:vm].copy()
-    vv[-int(0.04 * SR):] *= np.linspace(1, 0, int(0.04 * SR))
+    vv[-int(0.04 * SR) :] *= np.linspace(1, 0, int(0.04 * SR))
     mix[:vm] += vv * 1.0
 
     peak = float(np.abs(mix).max()) or 1.0
@@ -347,19 +424,31 @@ def main() -> None:
     ap.add_argument("out", type=Path)
     ap.add_argument("--fps", type=int, default=25)
     ap.add_argument("--seconds", type=float)
-    ap.add_argument("--stills", type=str, help="comma-separated times: write PNG stills instead of a video")
+    ap.add_argument(
+        "--stills", type=str, help="comma-separated times: write PNG stills instead of a video"
+    )
     a = ap.parse_args()
     cache = Path(tempfile.gettempdir()) / "opener-cache"
     clips = {tid: Clip(A / f"objects/{tid}/arrive.webm", cache / tid) for tid, _, _ in TOOLS}
     clips["openclaw-arrive"] = Clip(A / "objects/openclaw/arrive.webm", cache / "openclaw-arrive")
     clips["openclaw-leave"] = Clip(A / "objects/openclaw/leave.webm", cache / "openclaw-leave")
-    plate = Image.open(A / "studio/plate-landscape-final.png").convert("RGBA").resize((W, H), Image.LANCZOS)
-    desk = Image.open(A / "studio/plate-landscape-final.desk.png").convert("RGBA").resize((W, H), Image.LANCZOS)
+    plate = (
+        Image.open(A / "studio/plate-landscape-final.png")
+        .convert("RGBA")
+        .resize((W, H), Image.LANCZOS)
+    )
+    desk = (
+        Image.open(A / "studio/plate-landscape-final.desk.png")
+        .convert("RGBA")
+        .resize((W, H), Image.LANCZOS)
+    )
 
     if a.stills:
         a.out.mkdir(parents=True, exist_ok=True)
         for s in a.stills.split(","):
-            render_frame(float(s), a.fps, clips, plate, desk).save(a.out / f"t{float(s):05.1f}.jpg", quality=90)
+            render_frame(float(s), a.fps, clips, plate, desk).save(
+                a.out / f"t{float(s):05.1f}.jpg", quality=90
+            )
         print("stills", a.out)
         return
 
@@ -369,9 +458,34 @@ def main() -> None:
         wav = tmp / "mix.wav"
         synth_audio(wav)
         vid = tmp / "video.mp4"
-        p = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
-                              "-r", str(a.fps), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "17",
-                              "-pix_fmt", "yuv420p", str(vid)], stdin=subprocess.PIPE)
+        p = subprocess.Popen(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-s",
+                f"{W}x{H}",
+                "-r",
+                str(a.fps),
+                "-i",
+                "-",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "medium",
+                "-crf",
+                "17",
+                "-pix_fmt",
+                "yuv420p",
+                str(vid),
+            ],
+            stdin=subprocess.PIPE,
+        )
         total = int(end * a.fps)
         for f in range(total):
             p.stdin.write(render_frame(f / a.fps, a.fps, clips, plate, desk).tobytes())
@@ -379,9 +493,37 @@ def main() -> None:
                 print(f"frame {f}/{total}", flush=True)
         p.stdin.close()
         p.wait()
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(vid), "-i", str(wav), "-map", "0:v", "-map", "1:a",
-                        "-c:v", "copy", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "256k",
-                        "-ar", "48000", "-shortest", "-movflags", "+faststart", str(a.out)], check=True)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-i",
+                str(vid),
+                "-i",
+                str(wav),
+                "-map",
+                "0:v",
+                "-map",
+                "1:a",
+                "-c:v",
+                "copy",
+                "-af",
+                "loudnorm=I=-14:TP=-1.5:LRA=11",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "256k",
+                "-ar",
+                "48000",
+                "-shortest",
+                "-movflags",
+                "+faststart",
+                str(a.out),
+            ],
+            check=True,
+        )
         print(a.out, f"{end:.1f}s")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

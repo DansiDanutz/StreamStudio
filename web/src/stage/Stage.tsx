@@ -31,12 +31,12 @@ export function Stage() {
   const live = useDirector((s) => s.live)
   const sketches = useDirector((s) => s.sketches)
   const table = useDirector((s) => s.table)
-  // Focus rule: the studio plate is for the presenter alone. As soon as any card is on screen
-  // (anything but a full-frame avatar), the backdrop recedes to a calm starfield.
+  // Focus rule: the studio plate is for the presenter alone (full frame, or the small lip-sync card over
+  // the table). As soon as content is on screen, the backdrop recedes to a calm starfield.
   const layouts = scene.layouts[orientation]
   const eff = (k: 'main' | 'avatar') => ({ ...layouts[k], ...(live?.[k] ?? {}) })
-  const av = eff('avatar'), mn = eff('main')
-  const avatarAlone = av.visible !== false && av.w >= 0.999 && av.h >= 0.999 && mn.visible === false
+  const mn = eff('main')
+  const avatarAlone = mn.visible === false
   const backdrop: 'studio' | 'space' | typeof scene.bezel = scene.bezel === 'studio' ? (avatarAlone ? 'studio' : 'space') : scene.bezel
   const host = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 960, h: 540 })

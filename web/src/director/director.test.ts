@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { autoDirect, propose, splitScript } from './autoDirect'
-import { layoutForCue } from './cueLayouts'
+import { guardLayout, layoutForCue, pipRect } from './cueLayouts'
 import { PRESETS } from '../stage/presets'
-import { estimateMs, newSegment } from './types'
+import { MAX_UNSYNCED_AREA, estimateMs, guardCue, lipsMatch, newSegment } from './types'
 
 describe('auto-direct rules', () => {
   it('opens and closes on the presenter, full frame', () => {
@@ -71,5 +71,52 @@ describe('cue layouts', () => {
     const before = JSON.stringify(saved)
     layoutForCue('avatar', saved, 'portrait')
     expect(JSON.stringify(saved)).toBe(before)
+  })
+})
+
+describe('lip-sync guard', () => {
+  const saved = PRESETS[0].layouts.landscape
+  const synced = { clip: '/avatar/x.mp4' }
+  const dubbed = { clip: '/avatar/x.mp4', voice: 'narration' as const }
+  it('lips match only when the voice is the clip\'s own audio', () => {
+    expect(lipsMatch(synced)).toBe(true)
+    expect(lipsMatch({ ...synced, voice: 'clip' })).toBe(true)
+    expect(lipsMatch(dubbed)).toBe(false)
+    expect(lipsMatch({})).toBe(false)
+  })
+  it('full-frame and large-face cues degrade when the lips do not match', () => {
+    expect(guardCue('avatar', synced)).toBe('avatar')
+    expect(guardCue('duo', synced)).toBe('duo')
+    expect(guardCue('avatar', dubbed)).toBe('pip')
+    expect(guardCue('duo', dubbed)).toBe('content')
+    expect(guardCue('avatar', {})).toBe('pip')
+    expect(guardCue('full', dubbed)).toBe('full')
+  })
+  it('pip keeps the face small, bottom-left, with no content', () => {
+    for (const o of ['landscape', 'portrait'] as const) {
+      const L = layoutForCue('pip', PRESETS[0].layouts[o], o)
+      expect(L.main.visible).toBe(false)
+      expect(L.avatar.w * L.avatar.h).toBeLessThanOrEqual(MAX_UNSYNCED_AREA)
+      expect(L.avatar.x + L.avatar.w).toBeLessThan(0.5)
+      expect(L.avatar.y + L.avatar.h).toBeLessThan(1)
+    }
+  })
+  it('circle is square in pixels; portrait is 3:4', () => {
+    const c = pipRect('landscape', 'circle')
+    expect((c.w * 1920) / (c.h * 1080)).toBeCloseTo(1, 5)
+    const p = pipRect('landscape', 'portrait')
+    expect((p.w * 1920) / (p.h * 1080)).toBeCloseTo(3 / 4, 5)
+  })
+  it('guardLayout shrinks any large face (e.g. a big avatar in the saved split) and leaves small ones', () => {
+    const big = { ...saved, avatar: { ...saved.avatar, visible: true, x: 0.1, y: 0.1, w: 0.5, h: 0.8 } }
+    const g = guardLayout(big, 'landscape')
+    expect(g.avatar.w * g.avatar.h).toBeLessThanOrEqual(MAX_UNSYNCED_AREA)
+    expect(g.main).toEqual(big.main)
+    const small = layoutForCue('content', saved, 'landscape')
+    expect(guardLayout(small, 'landscape')).toEqual(small)
+    for (const cue of ['avatar', 'duo', 'split', 'content', 'full', 'pip'] as const) {
+      const L = guardLayout(layoutForCue(guardCue(cue, dubbed), saved, 'landscape'), 'landscape')
+      if (L.avatar.visible) expect(L.avatar.w * L.avatar.h).toBeLessThanOrEqual(MAX_UNSYNCED_AREA)
+    }
   })
 })
