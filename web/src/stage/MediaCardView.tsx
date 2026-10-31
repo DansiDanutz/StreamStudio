@@ -16,7 +16,8 @@ export function MediaCardView({ card, baseW, baseH }: { card: MediaCard; baseW: 
   const vid = useRef<HTMLVideoElement>(null)
   const [over, setOver] = useState(false)
   const [broken, setBroken] = useState(false)
-  const l = card.layout
+  const drive = useDirector((s) => s.mediaLive[card.id])
+  const l = drive ? { ...card.layout, ...drive } : card.layout
 
   const onDown = (mode: Mode) => (e: PointerEvent) => {
     e.stopPropagation()
@@ -62,7 +63,7 @@ export function MediaCardView({ card, baseW, baseH }: { card: MediaCard; baseW: 
   const image = isImageUrl(card.src)
   return (
     <div
-      className={`mcard ${card.framed ? 'is-framed' : ''} ${selected ? 'is-selected' : ''} ${over ? 'is-over' : ''}`}
+      className={`mcard ${drive ? 'is-live' : ''} ${card.framed ? 'is-framed' : ''} ${selected ? 'is-selected' : ''} ${over ? 'is-over' : ''}`}
       style={{ left: `${l.x * 100}%`, top: `${l.y * 100}%`, width: `${l.w * 100}%`, height: `${l.h * 100}%`, zIndex: l.z, borderRadius: l.radius * baseW }}
       onPointerDown={onDown('move')} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
       onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); e.stopPropagation(); setOver(true) } }}
@@ -70,7 +71,7 @@ export function MediaCardView({ card, baseW, baseH }: { card: MediaCard; baseW: 
     >
       {image || broken
         ? <img className="mcard-media" src={broken && card.poster ? card.poster : card.src} alt="" draggable={false} />
-        : <video ref={vid} key={card.src} className="mcard-media" src={card.src} autoPlay muted playsInline loop={card.playback === 'loop'}
+        : <video ref={vid} key={card.src + (drive?.seq ?? '')} className="mcard-media" src={card.src} autoPlay muted playsInline loop={card.playback === 'loop'}
             onError={() => setBroken(true)} />}
       {selected && (
         <>

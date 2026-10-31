@@ -3,7 +3,7 @@ import { useStage } from '../stage/store'
 import type { CardKind, CardLayout, Rect } from '../stage/types'
 import { autoDirect, splitScript } from './autoDirect'
 import { guardLayout, layoutForCue } from './cueLayouts'
-import { estimateMs, guardCue, lipsMatch, newSegment, type AvatarShape, type Cue, type Script, type Segment, type Zoom } from './types'
+import { estimateMs, guardCue, lipsMatch, newSegment, parseMediaEvents, type AvatarShape, type Cue, type Script, type Segment, type Zoom } from './types'
 import { RESET_ON } from '../overlays/sketches'
 import { OBJECTS } from '../overlays/objects'
 import type { TableState } from '../overlays/ObjectLayer'
@@ -59,6 +59,9 @@ interface State {
   /** `guard` = enforce the lip-sync rule on the resulting layout (always on during play). */
   applyCue: (cue: Cue, zoom?: Zoom | null, ms?: number, guard?: boolean, via?: Rect | null) => void
   play: (from?: number) => void
+  /** Live overrides of media cards while the script drives them (never saved into the scene). */
+  mediaLive: Record<string, { visible?: boolean; x?: number; y?: number; w?: number; h?: number; z?: number; seq?: number }>
+  mediaEvent: (ev: string) => void
   /** When the segment on air started (performance.now), for the timeline playhead. */
   segStartedAt: number
   /** Show a segment's state on stage without playing it (scene, layout, table, Main source). */
@@ -157,6 +160,26 @@ export const useDirector = create<State>((set, get) => {
     cue: 'split',
     guarded: false,
     gesture: null,
+    mediaLive: {},
+    mediaEvent: (src) => {
+      const stage = useStage.getState()
+      const cards = stage.active().media?.[stage.orientation] ?? []
+      const frame = stage.orientation === 'landscape' ? 16 / 9 : 9 / 16
+      const live = { ...get().mediaLive }
+      for (const ev of parseMediaEvents(src)) {
+        const c = cards.find((x) => x.id === ev.card || x.label.toLowerCase() === ev.card.toLowerCase())
+        if (!c) continue
+        const cur = { ...c.layout, ...(live[c.id] ?? {}) }
+        const aspect = (c.layout.w * frame) / c.layout.h // keep the card's shape
+        const at = (x: number, y: number, w: number) => ({ x: x - w / 2, y: y - (w * frame) / aspect / 2, w, h: (w * frame) / aspect })
+        if (ev.op === 'reset') { delete live[c.id]; continue }
+        if (ev.op === 'show') live[c.id] = { ...live[c.id], visible: true, seq: (cur.seq ?? 0) + 1 }
+        if (ev.op === 'hide') live[c.id] = { ...live[c.id], visible: false }
+        if (ev.op === 'move') live[c.id] = { ...live[c.id], visible: true, ...at(ev.x!, ev.y!, ev.w ?? cur.w) }
+        if (ev.op === 'focus') live[c.id] = { ...live[c.id], visible: true, z: 40, ...at(0.5, 0.48, Math.min(0.62, 0.62 * (aspect < frame ? aspect / frame : 1))) }
+      }
+      set({ mediaLive: live })
+    },
     segStartedAt: 0,
     preview: (index) => {
       const segs = get().script.segments
@@ -168,6 +191,7 @@ export const useDirector = create<State>((set, get) => {
       for (let i = index; i >= 0; i--) if (segs[i].scene && stage.scenes.some((x) => x.id === segs[i].scene)) { stage.setActive(segs[i].scene!); break }
       for (let i = index; i >= 0; i--) if (segs[i].visual) { stage.setSource('main', segs[i].visual!); break }
       for (let i = 0; i <= index; i++) if (segs[i].table) get().tableEvent(segs[i].table!)
+      for (let i = 0; i <= index; i++) if (segs[i].media) { try { get().mediaEvent(segs[i].media!) } catch { /* shown on the timeline */ } }
       set({ current: index })
       get().applyCue(guardCue(seg.cue, seg), seg.zoom ?? null, 400, !lipsMatch(seg), null)
     },
@@ -191,7 +215,7 @@ export const useDirector = create<State>((set, get) => {
       if (target.startsWith('hotspot:')) return hotspot(target.slice(8))?.rect ?? null
       if (target.startsWith('media:')) {
         const m = (stage.active().media?.[stage.orientation] ?? []).find((c) => c.id === target.slice(6) || c.label === target.slice(6))
-        return m ? m.layout : null
+        return m ? { ...m.layout, ...(get().mediaLive[m.id] ?? {}) } : null // where the script has moved it
       }
       const k = (target === 'avatar' || target === 'menu' ? target : 'main') as CardKind
       const l = get().live?.[k]
@@ -285,6 +309,7 @@ export const useDirector = create<State>((set, get) => {
       if (seg.visual) useStage.getState().setSource('main', seg.visual)
       if (seg.sketch) setTimeout(() => get().playing && get().pushSketch(seg.sketch!), 300)
       if (seg.table) setTimeout(() => get().playing && get().tableEvent(seg.table!), 400)
+      if (seg.media) setTimeout(() => get().playing && get().mediaEvent(seg.media!), lead ? Math.round(lead * 0.55) : 300)
       scheduleEnd(seg, lead)
     },
     next: () => {
@@ -295,7 +320,7 @@ export const useDirector = create<State>((set, get) => {
     stop: () => {
       if (timer) clearTimeout(timer)
       cancelAnimationFrame(raf)
-      set({ playing: false, current: -1, live: null, zoom: null, cue: 'split', guarded: false, gesture: null, sketches: [], table: {} })
+      set({ playing: false, current: -1, live: null, zoom: null, cue: 'split', guarded: false, gesture: null, sketches: [], table: {}, mediaLive: {} })
     },
   }
 })

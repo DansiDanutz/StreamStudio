@@ -48,6 +48,10 @@ export interface Segment {
   target?: string
   /** Hotspot the Main card opens out of / closes back into ("enter the monitor"). */
   via?: string
+  /** Media cards when this segment starts, chained with ';':
+   *  'show:<card>' · 'hide:<card>' · 'move:<card>@x,y,w' (fractions) · 'focus:<card>' (big, centred) · 'reset:<card>'.
+   *  <card> is the card's label (e.g. Codex) or id. */
+  media?: string
   /** Table event when this segment starts: 'arrive:claude', 'react:claude,codex', 'react:all', 'dim:all', 'clear'. */
   table?: string
 }
@@ -91,3 +95,19 @@ export function guardCue(cue: Cue, seg: Pick<Segment, 'clip' | 'voice'>): Cue {
 
 /** Largest share of the frame (by area) the face may take when the lips do not match. */
 export const MAX_UNSYNCED_AREA = 0.06
+
+/* ---- media card events (Segment.media) ---- */
+export interface MediaEvent { op: 'show' | 'hide' | 'move' | 'focus' | 'reset'; card: string; x?: number; y?: number; w?: number }
+
+export function parseMediaEvents(src = ''): MediaEvent[] {
+  const out: MediaEvent[] = []
+  for (const part of src.split(';').map((x) => x.trim()).filter(Boolean)) {
+    const m = /^(show|hide|move|focus|reset):([^@]+?)(?:@\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?)?$/i.exec(part)
+    if (!m) throw new Error(`bad media event "${part}" (use show:Card, hide:Card, move:Card@x,y,w, focus:Card, reset:Card)`)
+    const ev: MediaEvent = { op: m[1].toLowerCase() as MediaEvent['op'], card: m[2].trim() }
+    if (m[3] !== undefined) { ev.x = Number(m[3]); ev.y = Number(m[4]); if (m[5] !== undefined) ev.w = Number(m[5]) }
+    if (ev.op === 'move' && ev.x === undefined) throw new Error(`move needs a position: move:${ev.card}@x,y,w`)
+    out.push(ev)
+  }
+  return out
+}

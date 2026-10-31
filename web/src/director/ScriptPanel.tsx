@@ -96,6 +96,8 @@ export function ScriptPanel() {
                   {s.voice === 'narration' && <label className="file">audio{s.audio ? ' ✓' : ''}<input type="file" accept="audio/*,video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) updateSegment(s.id, { audio: URL.createObjectURL(f) }) }} /></label>}
                   {s.zoom && <span>zoom ×{s.zoom.scale} @ {Math.round(s.zoom.x * 100)},{Math.round(s.zoom.y * 100)}</span>}
                   {!s.pinned && p.reasons.length > 0 && <span className="why">why: {p.reasons.join(', ')}</span>}
+                  <input className="table-ev" value={s.media ?? ''} placeholder="cards: show:Codex; focus:Kimi" title="Media cards: show:Card · hide:Card · move:Card@x,y,w · focus:Card · reset:Card (chain with ;)"
+                    onChange={(e) => updateSegment(s.id, { media: e.target.value || undefined })} />
                   <input className="table-ev" value={s.table ?? ''} placeholder="table: arrive:claude" title="Table event: arrive:<id> · react:<ids|all> · dim:all · clear"
                     onChange={(e) => updateSegment(s.id, { table: e.target.value || undefined })} />
                   <select className="sketch-pick" value={s.sketch ?? ''} onChange={(e) => updateSegment(s.id, { sketch: e.target.value || undefined })} title="Desk sketch drawn when this segment starts">
