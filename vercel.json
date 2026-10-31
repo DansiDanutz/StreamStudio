@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd web && npm ci",
+  "buildCommand": "cd web && npm run build",
+  "outputDirectory": "web/dist",
+  "framework": null,
+  "rewrites": [{ "source": "/((?!api/|assets/|studio/|avatar/|objects/).*)", "destination": "/index.html" }],
+  "headers": [
+    { "source": "/(studio|avatar|objects)/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] }
+  ]
+}

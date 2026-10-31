@@ -47,7 +47,7 @@ function Editor() {
   const { applyCue, stop } = useDirector.getState()
 
   useEffect(() => {
-    fetch('/api/health').then((r) => r.json()).then((h) => setHealth(`api ${h.version} · ${h.hw_encoders?.length ? `${h.hw_encoders.length} hw encoders` : 'no hw encoder'} · ${h.jobs.queued} queued`)).catch(() => setHealth('api offline'))
+    fetch('/api/health').then((r) => r.json()).then((h) => setHealth(`api ${h.version} · ${h.hw_encoders?.length ? `${h.hw_encoders.length} hw encoders` : 'no hw encoder'} · ${h.jobs.queued} queued`)).catch(() => setHealth(location.hostname.endsWith('vercel.app') ? 'hosted demo · no server' : 'api offline'))
   }, [])
 
   useEffect(() => {
