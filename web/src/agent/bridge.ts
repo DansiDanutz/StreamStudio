@@ -8,7 +8,8 @@ import { useProgram } from '../output/link'
 import { WORKFLOWS, workflowDefaults } from '../director/workflows'
 import { LIBRARY } from '../stage/Library'
 import { toUrlSource } from '../stage/media'
-import type { AvatarShape, Cue, Zoom } from '../director/types'
+import { newSegment, type AvatarShape, type Cue, type Segment, type Zoom } from '../director/types'
+import { compileTimeline } from '../director/timeline'
 import type { GestureId } from '../avatar/gestures'
 
 type Args = Record<string, unknown>
@@ -64,10 +65,57 @@ export const EXECUTORS: Record<string, (a: Args) => unknown> = {
     useDirector.getState().insertSegments(segs, a.mode === 'append' ? 'append' : 'replace', w.name)
     return { segments: segs.length }
   },
+  'timeline.get': () => timelineNow(),
+  'segment.preview': (a) => { const i = segIndex(a.index); useDirector.getState().preview(i); return { index: i } },
+  'segment.update': (a) => {
+    const i = segIndex(a.index)
+    const patch = cleanPatch(a.patch)
+    useDirector.getState().updateSegment(useDirector.getState().script.segments[i].id, { ...patch, pinned: true })
+    return { index: i, segment: useDirector.getState().script.segments[i] }
+  },
+  'segment.add': (a) => {
+    const d = useDirector.getState()
+    const seg: Segment = { ...newSegment(String((a.segment as Args | undefined)?.text ?? ''), 'split'), pinned: true, ...cleanPatch(a.segment) }
+    const segs = [...d.script.segments]
+    const at = a.after == null ? segs.length : segIndex(a.after) + 1
+    segs.splice(at, 0, seg)
+    d.insertSegments(segs, 'replace', d.script.title)
+    return { index: at, id: seg.id }
+  },
+  'segment.remove': (a) => { const d = useDirector.getState(); const i = segIndex(a.index); d.removeSegment(d.script.segments[i].id); return { removed: i } },
+  'script.set': (a) => {
+    if (!Array.isArray(a.segments)) throw new Error("'segments' must be a list")
+    const segs = (a.segments as Args[]).map((x) => ({ ...newSegment(String(x.text ?? ''), 'split'), pinned: true, ...cleanPatch(x) }))
+    useDirector.getState().insertSegments(segs, 'replace', typeof a.title === 'string' ? a.title : undefined)
+    return { segments: segs.length }
+  },
   'script.play': (a) => { useDirector.getState().play(Number(a.from ?? 0)); return { playing: true } },
   'script.stop': () => { useDirector.getState().stop(); return { playing: false } },
   'avatar.shape': (a) => { useDirector.getState().setAvatarShape(str(a.shape, 'shape') as AvatarShape); return {} },
   'orientation.set': (a) => { useStage.getState().setOrientation(a.orientation === 'portrait' ? 'portrait' : 'landscape'); return {} },
+}
+
+const FIELDS = ['text', 'cue', 'scene', 'gesture', 'target', 'via', 'visual', 'table', 'zoom', 'voice', 'clip', 'audio', 'transitionMs'] as const
+/** Keep only known segment fields, check the cue, and re-time the text. */
+function cleanPatch(p: unknown): Partial<Segment> {
+  if (p == null) return {}
+  if (typeof p !== 'object') throw new Error("'patch' must be an object")
+  const out: Record<string, unknown> = {}
+  for (const k of FIELDS) if (k in (p as Args)) out[k] = (p as Args)[k] ?? undefined
+  if (out.cue !== undefined && !CUES.includes(out.cue as Cue)) throw new Error(`cue must be one of ${CUES.join(', ')}`)
+  if (typeof out.visual === 'string' && /^https?:\/\//.test(out.visual)) out.visual = toUrlSource(out.visual)
+  if (typeof out.text === 'string') out.durationMs = Math.max(1500, Math.round((out.text.split(/\s+/).filter(Boolean).length / 150) * 60000) + 400)
+  return out as Partial<Segment>
+}
+function segIndex(v: unknown): number {
+  const segs = useDirector.getState().script.segments
+  const i = typeof v === 'number' ? v : typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : segs.findIndex((s) => s.id === v)
+  if (!Number.isInteger(i) || i < 0 || i >= segs.length) throw new Error(`no segment ${String(v)} (there are ${segs.length})`)
+  return i
+}
+export function timelineNow() {
+  const st = useStage.getState()
+  return compileTimeline(useDirector.getState().script, st.scenes, st.activeId)
 }
 
 export function snapshot() {
@@ -82,6 +130,7 @@ export function snapshot() {
     gesture: d.gesture?.id ?? null,
     table: Object.keys(d.table),
     program: { connected: p.connected, recording: p.recording, live: p.live },
+    timeline: timelineNow(),
   }
 }
 

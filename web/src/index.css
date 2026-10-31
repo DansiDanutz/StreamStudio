@@ -330,3 +330,46 @@ video.cutout { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%
 .art-act button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0 }
 .art-act button:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0 }
 .art-empty { display: block !important; color: var(--muted); font-size: 12px }
+
+/* bottom panel: scenes | timeline */
+.bottom { position: relative; z-index: 40; display: grid; grid-template-rows: auto auto; min-width: 0; background: var(--panel); border-top: 1px solid var(--line) }
+.bottom .strip { border-top: 0 }
+.bottom-tabs { display: flex; gap: 4px; padding: 6px 12px 0 }
+.bottom-tabs button { font-size: 11px; padding: 2px 10px; border-radius: 999px }
+.tl { display: grid; gap: 6px; padding: 6px 12px 8px; min-width: 0; font-size: 11px }
+.tl-bar { display: flex; align-items: center; gap: 10px; color: var(--muted) }
+.tl-bar b { color: var(--fg) }
+.tl-bar button { font-size: 11px; padding: 2px 10px }
+.tl-zoom { margin-left: auto; display: flex; align-items: center; gap: 6px }
+.tl-warn { color: #f3b14a }
+.tl-body { display: grid; grid-template-columns: 62px 1fr; min-width: 0 }
+.tl-labels { padding-top: 18px; display: grid; grid-auto-rows: 22px; gap: 3px; color: var(--muted); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .08em }
+.tl-labels div { line-height: 22px }
+.tl-scroll { overflow-x: auto; min-width: 0; scrollbar-width: thin }
+.tl-grid { position: relative; display: grid; grid-auto-rows: 22px; gap: 3px; padding-top: 18px; padding-bottom: 2px }
+.tl-ruler { position: absolute; left: 0; right: 0; top: 0; height: 16px; border-bottom: 1px solid var(--line) }
+.tl-ruler i { position: absolute; bottom: 0; height: 4px; border-left: 1px solid #3a3650; font: 9px var(--mono); font-style: normal; color: var(--muted) }
+.tl-ruler i.major { height: 9px; border-color: #6b6780 }
+.tl-ruler i.major { text-indent: 3px; line-height: 0 }
+.tl-track { position: relative }
+.tl-b, .tl-m { position: absolute; top: 0; height: 22px; line-height: 22px; padding: 0 6px; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; box-sizing: border-box; color: #e9e6f5 }
+.tl-b { background: #262236; border: 1px solid #3a3550 }
+.tl-b.sel { outline: 2px solid var(--accent-2); outline-offset: 0 }
+.tl-b.air { box-shadow: inset 0 0 0 1px #fff }
+.tl-b.scene { background: #1f2a33; border-color: #2f4b5c }
+.tl-b.cue { background: #2a2342 }
+.tl-b.c-pip, .tl-b.c-content { background: #23314a }
+.tl-b.c-full { background: #1d3a34 }
+.tl-b.guarded { border-color: #f3b14a; color: #ffd58a }
+.tl-b.v-clip { background: #1f3b2b; border-color: #2f6b47 }
+.tl-b.v-narration { background: #3a2f1c; border-color: #6b5530 }
+.tl-b.v-none { background: #2b2b33; border-style: dashed; color: #b8b4c8 }
+.tl-b.gest { background: #3b2a4a; border-color: #6d4d8a }
+.tl-b.gest.nocl { border-style: dashed }
+.tl-m { background: transparent; border: 0; padding: 0; color: #ffd28a }
+.tl-m.vis { color: #9fd3ff }
+.tl-head { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: #ff4d5a; pointer-events: none; box-shadow: 0 0 6px rgba(255,77,90,.6) }
+.tl-detail { min-height: 16px; color: var(--fg) }
+.tl-detail .muted { color: var(--muted) }
+.script-head .group { display: flex; flex-wrap: wrap; gap: 4px }
+.script-head .group button { font-size: 11.5px; padding: 3px 8px }

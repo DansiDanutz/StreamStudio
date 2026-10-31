@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Stage } from './stage/Stage'
 import { orderedScenes, useStage } from './stage/store'
 import { SceneStrip } from './stage/SceneStrip'
+import { Timeline } from './director/Timeline'
 import { IS_PROGRAM, openProgram, startController, useProgram } from './output/link'
 import { ProgramView } from './output/ProgramView'
 import { loadGestureManifest } from './avatar/gestures'
@@ -47,6 +48,7 @@ function Editor() {
   const { toggleOrientation, toggleMenu, toggleGuides, toggleLocked, toggleVisible, toggleCutout } = useStage.getState()
   const cutout = useStage((s) => s.cutout)
   const [health, setHealth] = useState<string>('…')
+  const [bottom, setBottom] = useState<'scenes' | 'timeline'>('scenes')
   const [tab, setTab] = useState<'library' | 'artifacts' | 'script'>('library')
   const cue = useDirector((s) => s.cue)
   const live = useDirector((s) => s.live)
@@ -118,7 +120,13 @@ function Editor() {
       <main className="work">
         <div className="stage-col">
           <Stage />
-          <SceneStrip />
+          <div className="bottom">
+            <div className="bottom-tabs">
+              <button className={bottom === 'scenes' ? 'on' : ''} onClick={() => setBottom('scenes')}>Scenes</button>
+              <button className={bottom === 'timeline' ? 'on' : ''} onClick={() => setBottom('timeline')}>Timeline</button>
+            </div>
+            {bottom === 'scenes' ? <SceneStrip /> : <Timeline />}
+          </div>
         </div>
         <aside className="side">
           <div className="tabs" role="tablist">

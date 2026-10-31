@@ -59,7 +59,10 @@ def test_mcp_speaks_json_rpc_and_never_renders(monkeypatch):
         t["name"]
         for t in mcp.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})["result"]["tools"]
     ]
-    assert names == ["library_list", "library_get", "studio_state", "studio_do", "heygen_estimate"]
+    assert names == [
+        "library_list", "library_get", "studio_state", "studio_guide", "studio_timeline",
+        "studio_do", "heygen_estimate",
+    ]  # fmt: skip
     do = {"name": "studio_do", "arguments": {"action": "point.at", "args": {"target": "main"}}}
     out = mcp.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": do})
     assert json.loads(out["result"]["content"][0]["text"]) == {"ok": True}
@@ -80,3 +83,14 @@ def test_mcp_speaks_json_rpc_and_never_renders(monkeypatch):
         }
     )
     assert bad["result"]["isError"] is True
+
+
+def test_timeline_and_guide_for_agents(client):
+    assert client.get("/api/agent/timeline").status_code == 404  # editor never opened
+    tl = {"totalMs": 9000, "warnings": 1, "items": [{"index": 0, "cue": "avatar", "plays": "pip"}]}
+    client.post("/api/agent/state", json={"cue": "pip", "timeline": tl})
+    got = client.get("/api/agent/timeline").json()
+    assert got["items"][0]["plays"] == "pip" and got["editor_online"] is False
+    assert "timeline" not in client.get("/api/agent/state").json()  # state stays small
+    guide = client.get("/api/agent/guide").json()["guide"]
+    assert "Lip-sync guard" in guide and "segment.update" in guide
