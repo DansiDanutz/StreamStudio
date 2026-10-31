@@ -12,7 +12,7 @@ from .. import __version__
 from ..core import db
 from ..core.config import Settings, get_settings
 from ..core.netguard import NetGuardMiddleware
-from .routes import jobs, projects, system
+from .routes import jobs, projects, scenes, system
 
 REPO = Path(__file__).resolve().parents[4]
 WEB_DIST = REPO / "web" / "dist"
@@ -34,6 +34,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(system.router)
     app.include_router(projects.router)
     app.include_router(jobs.router)
+    app.include_router(scenes.router)
 
     if WEB_DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="web-assets")

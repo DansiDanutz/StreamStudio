@@ -62,3 +62,9 @@ export function layoutForCue(cue: Cue, saved: Layouts, orientation: Orientation,
     }
   }
 }
+
+/** True when a layout's avatar is the small, square-in-pixels card (shown as a circle). */
+export function isPipShaped(a: { w: number; h: number; visible?: boolean }, orientation: Orientation): boolean {
+  const px = orientation === 'landscape' ? 16 / 9 : 9 / 16
+  return a.visible !== false && a.w * a.h <= MAX_UNSYNCED_AREA && Math.abs(a.w * px - a.h) < 0.02
+}
