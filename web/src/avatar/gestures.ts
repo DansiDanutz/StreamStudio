@@ -63,14 +63,16 @@ export const SEATED: Record<'landscape' | 'portrait', Rect> = {
 
 /** HeyGen motion prompts (Avatar IV) for the clips we render; mirrored gestures reuse their source. */
 export const MOTION: Partial<Record<GestureId, string>> = {
-  'point-up-right': 'Right arm raises and points up to the right at a screen behind him, holds one beat, then returns both hands to the desk. Calm, confident.',
-  'point-right': 'Right arm extends and points to the right at shoulder height, holds one beat, then returns both hands to the desk.',
-  'point-down-right': 'Right hand points down and to the right at the table, holds one beat, then returns both hands to the desk.',
-  'present-right': 'Right hand opens palm-up toward the right as if presenting something, holds one beat, then returns to the desk.',
+  // Directions are the viewer's: "right" = the right side of the frame = Dan's LEFT arm.
+  // (HeyGen reads "right arm" as his own right, which points to the left of the frame.)
+  'point-up-right': 'His left arm raises and points up toward the right side of the frame, at a screen behind him, holds one beat, then returns both hands to the desk. Calm, confident.',
+  'point-right': 'His left arm extends and points toward the right side of the frame at shoulder height, holds one beat, then returns both hands to the desk.',
+  'point-down-right': 'His left hand points down at the desk on the right side of the frame, one finger extended, holds one beat, then returns both hands to the desk. The other hand stays still on the desk.',
+  'present-right': 'His left hand opens palm-up toward the right side of the frame as if presenting something, holds one beat, then returns to the desk.',
   welcome: 'Both hands open outward, palms up, welcoming, then return together on the desk. Warm smile.',
-  'thumbs-up': 'Right hand gives a thumbs-up at chest height, holds one beat, then returns to the desk. Friendly.',
-  wave: 'Right hand raises and waves twice, friendly, then returns to the desk.',
-  think: 'Right hand rises to the chin, thoughtful look for one beat, then returns to the desk.',
+  'thumbs-up': 'One hand gives a thumbs-up at chest height, holds one beat, then returns to the desk. Friendly.',
+  wave: 'One hand raises and waves twice, friendly, then returns to the desk.',
+  think: 'One hand rises to the chin, thoughtful look for one beat, then returns to the desk.',
 }
 
 /** The clips to render: every gesture that is not a mirror. */
@@ -80,5 +82,8 @@ export const SOURCE_GESTURES = GESTURES.filter((g) => !g.mirrorOf).map((g) => g.
 export const motionFor = (id: GestureId) => {
   const g = gesture(id)
   const base = MOTION[g?.mirrorOf ?? id] ?? ''
-  return g?.mirrorOf ? base.replace(/right/g, 'left').replace(/Right/g, 'Left') : base
+  if (!g?.mirrorOf) return base
+  // mirror: swap the frame side and the arm
+  return base.replace(/right side/g, '§').replace(/left side/g, 'right side').replace(/§/g, 'left side')
+    .replace(/His left/g, 'His right')
 }
