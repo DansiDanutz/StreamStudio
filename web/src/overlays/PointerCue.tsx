@@ -3,8 +3,16 @@ import { useDirector } from '../director/store'
 /** Stand-in for a gesture whose clip has not been made yet: a light sweep from the presenter's
  *  hands to the target and a pulse around it, for the gesture's length. Output-safe and subtle. */
 export function PointerCue() {
-  const g = useDirector((s) => (s.gesture?.missing ? s.gesture : null))
+  const g = useDirector((s) => s.gesture)
   if (!g || !g.to) return null
+  if (!g.missing) {
+    // a real gesture clip is playing: just a soft ring on what Dan points at
+    return (
+      <svg key={g.seq} className="pointer-cue" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ ['--ms' as string]: `${g.ms}ms` }}>
+        <rect className="pc-ring soft" x={g.to.x * 100} y={g.to.y * 100} width={g.to.w * 100} height={g.to.h * 100} rx="0.8" />
+      </svg>
+    )
+  }
   const fx = (g.from.x + g.from.w / 2) * 100
   const fy = (g.from.y + g.from.h * 0.7) * 100
   const tx = (g.to.x + g.to.w / 2) * 100

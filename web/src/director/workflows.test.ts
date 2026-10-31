@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GESTURES, SEATED, gesture, gestureClip, pickGesture } from '../avatar/gestures'
+import { GESTURES, SEATED, aimAt, gesture, gestureClip, pickGesture, setMadeGestures } from '../avatar/gestures'
 import { HOTSPOTS, hotspot } from '../stage/hotspots'
 import { PRESETS } from '../stage/presets'
 import { WORKFLOWS, workflowDefaults } from './workflows'
@@ -56,5 +56,27 @@ describe('workflows', () => {
     // no lip-synced clips yet: the face stays small while the browser is up
     expect(guardCue(segs[1].cue, segs[1])).toBe('content')
     expect(guardCue(segs[0].cue, segs[0])).toBe('pip')
+  })
+})
+
+describe('pointing at any card', () => {
+  const seat = SEATED.landscape
+  const made = ['point-up-right', 'point-right', 'present-right', 'welcome', 'thumbs-up', 'wave', 'think'] as const
+  it('from the middle of the desk, aims at cards all around the frame', () => {
+    setMadeGestures(null)
+    const at = (x: number, y: number) => aimAt(seat, { x, y, w: 0.1, h: 0.1 })
+    expect(at(0.85, 0.05)).toBe('point-up-right')
+    expect(at(0.05, 0.05)).toBe('point-up-left')
+    expect(at(0.85, 0.45)).toBe('point-right')
+    expect(at(0.05, 0.45)).toBe('point-left')
+    expect(at(0.85, 0.85)).toBe('point-down-right')
+    expect(at(0.05, 0.85)).toBe('point-down-left')
+  })
+  it('uses the closest movement we have a clip for, on the same side', () => {
+    setMadeGestures([...made])
+    expect(aimAt(seat, { x: 0.85, y: 0.85, w: 0.1, h: 0.1 })).toBe('point-right') // no down-right clip yet
+    expect(aimAt(seat, { x: 0.05, y: 0.85, w: 0.1, h: 0.1 })).toBe('point-left') // mirror of point-right
+    expect(aimAt(seat, { x: 0.05, y: 0.05, w: 0.1, h: 0.1 })).toBe('point-up-left')
+    setMadeGestures(null)
   })
 })

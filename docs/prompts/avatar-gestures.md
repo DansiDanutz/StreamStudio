@@ -52,3 +52,30 @@ The stage uses each clip as soon as it exists. Until then, the Director draws a 
 
 ## Better still: gestures inside the voice clip
 For a segment where you point *while talking*, render that segment's clip in HeyGen with its script and a motion prompt (e.g. "points up to the right on 'this'"). The voice is the clip's own audio, so the lip-sync guard allows it full frame. Set the segment's gesture to "no gesture", because the gesture is already in the clip.
+
+## Learned from the first HeyGen batch (31 Oct 2026)
+
+**Rendered:** one video, "StreamStudio gestures v1": 8 scenes of 3 s each, Avatar IV, the look "Dan in his studio".
+
+**Directions:**
+- HeyGen reads "right arm" as Dan's own right, which points to the LEFT of the frame.
+- Our directions are the viewer's. So in prompts, say "his left arm … toward the right side of the frame".
+- `web/src/avatar/gestures.ts` `MOTION` now does this.
+
+**Scene starts:**
+- Some scenes start already mid-gesture.
+- `streamstudio.avatar.gestures --rest-first` fixes that for free: it plays the clip backwards first, giving rest → gesture → rest.
+
+**What we kept:**
+
+| Gesture | Taken from | Note |
+|---|---|---|
+| `point-up-right` | scene 2 | rest-first |
+| `point-right` | scene 1 | rest-first |
+| `present-right` | scene 4 | |
+| `welcome` | scene 5 | |
+| `thumbs-up` | scene 6 | |
+| `wave` | scene 7 | |
+| `think` | scene 8 | |
+
+**Dropped:** `point-down-right`. Scene 3 crossed both hands at the chest, so it still uses the pointer cue until we re-render it with the corrected prompt.

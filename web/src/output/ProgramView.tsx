@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Stage } from '../stage/Stage'
 import { useStage } from '../stage/store'
 import { startProgram } from './link'
+import { loadGestureManifest } from '../avatar/gestures'
 import { LiveLink, Recorder, uploadTake, type Take } from './recorder'
 
 const rec = new Recorder()
@@ -24,6 +25,7 @@ export function ProgramView() {
   useEffect(() => {
     document.documentElement.classList.add('render-mode', 'program-mode')
     document.title = 'Program · StreamStudio'
+    void loadGestureManifest()
     const off = startProgram(() => ({ recording: rec.recording, seconds: rec.seconds, live: live.on }))
     fetch('/api/live/config').then((r) => (r.ok ? r.json() : null)).then(setLiveCfg).catch(() => setLiveCfg(null))
     live.onEnd = (reason) => { setOnAir(false); rec.setTap(null); if (reason) setErr(reason) }
