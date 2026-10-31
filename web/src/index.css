@@ -238,3 +238,36 @@ input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; bor
 .sync-server { color: var(--ok) } .sync-saving { color: var(--accent-2) } .sync-error { color: #f3b14a }
 .scene-now { display: grid; line-height: 1.1; font-weight: 700; font-size: 13px; padding: 0 6px; min-width: 120px }
 .scene-now span { font: 500 9px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted) }
+
+/* gesture stand-in (no clip yet) */
+.pointer-cue { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; overflow: visible }
+.pc-line { fill: none; stroke-width: .35; vector-effect: non-scaling-stroke; stroke-width: .28em; stroke-linecap: round; stroke-dasharray: 400; stroke-dashoffset: 400; animation: pc-draw var(--ms) ease-out forwards }
+.pc-ring { fill: none; stroke: #ffd28a; vector-effect: non-scaling-stroke; stroke-width: .3em; opacity: 0; animation: pc-ring var(--ms) ease-out forwards }
+@keyframes pc-draw { 0% { stroke-dashoffset: 400; opacity: 1 } 45% { stroke-dashoffset: 0; opacity: 1 } 100% { stroke-dashoffset: 0; opacity: 0 } }
+@keyframes pc-ring { 0%, 35% { opacity: 0 } 50% { opacity: 1 } 85% { opacity: .8 } 100% { opacity: 0 } }
+
+/* Main card sources */
+.drop-actions { display: flex; gap: .6em; flex-wrap: wrap; justify-content: center; margin-top: .8em }
+.drop-actions .btn, .drop .btn { font-size: 1.1em; padding: .4em 1em; border-radius: .6em; cursor: pointer }
+.drop-actions input { font-size: 1.1em; padding: .4em .7em; border-radius: .6em; min-width: 16em }
+.source-x { position: absolute; right: .6em; bottom: .6em; z-index: 4; font-size: 1em; padding: .1em .5em; border-radius: .5em; opacity: 0; transition: opacity .15s }
+.card-main:hover .source-x { opacity: .9 }
+.render-mode .source-x { display: none }
+.browser { position: absolute; inset: 0; display: grid; grid-template-rows: 2.2em 1fr; background: #fff; overflow: hidden }
+.browser-bar { display: flex; align-items: center; gap: .45em; padding: 0 .8em; background: #1d1b26; color: #c9c6d6; font: 500 .9em var(--mono) }
+.browser-bar i { width: .7em; height: .7em; border-radius: 50%; background: #4a4658 }
+.browser-bar span { margin-left: .8em; padding: .15em .8em; border-radius: .5em; background: #2a2735; flex: 1; max-width: 40em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.browser-page { position: relative; overflow: hidden; background: #fff }
+.browser-page iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: #fff }
+
+/* workflows */
+.wf { display: grid; gap: 10px; padding: 14px; overflow-y: auto; align-content: start }
+.wf-hint { margin: 0; color: var(--muted); font-size: 12px }
+.wf-title { font-weight: 800; font-size: 15px }
+.wf-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px }
+.wf-list button { width: 100%; text-align: left; display: grid; gap: 2px; padding: 9px 11px; border-radius: 10px }
+.wf-list b { font-size: 13px } .wf-list span { font-size: 11.5px; color: var(--muted); font-weight: 400 }
+.wf-field { display: grid; gap: 4px; font-size: 11.5px; color: var(--muted) }
+.wf-field input, .wf-field textarea, .wf-field select { font: inherit; font-size: 12.5px; color: var(--fg); background: #0f0e16; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; box-sizing: border-box; width: 100% }
+.wf-actions { display: flex; gap: 6px; flex-wrap: wrap }
+.seg-meta select { max-width: 11em }

@@ -4,6 +4,10 @@ import { useDirector } from './store'
 import { guardCue, lipsMatch, type Cue } from './types'
 import { tagUrl } from '../stage/media'
 import { SKETCHES } from '../overlays/sketches'
+import { WorkflowPicker } from './WorkflowPicker'
+import { GESTURES } from '../avatar/gestures'
+import { HOTSPOTS } from '../stage/hotspots'
+import { orderedScenes, useStage } from '../stage/store'
 
 const CUES: { id: Cue; label: string; hint: string }[] = [
   { id: 'avatar', label: 'Avatar', hint: 'You fill the frame. No card, no content.' },
@@ -22,6 +26,14 @@ export function ScriptPanel() {
   const shape = useDirector((s) => s.avatarShape)
   const { updateSegment, addSegment, removeSegment, runAutoDirect, play, stop, setText, setAvatarShape } = useDirector.getState()
   const [raw, setRaw] = useState<string | null>(null)
+  const [flows, setFlows] = useState(false)
+  const scenes = useStage((s) => s.scenes)
+  const media = useStage((s) => s.active().media?.[s.orientation])
+  const targets = [
+    { value: 'main', label: 'Main card' },
+    ...HOTSPOTS.map((h) => ({ value: `hotspot:${h.id}`, label: h.label })),
+    ...(media ?? []).map((m) => ({ value: `media:${m.label}`, label: `Card: ${m.label}` })),
+  ]
   const total = script.segments.reduce((a, s) => a + s.durationMs, 0)
 
   return (
@@ -32,6 +44,7 @@ export function ScriptPanel() {
           <div className="script-title">{script.title} · {script.segments.length} segments · ~{Math.round(total / 1000)}s</div>
         </div>
         <div className="group">
+          <button onClick={() => { setFlows(!flows); setRaw(null) }} className={flows ? 'on' : ''} title="Ready-made script shapes">Workflows</button>
           <button onClick={() => setRaw(raw === null ? script.segments.map((s) => s.text).join('\n\n') : null)}>{raw === null ? 'Paste text' : 'Back'}</button>
           <button onClick={runAutoDirect} title="Propose a cue for every unpinned segment">Auto-direct</button>
           <button onClick={() => setAvatarShape(shape === 'circle' ? 'portrait' : 'circle')} title="Shape of your small card">{shape === 'circle' ? '◯ circle' : '▯ portrait'}</button>
@@ -41,7 +54,7 @@ export function ScriptPanel() {
         </div>
       </div>
 
-      {raw !== null ? (
+      {flows ? <WorkflowPicker onDone={() => setFlows(false)} /> : raw !== null ? (
         <div className="script-raw">
           <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={18} spellCheck={false} />
           <button className="primary" onClick={() => { setText(raw); setRaw(null) }}>Split into segments</button>
@@ -85,6 +98,23 @@ export function ScriptPanel() {
                   <select className="sketch-pick" value={s.sketch ?? ''} onChange={(e) => updateSegment(s.id, { sketch: e.target.value || undefined })} title="Desk sketch drawn when this segment starts">
                     <option value="">no sketch</option>
                     {Object.keys(SKETCHES).map((k) => <option key={k} value={k}>✎ {k}</option>)}
+                  </select>
+                  <select value={s.scene ?? ''} title="Scene this segment switches to" onChange={(e) => updateSegment(s.id, { scene: e.target.value || undefined })}>
+                    <option value="">scene: keep</option>
+                    {orderedScenes(scenes).map((sc) => <option key={sc.id} value={sc.id}>▦ {sc.name}</option>)}
+                  </select>
+                  <select value={s.gesture ?? ''} title="Gesture at the start of the segment" onChange={(e) => updateSegment(s.id, { gesture: e.target.value || undefined })}>
+                    <option value="">no gesture</option>
+                    <option value="auto">☝ point at target (auto)</option>
+                    {GESTURES.map((g) => <option key={g.id} value={g.id}>☝ {g.label}</option>)}
+                  </select>
+                  {(s.gesture || s.via) && <select value={s.target ?? ''} title="What the presenter points at" onChange={(e) => updateSegment(s.id, { target: e.target.value || undefined })}>
+                    <option value="">target: {s.via ? 'the hotspot' : 'Main card'}</option>
+                    {targets.map((t) => <option key={t.value} value={t.value}>→ {t.label}</option>)}
+                  </select>}
+                  <select value={s.via ?? ''} title="The Main card opens out of / closes into this place in the studio" onChange={(e) => updateSegment(s.id, { via: e.target.value || undefined })}>
+                    <option value="">no monitor transition</option>
+                    {HOTSPOTS.filter((h) => h.id !== 'table').map((h) => <option key={h.id} value={h.id}>⧉ via {h.label}</option>)}
                   </select>
                   <label className="file">clip<input type="file" accept="video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) updateSegment(s.id, { clip: tagUrl(f) }) }} /></label>
                   <label className="file">visual<input type="file" accept="video/*,image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) updateSegment(s.id, { visual: tagUrl(f) }) }} /></label>

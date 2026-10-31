@@ -205,3 +205,39 @@ The model has four levels:
 - Studio Desk, Studio + Circle, Avatar Stage (Talk);
 - Browser + Cam, Side Cam, App + Menu (Demo);
 - Raw (Data).
+
+## Gestures, the studio monitor, workflows
+
+**Gestures** (`web/src/avatar/gestures.ts`) — there are 12:
+- six points: up-right, right, down-right, and their mirrored left versions;
+- two presents: right and left (mirrored);
+- four beats: welcome, thumbs-up, wave, think.
+
+**How a gesture plays:**
+- A segment's `gesture` is `auto` or a gesture id.
+- `auto` picks the gesture from where the `target` sits relative to the presenter: up if above the shoulders, down if below the hands.
+- The gesture plays first. The layout change follows at 55% of the gesture, and the voice starts when it ends.
+- If the clip is missing, a pointer cue is drawn instead: a sweep from the hands to the target and a ring around it.
+- How to make the clips: `docs/prompts/avatar-gestures.md` (HeyGen). How to process them: `streamstudio.avatar.gestures`.
+
+**Hotspots** (`stage/hotspots.ts`): measured places in the plate.
+- The Fake-Real monitor: 0.642, 0.268, 0.185 × 0.222.
+- The trading screen.
+- The table hero spot.
+
+A segment with `via: monitor` has the Main card grow out of the monitor's screen, and shrink back into it when the card is hidden.
+
+**Main-card sources:**
+- a file;
+- `url:` — a web page rendered at a desktop width of 1440 px and scaled to the card, so it reads as the same screen coming closer;
+- `tab:` — a shared tab, window or screen, for sites that refuse to be framed.
+
+**Workflows** (`director/workflows.ts`): ready-made script shapes, with fields to fill.
+- Opener (world of AI);
+- Browser demo (open the monitor);
+- Explain the Main card;
+- Compare (left vs right);
+- Talking head;
+- Outro.
+
+They set the scene, cue, gesture, target and `via` on every segment. Each is created from its template scenes if those are missing from the library.

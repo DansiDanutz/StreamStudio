@@ -10,6 +10,7 @@ import { ObjectLayer } from '../overlays/ObjectLayer'
 import { useDirector } from '../director/store'
 import { OUTPUT } from './types'
 import { MediaCardView } from './MediaCardView'
+import { PointerCue } from '../overlays/PointerCue'
 import { DRAG_MIME, LIBRARY, fileToItem } from './Library'
 
 const NO_MEDIA: never[] = []
@@ -94,6 +95,7 @@ export function Stage() {
         <Card kind="main" baseW={size.w} baseH={size.h}><MainCard /></Card>
         <Card kind="avatar" baseW={size.w} baseH={size.h}><AvatarCard /></Card>
         {media.map((m) => <MediaCardView key={m.id} card={m} baseW={size.w} baseH={size.h} />)}
+        <PointerCue />
         <Card kind="menu" baseW={size.w} baseH={size.h} className={scene.menuShown ? '' : 'card-ghost'}><MenuCard /></Card>
         <div className="base-label">{OUTPUT[orientation].w}×{OUTPUT[orientation].h} · {scene.name}</div>
       </div>
