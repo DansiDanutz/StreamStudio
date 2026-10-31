@@ -305,3 +305,5 @@ input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; bor
 .pc-ring.soft { stroke: rgba(255,226,170,.85); stroke-width: .22em }
 .card-point { position: absolute; right: .5em; top: .5em; z-index: 6; font-size: .9em; padding: .15em .6em; border-radius: .5em }
 .render-mode .card-point { display: none }
+/* the clip's own frame edge can cut an extended arm: fade the cut-out out at its left/right edges */
+video.cutout { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%) }

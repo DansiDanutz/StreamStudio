@@ -19,6 +19,7 @@ const AUTOPLAY = new URLSearchParams(location.search).get('autoplay') === '1'
 function RenderView() {
   useEffect(() => {
     document.documentElement.classList.add('render-mode')
+    void loadGestureManifest()
     const st = useStage.getState()
     if (st.guides) st.toggleGuides()
     ;(window as unknown as { __director: typeof useDirector }).__director = useDirector
