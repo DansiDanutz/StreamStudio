@@ -2,13 +2,14 @@ import { create } from 'zustand'
 import { useStage } from '../stage/store'
 import type { CardKind, CardLayout, Rect } from '../stage/types'
 import { autoDirect, splitScript } from './autoDirect'
-import { layoutForCue } from './cueLayouts'
-import { estimateMs, newSegment, type Cue, type Script, type Segment, type Zoom } from './types'
+import { guardLayout, layoutForCue } from './cueLayouts'
+import { estimateMs, guardCue, lipsMatch, newSegment, type AvatarShape, type Cue, type Script, type Segment, type Zoom } from './types'
 import { RESET_ON } from '../overlays/sketches'
 import { OBJECTS } from '../overlays/objects'
 import type { TableState } from '../overlays/ObjectLayer'
 
 const KEY = 'streamstudio.script.v6'
+const SHAPE_KEY = 'streamstudio.avatarShape'
 
 export type LiveLayouts = Partial<Record<CardKind, Rect & { visible?: boolean; radius?: number; z?: number }>>
 
@@ -22,6 +23,11 @@ interface State {
   zoom: Zoom | null
   /** The cue currently applied (manual or from the segment). */
   cue: Cue
+  /** True while the on-air segment's face was moved to the small card by the lip-sync guard. */
+  guarded: boolean
+  /** Shape of the avatar card when it is not full frame. */
+  avatarShape: AvatarShape
+  setAvatarShape: (s: AvatarShape) => void
   /** Desk sketches currently on the table, in draw order. */
   sketches: string[]
   pushSketch: (id: string | null) => void
@@ -34,7 +40,8 @@ interface State {
   addSegment: () => void
   removeSegment: (id: string) => void
   runAutoDirect: () => void
-  applyCue: (cue: Cue, zoom?: Zoom | null, ms?: number) => void
+  /** `guard` = enforce the lip-sync rule on the resulting layout (always on during play). */
+  applyCue: (cue: Cue, zoom?: Zoom | null, ms?: number, guard?: boolean) => void
   play: (from?: number) => void
   stop: () => void
   next: () => void
@@ -101,8 +108,9 @@ export const useDirector = create<State>((set, get) => {
 
   const scheduleEnd = (seg: Segment) => {
     if (timer) clearTimeout(timer)
-    // With a clip, AvatarCard calls next() on `ended`; the timer is a safety net.
-    const ms = seg.clip ? seg.durationMs + 30_000 : seg.durationMs
+    // With a voice (clip or narration audio), AvatarCard calls next() on `ended`; the timer is a safety net.
+    const voiced = lipsMatch(seg) || (seg.voice === 'narration' && !!seg.audio)
+    const ms = voiced ? seg.durationMs + 30_000 : seg.durationMs
     timer = setTimeout(() => get().playing && get().next(), ms)
   }
 
@@ -118,6 +126,14 @@ export const useDirector = create<State>((set, get) => {
     live: null,
     zoom: null,
     cue: 'split',
+    guarded: false,
+    avatarShape: (() => { try { return (localStorage.getItem(SHAPE_KEY) as AvatarShape) || 'circle' } catch { return 'circle' } })(),
+    setAvatarShape: (avatarShape) => {
+      try { localStorage.setItem(SHAPE_KEY, avatarShape) } catch { /* ok */ }
+      set({ avatarShape })
+      const { live, cue, playing, current, script } = get()
+      if (live) get().applyCue(cue, get().zoom, 300, playing && !lipsMatch(script.segments[current] ?? {}))
+    },
     sketches: [],
     table: {},
     tableEvent: (ev) => {
@@ -148,9 +164,11 @@ export const useDirector = create<State>((set, get) => {
     removeSegment: (id) => save((s) => ({ ...s, segments: s.segments.filter((x) => x.id !== id) })),
     runAutoDirect: () => save((s) => autoDirect(s)),
 
-    applyCue: (cue, zoom = null, ms = 600) => {
+    applyCue: (cue, zoom = null, ms = 600, guard = false) => {
       const stage = useStage.getState()
-      const target = layoutForCue(cue, stage.active().layouts[stage.orientation], stage.orientation)
+      const shape = get().avatarShape
+      let target = layoutForCue(cue, stage.active().layouts[stage.orientation], stage.orientation, shape)
+      if (guard) target = guardLayout(target, stage.orientation, shape)
       set({ cue, zoom })
       tween(target, ms)
     },
@@ -158,8 +176,11 @@ export const useDirector = create<State>((set, get) => {
     play: (from = 0) => {
       const seg = get().script.segments[from]
       if (!seg) return get().stop()
-      set({ playing: true, current: from })
-      get().applyCue(seg.cue, seg.zoom ?? null, seg.transitionMs)
+      // Lip-sync guard: the face is only large when the voice is the clip's own audio.
+      const cue = guardCue(seg.cue, seg)
+      const guard = !lipsMatch(seg)
+      set({ playing: true, current: from, guarded: guard && cue !== seg.cue })
+      get().applyCue(cue, seg.zoom ?? null, seg.transitionMs, guard)
       if (seg.visual) useStage.getState().setSource('main', seg.visual)
       if (seg.sketch) setTimeout(() => get().playing && get().pushSketch(seg.sketch!), 300)
       if (seg.table) setTimeout(() => get().playing && get().tableEvent(seg.table!), 400)
@@ -173,7 +194,7 @@ export const useDirector = create<State>((set, get) => {
     stop: () => {
       if (timer) clearTimeout(timer)
       cancelAnimationFrame(raf)
-      set({ playing: false, current: -1, live: null, zoom: null, cue: 'split', sketches: [], table: {} })
+      set({ playing: false, current: -1, live: null, zoom: null, cue: 'split', guarded: false, sketches: [], table: {} })
     },
   }
 })

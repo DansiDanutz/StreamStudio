@@ -158,3 +158,22 @@ Sources:
 - [HeyGen — Streaming Avatars API](https://docs.heygen.com/docs/streaming-avatars-api)
 - [Tella vs Screen Studio](https://www.tella.com/alternatives/screen-studio.md)
 - [fbsamples/Canvas-Streaming-Example](https://www.github.com/fbsamples/Canvas-Streaming-Example)
+
+
+## Lip-sync guard
+
+Viewers forgive a small talking-head bubble; they never forgive a large face whose lips don't match the words.
+
+| Voice heard | Face allowed | Cue on air |
+|---|---|---|
+| The clip's own audio (HeyGen render of these words) | Full frame or large | as scripted |
+| Separate narration (cloned/dubbed voice, VO track) | Small card only | `avatar` → `pip`, `duo` → `content` |
+| No voice (timed segment) | Small card only (listening face) | same as narration |
+
+- **Small card:** bottom-left. Landscape is 15% of the width, square in pixels (circle). Portrait is 30% of the width. The 3:4 portrait shape is optional. The card never exceeds 6% of the frame area. The face is centred: cover, a scale of about 1.4, origin at 32% from the top. The card has a white ring and a soft shadow.
+- **What sits behind `pip`:** the studio plate with the table objects. The focus rule keeps the studio whenever there is no Main card. The seated cut-out is used only when the face is full frame.
+- **Code:**
+  - `director/types.ts` (`lipsMatch`, `guardCue`, `MAX_UNSYNCED_AREA`);
+  - `director/cueLayouts.ts` (`pipRect`, `guardLayout`);
+  - `render/lipsync.py` for offline renders.
+- **Script panel:** every segment shows `lips ✓/✕` and the cue it will really play as. The header toggles the circle or portrait shape.

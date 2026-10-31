@@ -184,3 +184,12 @@ button, select { font: inherit }
 .lib-item img { width: 100%; aspect-ratio: 16/11; object-fit: contain; pointer-events: none }
 .lib-upload { cursor: pointer; border-style: dashed; color: var(--muted); align-content: center; min-height: 120px }
 .lib-upload .plus { font-size: 28px; line-height: 1 }
+
+/* lip-sync guard: the small presenter card as a circle, face-centred */
+.card-avatar.is-circle { border-radius: 50% !important; border: .25em solid rgba(255,255,255,.9); box-shadow: 0 1.2em 3em rgba(0,0,0,.55), 0 0 0 .5em rgba(255,255,255,.08) }
+.card-avatar.is-circle video.fill { object-fit: cover; object-position: 50% 28%; transform: scale(1.4); transform-origin: 50% 32% }
+.card-avatar.is-circle .lipsync { display: none }
+.lips { font-family: var(--mono); font-size: .8em; padding: .05em .45em; border-radius: .5em; border: 1px solid var(--line) }
+.lips.ok { color: var(--ok); border-color: currentColor }
+.lips.no { color: #f3b14a; border-color: currentColor }
+.card-avatar.is-live:not(.is-fullframe):not(.is-circle) { border-radius: .9em !important }

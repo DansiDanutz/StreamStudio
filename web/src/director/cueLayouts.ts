@@ -3,13 +3,29 @@
  *  the other cues are computed from it. */
 
 import type { CardKind, CardLayout, Orientation } from '../stage/types'
-import type { Cue } from './types'
+import { MAX_UNSYNCED_AREA, type AvatarShape, type Cue } from './types'
 
 type Layouts = Record<CardKind, CardLayout>
 
 const PAD = 0.03
 
-export function layoutForCue(cue: Cue, saved: Layouts, orientation: Orientation): Layouts {
+/** Small presenter card, bottom-left. Circle: square in pixels; portrait: 3:4 in pixels. */
+export function pipRect(orientation: Orientation, shape: AvatarShape = 'circle') {
+  const land = orientation === 'landscape'
+  const pxAspect = land ? 16 / 9 : 9 / 16 // frame w/h, to make the card square/3:4 in pixels
+  const w = land ? 0.15 : 0.3
+  const h = w * pxAspect * (shape === 'circle' ? 1 : 4 / 3)
+  return { x: land ? 0.045 : 0.06, y: 1 - h - (land ? 0.07 : 0.05), w, h }
+}
+
+/** Enforce the lip-sync guard on any layout: a large, visible face becomes the small card. */
+export function guardLayout(L: Layouts, orientation: Orientation, shape: AvatarShape = 'circle'): Layouts {
+  const a = L.avatar
+  if (!a.visible || a.w * a.h <= MAX_UNSYNCED_AREA) return L
+  return { ...L, avatar: { ...a, ...pipRect(orientation, shape), z: Math.max(a.z, 3), radius: 0 } }
+}
+
+export function layoutForCue(cue: Cue, saved: Layouts, orientation: Orientation, shape: AvatarShape = 'circle'): Layouts {
   const L = JSON.parse(JSON.stringify(saved)) as Layouts
   const land = orientation === 'landscape'
   switch (cue) {
@@ -30,12 +46,18 @@ export function layoutForCue(cue: Cue, saved: Layouts, orientation: Orientation)
     case 'content': {
       // Content maximized inside the bezel; presenter minimized bottom-left.
       L.main = { ...L.main, visible: true, x: PAD, y: PAD * (land ? 1.78 : 0.56), w: 1 - 2 * PAD, h: 1 - 2 * PAD * (land ? 1.78 : 0.56), z: 1 }
-      L.avatar = { ...L.avatar, visible: true, x: land ? 0.05 : 0.05, y: land ? 0.62 : 0.78, w: land ? 0.14 : 0.26, h: land ? 0.3 : 0.17, z: 2 }
+      L.avatar = { ...L.avatar, visible: true, ...pipRect(orientation, shape), z: 2 }
       return L
     }
     case 'full': {
       L.main = { ...L.main, visible: true, x: 0, y: 0, w: 1, h: 1, z: 1, radius: 0 }
       L.avatar = { ...L.avatar, visible: false }
+      return L
+    }
+    case 'pip': {
+      // Presenter small over the studio (the table stays the focus); no content card.
+      L.avatar = { ...L.avatar, visible: true, ...pipRect(orientation, shape), z: 3, radius: 0 }
+      L.main = { ...L.main, visible: false }
       return L
     }
   }

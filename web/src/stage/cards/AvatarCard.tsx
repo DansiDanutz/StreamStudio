@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useDirector } from '../../director/store'
+import { lipsMatch } from '../../director/types'
 import { useStage } from '../store'
 
 /** Avatar card. S1: plays an avatar clip (Dan's lip-sync render) matched to the orientation.
@@ -24,12 +25,19 @@ export function AvatarCard() {
   const override = useStage((s) => s.avatarSrc)
   const setSource = useStage((s) => s.setSource)
   const playing = useDirector((s) => s.playing)
-  const segClip = useDirector((s) => (s.current >= 0 ? s.script.segments[s.current]?.clip : undefined))
+  const seg = useDirector((s) => (s.current >= 0 ? s.script.segments[s.current] : undefined))
   const next = useDirector((s) => s.next)
-  // On air with a segment clip: that clip is the voice (unmuted, no loop) and its end advances the script.
-  const onAir = playing && !!segClip
-  const src = onAir ? segClip! : (override ?? DEFAULT[orientation])
-  const cutout = useStage((s) => s.cutout)
+  // On air with a lip-synced clip: that clip is the voice (unmuted, no loop) and its end advances the script.
+  // With separate narration the face is the idle clip, muted, and the narration track drives the timing.
+  const onAir = playing && !!seg && lipsMatch(seg)
+  const narration = playing && seg?.voice === 'narration' && seg.audio ? seg.audio : undefined
+  const src = onAir ? seg!.clip! : (override ?? DEFAULT[orientation])
+  const cutoutPref = useStage((s) => s.cutout)
+  const fullFrame = useStage((s) => { const l = s.active().layouts[s.orientation].avatar; return l.w >= 0.999 && l.h >= 0.999 })
+  const liveFull = useDirector((s) => { const l = s.live?.avatar; return l ? l.w >= 0.999 && l.h >= 0.999 : undefined })
+  const isFull = liveFull ?? fullFrame
+  // The cut-out is seated at the studio desk, so it only makes sense full frame; small cards show the raw clip.
+  const cutout = cutoutPref && isFull
   const [missing, setMissing] = useState<Record<string, true>>({})
   const wanted = cutout ? CUTOUT[src] : undefined
   const alpha = wanted && !missing[wanted] ? wanted : undefined // fall back to the raw clip until a cut-out exists
@@ -40,15 +48,14 @@ export function AvatarCard() {
   const style = alpha
     ? { position: 'absolute' as const, left: `${seat.x * 100}%`, bottom: `${(1 - bottomY) * 100}%`, height: `${seat.scale * 100}%`, width: 'auto', transform: 'translateX(-50%)', objectFit: 'contain' as const, background: 'transparent' }
     : undefined
-  const fullFrame = useStage((s) => { const l = s.active().layouts[s.orientation].avatar; return l.w >= 0.999 && l.h >= 0.999 })
-  const liveFull = useDirector((s) => { const l = s.live?.avatar; return l ? l.w >= 0.999 && l.h >= 0.999 : undefined })
-  const showDesk = !!alpha && (liveFull ?? fullFrame)
+  const showDesk = !!alpha && isFull
   return (
     <div className={`avatar-wrap ${alpha ? 'is-cutout' : ''}`}>
       <video key={(alpha ?? src) + (onAir ? '-air' : '')} className={alpha ? 'cutout' : 'fill cover'} style={style}
         src={alpha ?? src} autoPlay loop={!onAir} muted={!onAir} playsInline
         onEnded={() => onAir && next()}
         onError={(e) => (alpha ? setMissing((m) => ({ ...m, [alpha]: true })) : ((e.target as HTMLVideoElement).style.opacity = '0'))} />
+      {narration && <audio key={narration} src={narration} autoPlay onEnded={() => next()} />}
       {showDesk && <img className="desk" src={DESK[orientation]} alt="" draggable={false} onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
       <label className="avatar-pick" onPointerDown={(e) => e.stopPropagation()} title="Replace avatar clip">
         ⤓

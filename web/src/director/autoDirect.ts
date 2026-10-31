@@ -49,7 +49,7 @@ export interface Proposal {
 }
 
 export function propose(text: string, index: number, total: number): Proposal {
-  const score: Record<Cue, number> = { avatar: 0, duo: 0, split: 0.5, content: 0, full: 0 }
+  const score: Record<Cue, number> = { avatar: 0, duo: 0, split: 0.5, content: 0, full: 0, pip: 0 }
   const reasons: string[] = []
   for (const r of RULES) {
     if (r.test.test(text)) {
