@@ -131,8 +131,8 @@ export const useDirector = create<State>((set, get) => {
       for (const id of ids) {
         if (!OBJECTS.some((o) => o.id === id)) continue
         const prev = table[id] ?? { phase: 'gone' as const, seq: 0 }
-        if (kind === 'arrive') table[id] = { phase: 'arrive', seq: prev.seq + 1 }
-        if (kind === 'react') table[id] = { phase: 'react', seq: prev.seq + 1, dim: false }
+        if (kind === 'arrive') table[id] = { phase: 'arrive', seq: prev.seq + 1, arrivedAt: performance.now() }
+        if (kind === 'react') table[id] = { ...prev, phase: 'react', seq: prev.seq + 1, dim: false }
         if (kind === 'dim') table[id] = { ...prev, dim: true }
         if (kind === 'remove') table[id] = { phase: 'gone', seq: prev.seq + 1 }
         if (kind === 'leave') table[id] = { phase: 'leave', seq: prev.seq + 1 }
