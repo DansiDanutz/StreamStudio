@@ -63,3 +63,34 @@ describe('agents edit the script', () => {
     expect(() => EXECUTORS['segment.update']({ index: 0, patch: { cue: 'fly' } })).toThrow(/cue/)
   })
 })
+
+describe('script-driven media cards', () => {
+  beforeEach(() => {
+    useStage.setState({ scenes: clone(PRESETS), activeId: 'studio-solo', orientation: 'landscape' })
+    useDirector.getState().stop()
+  })
+  it('parses events and rejects bad ones clearly', async () => {
+    const { parseMediaEvents } = await import('./types')
+    expect(parseMediaEvents('show:Codex; move:Kimi@0.8,0.3,0.25; focus:GLM')).toEqual([
+      { op: 'show', card: 'Codex' }, { op: 'move', card: 'Kimi', x: 0.8, y: 0.3, w: 0.25 }, { op: 'focus', card: 'GLM' },
+    ])
+    expect(() => parseMediaEvents('jump:Codex')).toThrow(/bad media event/)
+    expect(() => parseMediaEvents('move:Codex')).toThrow(/needs a position/)
+  })
+  it('moves a card live (not saved), Dan points where it went, stop resets', () => {
+    const { media } = EXECUTORS['media.add']({ item: 'codex', x: 0.5, y: 0.5, w: 0.2 }) as { media: string }
+    const saved = { ...useStage.getState().media()[0].layout }
+    EXECUTORS['media.event']({ event: 'move:Codex@0.85,0.2,0.2' })
+    const live = useDirector.getState().mediaLive[media]
+    expect(live.x! + live.w! / 2).toBeCloseTo(0.85, 5)
+    expect(useStage.getState().media()[0].layout).toEqual(saved) // the scene is untouched
+    expect(useDirector.getState().targetRect(`media:${media}`)!.x).toBeCloseTo(live.x!, 5)
+    expect((EXECUTORS['point.at']({ target: `media:${media}` }) as { gesture: string }).gesture).toMatch(/up-right|right/)
+    useDirector.getState().stop()
+    expect(useDirector.getState().mediaLive).toEqual({})
+  })
+  it('the timeline warns about cards that are not on the stage', () => {
+    const tl = compileTimeline({ id: 's', title: 't', segments: [seg('x', 'split', { media: 'show:Nope' })] }, scenes, undefined, [{ id: 'm1', label: 'Codex' }])
+    expect(tl.items[0].warnings.join()).toMatch(/No media card "Nope"/)
+  })
+})

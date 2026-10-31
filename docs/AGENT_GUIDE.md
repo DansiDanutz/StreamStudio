@@ -20,6 +20,7 @@ Read this once, then use `studio_timeline` to see the current video and `studio_
 | `via` | the Main card opens out of / closes into this studio place | `monitor`, `trading` |
 | `visual` | what the Main card shows from now on | a web page (`https://…`), or a file path |
 | `table` | 3D objects on the desk | `arrive:<id>`, `leave:<id>`, `react:all`, `clear`; chain with `;` |
+| `media` | media cards (dragged in from the Library) | `show:Codex`, `hide:Codex`, `move:Codex@x,y,w` (centre and width, as fractions of the frame), `focus:Codex` (big, centred), `reset:Codex`; chain with `;`. A card is named by its label or id. |
 | `zoom` | zoom into the Main card | `{x, y, scale}` with x, y in 0..1 and a scale of about 1.6 |
 | `voice` | where the voice comes from | `clip` (the clip's own lip-synced audio) or `narration` |
 | `clip` | Dan's rendered clip for this line | set by Script → HeyGen |
@@ -34,12 +35,17 @@ Read this once, then use `studio_timeline` to see the current video and `studio_
   - With no clip, a pointer cue (a light sweep and a ring) stands in.
 - **The scene carries over:** a segment with no `scene` stays in the last one set.
 - **The Main card's source carries over:** a segment with no `visual` keeps showing the last one set.
+- **Media card moves are temporary:**
+  - They apply while the script plays and reset when it stops.
+  - They never change the saved scene.
+  - Pointing at a moved card aims at where it now is.
 
 ## Typical moves
 
 | You want | Do |
 |---|---|
 | Point at the monitor, then open the browser | Segment A: `{cue:'avatar', gesture:'auto', target:'hotspot:monitor'}`. Segment B: `{cue:'content', via:'monitor', visual:'https://fake-real.live'}` |
+| Two cards, left and right | Segment A: `{media:'move:Claude Code@0.17,0.32,0.22; hide:Codex', gesture:'auto', target:'media:Claude Code'}`. Segment B: `{media:'move:Codex@0.83,0.32,0.22', gesture:'auto', target:'media:Codex'}` |
 | Explain a card | `{gesture:'auto', target:'media:<id>', cue:'duo'}`, then `{cue:'content'}` |
 | A tool appears on the table | `{table:'arrive:codex', gesture:'present-right'}` |
 | Back to Dan alone | `{cue:'avatar', via:'monitor'}`; the browser closes back into the monitor |

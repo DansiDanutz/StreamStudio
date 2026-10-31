@@ -8,7 +8,7 @@ import { useProgram } from '../output/link'
 import { WORKFLOWS, workflowDefaults } from '../director/workflows'
 import { LIBRARY } from '../stage/Library'
 import { toUrlSource } from '../stage/media'
-import { newSegment, type AvatarShape, type Cue, type Segment, type Zoom } from '../director/types'
+import { newSegment, parseMediaEvents, type AvatarShape, type Cue, type Segment, type Zoom } from '../director/types'
 import { compileTimeline } from '../director/timeline'
 import type { GestureId } from '../avatar/gestures'
 
@@ -50,6 +50,7 @@ export const EXECUTORS: Record<string, (a: Args) => unknown> = {
     })
     return { media: mid }
   },
+  'media.event': (a) => { const ev = str(a.event, 'event'); parseMediaEvents(ev); useDirector.getState().mediaEvent(ev); return { media: Object.keys(useDirector.getState().mediaLive) } },
   'media.remove': (a) => { useStage.getState().removeMedia(str(a.id, 'id').replace(/^media:/, '')); return {} },
   'main.source': (a) => {
     const v = a.src
@@ -95,7 +96,7 @@ export const EXECUTORS: Record<string, (a: Args) => unknown> = {
   'orientation.set': (a) => { useStage.getState().setOrientation(a.orientation === 'portrait' ? 'portrait' : 'landscape'); return {} },
 }
 
-const FIELDS = ['text', 'cue', 'scene', 'gesture', 'target', 'via', 'visual', 'table', 'zoom', 'voice', 'clip', 'audio', 'transitionMs'] as const
+const FIELDS = ['text', 'cue', 'scene', 'gesture', 'target', 'via', 'visual', 'table', 'media', 'zoom', 'voice', 'clip', 'audio', 'transitionMs'] as const
 /** Keep only known segment fields, check the cue, and re-time the text. */
 function cleanPatch(p: unknown): Partial<Segment> {
   if (p == null) return {}
@@ -103,6 +104,7 @@ function cleanPatch(p: unknown): Partial<Segment> {
   const out: Record<string, unknown> = {}
   for (const k of FIELDS) if (k in (p as Args)) out[k] = (p as Args)[k] ?? undefined
   if (out.cue !== undefined && !CUES.includes(out.cue as Cue)) throw new Error(`cue must be one of ${CUES.join(', ')}`)
+  if (typeof out.media === 'string' && out.media) parseMediaEvents(out.media) // throws a clear message if malformed
   if (typeof out.visual === 'string' && /^https?:\/\//.test(out.visual)) out.visual = toUrlSource(out.visual)
   if (typeof out.text === 'string') out.durationMs = Math.max(1500, Math.round((out.text.split(/\s+/).filter(Boolean).length / 150) * 60000) + 400)
   return out as Partial<Segment>
@@ -115,7 +117,7 @@ function segIndex(v: unknown): number {
 }
 export function timelineNow() {
   const st = useStage.getState()
-  return compileTimeline(useDirector.getState().script, st.scenes, st.activeId)
+  return compileTimeline(useDirector.getState().script, st.scenes, st.activeId, st.active().media?.[st.orientation] ?? [])
 }
 
 export function snapshot() {

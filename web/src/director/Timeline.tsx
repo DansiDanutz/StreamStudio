@@ -3,7 +3,7 @@ import { useDirector } from './store'
 import { useStage } from '../stage/store'
 import { clipDurations, compileTimeline, type TimelineItem } from './timeline'
 
-const TRACKS = ['Scene', 'Layout', 'Voice', 'Gesture', 'Table', 'Main'] as const
+const TRACKS = ['Scene', 'Layout', 'Voice', 'Gesture', 'Table', 'Cards', 'Main'] as const
 const fmt = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`
 
 /** The script laid out in time: what is on screen, what is heard, and what actually plays after
@@ -15,11 +15,12 @@ export function Timeline() {
   const segStartedAt = useDirector((s) => s.segStartedAt)
   const scenes = useStage((s) => s.scenes)
   const activeId = useStage((s) => s.activeId)
+  const cards = useStage((s) => s.active().media?.[s.orientation])
   const [pps, setPps] = useState(24) // pixels per second
   const [sel, setSel] = useState<number | null>(null)
   const [, bump] = useState(0)
   const startScene = useRef(activeId)
-  const tl = useMemo(() => compileTimeline(script, scenes, startScene.current), [script, scenes]) // eslint-disable-line react-hooks/exhaustive-deps
+  const tl = useMemo(() => compileTimeline(script, scenes, startScene.current, cards ?? []), [script, scenes, cards]) // eslint-disable-line react-hooks/exhaustive-deps
   const head = useRef<HTMLDivElement>(null)
 
   // learn real clip lengths so the timeline matches what will play
@@ -90,6 +91,9 @@ export function Timeline() {
             <div className="tl-track">{tl.items.filter((it) => it.gesture).map((it) => block(it, it.startMs, it.startMs + it.leadMs, `gest ${it.gesture!.clip ? '' : 'nocl'}`, `☝ ${it.gesture!.plays ?? 'auto'}`, `Gesture ${it.gesture!.asked}${it.target ? ` → ${it.target}` : ''}`))}</div>
             <div className="tl-track">{tl.items.filter((it) => it.table).map((it) => (
               <div key={it.index} className="tl-m tbl" style={{ left: x(it.startMs + 400) }} title={it.table} onClick={() => pick(it.index)}>◆ {it.table}</div>
+            ))}</div>
+            <div className="tl-track">{tl.items.filter((it) => it.media).map((it) => (
+              <div key={it.index} className="tl-m crd" style={{ left: x(it.startMs + (it.leadMs ? it.leadMs * 0.55 : 300)) }} title={it.media} onClick={() => pick(it.index)}>▣ {it.media}</div>
             ))}</div>
             <div className="tl-track">{tl.items.filter((it) => it.visual || it.via || it.zoom).map((it) => (
               <div key={it.index} className="tl-m vis" style={{ left: x(it.startMs) }} onClick={() => pick(it.index)}

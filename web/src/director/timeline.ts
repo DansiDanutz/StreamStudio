@@ -5,7 +5,7 @@
 import { gesture as findGesture, hasClip, nearestMade, type GestureId } from '../avatar/gestures'
 import { hotspot } from '../stage/hotspots'
 import type { Scene } from '../stage/types'
-import { guardCue, lipsMatch, type Cue, type Script, type Segment } from './types'
+import { guardCue, lipsMatch, parseMediaEvents, type Cue, type Script, type Segment } from './types'
 
 export interface TimelineItem {
   index: number
@@ -30,6 +30,7 @@ export interface TimelineItem {
   via?: string
   visual?: string
   table?: string
+  media?: string
   zoom?: Segment['zoom']
   warnings: string[]
 }
@@ -39,7 +40,7 @@ export interface Timeline { totalMs: number; items: TimelineItem[]; warnings: nu
 /** Clip lengths learned from the media (ms), filled in by the Timeline view. */
 export const clipDurations = new Map<string, number>()
 
-export function compileTimeline(script: Script, scenes: Pick<Scene, 'id' | 'name'>[], startScene?: string): Timeline {
+export function compileTimeline(script: Script, scenes: Pick<Scene, 'id' | 'name'>[], startScene?: string, cards?: { id: string; label: string }[]): Timeline {
   let t = 0
   let inEffect = scenes.find((s) => s.id === startScene) ?? null
   const items = script.segments.map((s, index): TimelineItem => {
@@ -68,13 +69,20 @@ export function compileTimeline(script: Script, scenes: Pick<Scene, 'id' | 'name
     }
     if (s.via && !hotspot(s.via)) warnings.push(`Unknown hotspot "${s.via}".`)
     if (s.target?.startsWith('hotspot:') && !hotspot(s.target.slice(8))) warnings.push(`Unknown target "${s.target}".`)
+    if (s.media) {
+      try {
+        for (const ev of parseMediaEvents(s.media)) {
+          if (cards && !cards.some((c) => c.id === ev.card || c.label.toLowerCase() === ev.card.toLowerCase())) warnings.push(`No media card "${ev.card}" on the stage (add it from the Library).`)
+        }
+      } catch (e) { warnings.push((e as Error).message) }
+    }
     const known = s.clip && lips ? clipDurations.get(s.clip) : undefined
     const voiceMs = known ?? s.durationMs
     const item: TimelineItem = {
       index, id: s.id, startMs: t, leadMs, voiceMs, endMs: t + leadMs + voiceMs, text: s.text,
       scene, sceneInEffect: inEffect, cue: s.cue, plays, lips,
       voice: lips ? 'clip' : s.voice === 'narration' ? 'narration' : 'none', clip: s.clip,
-      gesture: g, target: s.target, via: s.via, visual: s.visual, table: s.table, zoom: s.zoom, warnings,
+      gesture: g, target: s.target, via: s.via, visual: s.visual, table: s.table, media: s.media, zoom: s.zoom, warnings,
     }
     t = item.endMs
     return item

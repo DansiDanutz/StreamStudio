@@ -100,7 +100,7 @@ export const WORKFLOWS: Workflow[] = [
   {
     id: 'compare',
     name: 'Compare two things (left vs right)',
-    summary: 'You point left at one card, right at the other, then sum up.',
+    summary: 'Two cards come in left and right; you point at each, then the winner comes forward. Add both from the Library first.',
     scenes: ['studio-solo'],
     fields: [
       { key: 'left', label: 'Left card (media card name)', default: 'Claude Code' },
@@ -110,9 +110,9 @@ export const WORKFLOWS: Workflow[] = [
       { key: 'verdict', label: 'Verdict', default: 'Together they ship twice as fast.' },
     ],
     build: (f) => [
-      seg(f.leftLine, 'avatar', { scene: 'studio-solo', gesture: 'auto', target: `media:${f.left}` }),
-      seg(f.rightLine, 'avatar', { gesture: 'auto', target: `media:${f.right}` }),
-      seg(f.verdict, 'avatar', { gesture: 'welcome' }),
+      seg(f.leftLine, 'avatar', { scene: 'studio-solo', media: `move:${f.left}@0.17,0.32,0.22; hide:${f.right}`, gesture: 'auto', target: `media:${f.left}` }),
+      seg(f.rightLine, 'avatar', { media: `move:${f.right}@0.83,0.32,0.22`, gesture: 'auto', target: `media:${f.right}` }),
+      seg(f.verdict, 'avatar', { media: `reset:${f.left}; reset:${f.right}`, gesture: 'welcome' }),
     ],
   },
   {
