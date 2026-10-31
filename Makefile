@@ -1,7 +1,7 @@
 # StreamStudio — developer entry points. Run on the Mac Studio.
 PY := server/.venv/bin/python
 
-.PHONY: setup dev api worker web build test lint
+.PHONY: setup dev api worker web build test lint mac-app
 
 setup:            ## install everything (python venv + node modules)
 	cd server && uv venv -p 3.12 .venv && uv pip install -e . --group dev
@@ -30,3 +30,6 @@ test:             ## all tests
 lint:
 	cd server && .venv/bin/ruff check src tests
 	cd web && npx tsc -b
+
+mac-app:          ## install StreamStudio.app into ~/Applications (macOS)
+	mkdir -p ~/Applications && rm -rf ~/Applications/StreamStudio.app && cp -R mac/StreamStudio.app ~/Applications/ && chmod +x ~/Applications/StreamStudio.app/Contents/MacOS/StreamStudio

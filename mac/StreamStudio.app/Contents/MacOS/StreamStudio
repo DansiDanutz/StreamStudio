@@ -1,0 +1,74 @@
+#!/bin/bash
+# StreamStudio.app — starts the studio on this Mac and opens its window.
+# First run: downloads StreamStudio into ~/StreamStudio/app and sets it up (a minute or two).
+# Later runs: updates it, makes sure the server is running, and opens the window.
+# Logs: ~/StreamStudioData/logs. The server keeps running after the window closes
+# (open the app again to get the window back; `pkill -f streamstudio` stops it).
+
+set -u
+APPDIR="${STREAMSTUDIO_HOME:-$HOME/StreamStudio/app}"
+REPO="https://github.com/DansiDanutz/StreamStudio.git"
+DATA="$HOME/StreamStudioData"
+LOG="$DATA/logs"
+URL="http://127.0.0.1:8787"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+mkdir -p "$LOG"
+
+say()  { osascript -e "display notification \"$1\" with title \"StreamStudio\"" >/dev/null 2>&1; }
+fail() { osascript -e "display alert \"StreamStudio could not start\" message \"$1\" as critical" >/dev/null 2>&1; exit 1; }
+up()   { curl -s -m 1 "$URL/api/health" 2>/dev/null | grep -q '"ok":true'; }
+
+if ! up; then
+  # 1. code
+  if [ ! -d "$APPDIR/.git" ]; then
+    say "First start: downloading StreamStudio…"
+    mkdir -p "$(dirname "$APPDIR")"
+    git clone --depth 1 "$REPO" "$APPDIR" >>"$LOG/setup.log" 2>&1 \
+      || fail "Could not download StreamStudio from GitHub. Details: ~/StreamStudioData/logs/setup.log"
+  else
+    git -C "$APPDIR" pull --ff-only >>"$LOG/setup.log" 2>&1 || true   # offline is fine
+  fi
+  REV="$(git -C "$APPDIR" rev-parse HEAD)"
+
+  # 2. server (Python 3.12+; uv is used when installed, and fetches Python by itself)
+  if [ ! -x "$APPDIR/server/.venv/bin/python" ] || [ "$(cat "$APPDIR/server/.venv/.rev" 2>/dev/null)" != "$REV" ]; then
+    say "Setting up the server (one time)…"
+    cd "$APPDIR/server" || fail "Missing $APPDIR/server"
+    {
+      if command -v uv >/dev/null 2>&1; then
+        uv venv -q -p 3.12 --allow-existing .venv && uv pip install -q -p .venv/bin/python -e .
+      else
+        PY=""
+        for p in python3.14 python3.13 python3.12; do command -v "$p" >/dev/null 2>&1 && { PY="$p"; break; }; done
+        [ -n "$PY" ] || { echo "no python >= 3.12"; false; } && "$PY" -m venv .venv && .venv/bin/pip install -q -e .
+      fi
+    } >>"$LOG/setup.log" 2>&1 || fail "Python 3.12 is needed. Install it with: brew install uv  (then open StreamStudio again)."
+    echo "$REV" > .venv/.rev
+  fi
+
+  # 3. web app (built once per version)
+  if [ ! -f "$APPDIR/web/dist/index.html" ] || [ "$(cat "$APPDIR/web/dist/.rev" 2>/dev/null)" != "$REV" ]; then
+    command -v npm >/dev/null 2>&1 || fail "Node.js is needed. Install it with: brew install node  (then open StreamStudio again)."
+    say "Building the studio (one time)…"
+    ( cd "$APPDIR/web" && npm ci --no-audit --no-fund && npm run build ) >>"$LOG/setup.log" 2>&1 \
+      || fail "The web build failed. Details: ~/StreamStudioData/logs/setup.log"
+    echo "$REV" > "$APPDIR/web/dist/.rev"
+  fi
+
+  # 4. start api + worker in the background
+  cd "$APPDIR" || exit 1
+  nohup server/.venv/bin/python -m streamstudio.api.main    >>"$LOG/api.log"    2>&1 &
+  nohup server/.venv/bin/python -m streamstudio.worker.main >>"$LOG/worker.log" 2>&1 &
+  for _ in $(seq 1 60); do up && break; sleep 0.5; done
+  up || fail "The server did not start. Details: ~/StreamStudioData/logs/api.log"
+fi
+
+# 5. the window: a Chromium browser in app mode (screen recording and going live need it),
+#    with its own profile so capture permissions stick; otherwise the default browser.
+for b in "Google Chrome" "Brave Browser" "Microsoft Edge" "Chromium" "Arc"; do
+  if [ -d "/Applications/$b.app" ] || [ -d "$HOME/Applications/$b.app" ]; then
+    open -na "$b" --args --app="$URL" --user-data-dir="$DATA/window" --no-first-run --no-default-browser-check
+    exit 0
+  fi
+done
+open "$URL"
