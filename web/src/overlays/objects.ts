@@ -16,14 +16,19 @@ export interface ObjectDef {
   dir?: string
 }
 
+// x = centre on the desk, y = the disc line (fractions of frame); `w` = rendered width of the cut-out.
 export const OBJECTS: ObjectDef[] = [
-  { id: 'claude', name: 'Claude', x: 0.18, y: 0.8, scale: 0.26 },
-  { id: 'codex', name: 'Codex', x: 0.31, y: 0.78, scale: 0.25 },
-  { id: 'grok', name: 'Grok + GrokBot', x: 0.44, y: 0.77, scale: 0.25 },
-  { id: 'hermes', name: 'Hermes', x: 0.56, y: 0.77, scale: 0.25 },
-  { id: 'kimi', name: 'Kimi', x: 0.69, y: 0.78, scale: 0.25 },
-  { id: 'glm', name: 'GLM', x: 0.82, y: 0.8, scale: 0.26 },
+  { id: 'claude-code', name: 'Claude Code', x: 0.15, y: 0.86, scale: 0.11 },
+  { id: 'codex', name: 'Codex', x: 0.29, y: 0.86, scale: 0.11 },
+  { id: 'cluster', name: 'Grok + GrokBot', x: 0.43, y: 0.86, scale: 0.11 },
+  { id: 'hermes', name: 'Hermes', x: 0.57, y: 0.86, scale: 0.11 },
+  { id: 'kimi', name: 'Kimi', x: 0.71, y: 0.86, scale: 0.11 },
+  { id: 'glm', name: 'GLM', x: 0.85, y: 0.86, scale: 0.11 },
+  { id: 'openclaw', name: 'OpenClaw', x: 0.5, y: 0.86, scale: 0.2 },
 ]
+/** Hero spot: where an object arrives (big, centre) before it settles into its place. */
+export const HERO = { x: 0.5, y: 0.88, scale: 0.2 }
+export const objectStill = (o: ObjectDef) => `/objects/${o.dir ?? o.id}/cutout.png`
 
 export const objectClip = (o: ObjectDef, phase: Exclude<ObjectPhase, 'gone'>) => `/objects/${o.dir ?? o.id}/${phase}.mp4`
 export const PLACEHOLDER = (phase: Exclude<ObjectPhase, 'gone'>) => `/objects/_placeholder/${phase}.mp4`

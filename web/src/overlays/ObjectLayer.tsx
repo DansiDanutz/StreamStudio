@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { OBJECTS, PLACEHOLDER, objectClip, type ObjectDef, type ObjectPhase } from './objects'
+import { useEffect, useState } from 'react'
+import { HERO, OBJECTS, objectClip, objectStill, type ObjectDef, type ObjectPhase } from './objects'
 
 export type TableState = Record<string, { phase: ObjectPhase; seq: number; dim?: boolean }>
 
-/** Draws the objects standing on the desk. Clips are on black and screen-blended over the plate. */
+/** Objects standing on the desk. Each object is its matted still (cutout.png) or, once generated, its
+ *  video clips. An arriving object rises in at the hero spot, holds, then glides to its own place. */
 export function ObjectLayer({ table }: { table: TableState }) {
   return (
     <div className="object-layer" aria-hidden>
@@ -16,21 +17,29 @@ export function ObjectLayer({ table }: { table: TableState }) {
   )
 }
 
+const HOLD_MS = 2600 // time at the hero spot while Dan introduces it
+
 function ObjectView({ o, phase, seq, dim }: { o: ObjectDef; phase: Exclude<ObjectPhase, 'gone'>; seq: number; dim: boolean }) {
-  const [src, setSrc] = useState(objectClip(o, phase))
-  const [cur, setCur] = useState<Exclude<ObjectPhase, 'gone'>>(phase)
-  const ref = useRef<HTMLVideoElement>(null)
-  useEffect(() => { setCur(phase); setSrc(objectClip(o, phase)) }, [o, phase, seq])
-  // The clip is 1920×1080 with the object centred: size it so the object's footprint lands at (x, y).
-  const h = o.scale / 0.3 // clips frame the object at ~30% of their height
+  const [atHero, setAtHero] = useState(phase === 'arrive')
+  const [hasClip, setHasClip] = useState(true)
+  useEffect(() => {
+    if (phase !== 'arrive') return
+    setAtHero(true)
+    const t = setTimeout(() => setAtHero(false), HOLD_MS)
+    return () => clearTimeout(t)
+  }, [phase, seq])
+  const spot = atHero ? HERO : o
+  // width in % of frame; the cut-outs are normalised so the light disc sits at ~78% of their height
   const style = {
-    left: `${o.x * 100}%`, top: `${o.y * 100}%`, height: `${h * 100}%`, aspectRatio: '16/9',
-    transform: 'translate(-50%, -62%)', opacity: dim ? 0.35 : 1,
+    left: `${spot.x * 100}%`, top: `${spot.y * 100}%`, width: `${spot.scale * 100 * 1.7}%`,
+    transform: 'translate(-50%, -78%)', opacity: dim ? 0.4 : 1,
   }
+  const cls = `object ${phase === 'arrive' ? 'is-arriving' : ''} ${phase === 'react' ? 'is-reacting' : ''}`
   return (
-    <video ref={ref} key={src + seq} className="object-clip" style={style} src={src} autoPlay muted playsInline
-      loop={cur === 'idle'}
-      onEnded={() => { if (cur !== 'idle') { setCur('idle'); setSrc(objectClip(o, 'idle')) } }}
-      onError={() => { if (!src.includes('_placeholder')) setSrc(PLACEHOLDER(cur)) }} />
+    <div className={cls} style={style} key={seq}>
+      {hasClip
+        ? <video className="object-media" src={objectClip(o, phase === 'react' ? 'react' : 'idle')} autoPlay muted playsInline loop onError={() => setHasClip(false)} />
+        : <img className="object-media" src={objectStill(o)} alt="" draggable={false} />}
+    </div>
   )
 }

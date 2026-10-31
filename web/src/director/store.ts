@@ -8,7 +8,7 @@ import { RESET_ON } from '../overlays/sketches'
 import { OBJECTS } from '../overlays/objects'
 import type { TableState } from '../overlays/ObjectLayer'
 
-const KEY = 'streamstudio.script.v3'
+const KEY = 'streamstudio.script.v4'
 
 export type LiveLayouts = Partial<Record<CardKind, Rect & { visible?: boolean; radius?: number; z?: number }>>
 
@@ -48,9 +48,9 @@ const persist = (s: Script) => { try { localStorage.setItem(KEY, JSON.stringify(
 // Default script: "the world of AI" opener (docs/scripts/intro-world-of-ai.md). 3D objects arrive on the table.
 const INTRO: { text: string; table?: string }[] = [
   { text: 'Let me introduce you to the world of AI. The technology of the future, on this table, today.', table: 'clear' },
-  { text: "First: Claude. This is where I think, plan and write. When I'm wrong, it says so. Best at reasoning, long context, and code review.", table: 'arrive:claude' },
+  { text: "First: Claude. This is where I think, plan and write. When I'm wrong, it says so. Best at reasoning, long context, and code review.", table: 'arrive:claude-code' },
   { text: 'Codex. My pair programmer in the terminal. Fastest way from an idea to running code.', table: 'arrive:codex' },
-  { text: 'Grok, with GrokBot on top: real-time market data, and my paper-trading agent that learns every day.', table: 'arrive:grok' },
+  { text: 'Grok, with GrokBot on top: real-time market data, and my paper-trading agent that learns every day.', table: 'arrive:cluster' },
   { text: 'Hermes. The messenger of my fleet; it runs the machines and talks to every other agent.', table: 'arrive:hermes' },
   { text: 'Kimi. Long documents, research, the reader of the team.', table: 'arrive:kimi' },
   { text: 'And GLM. Fast, cheap, local when I need it.', table: 'arrive:glm' },
