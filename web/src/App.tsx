@@ -100,7 +100,7 @@ function Editor() {
         </div>
         <div className="group">
           <button className={program.connected ? 'on' : ''} onClick={() => openProgram(orientation)} title="Open the clean output window: it mirrors this editor, plays the sound and records">
-            {program.recording ? `● REC ${Math.floor(program.seconds / 60)}:${String(program.seconds % 60).padStart(2, '0')}` : program.connected ? 'Program ↗ on' : 'Program ↗'}
+            {program.live ? '● LIVE' : program.recording ? `● REC ${Math.floor(program.seconds / 60)}:${String(program.seconds % 60).padStart(2, '0')}` : program.connected ? 'Program ↗ on' : 'Program ↗'}
           </button>
         </div>
         <div className="status">{health}</div>

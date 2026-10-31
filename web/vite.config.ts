@@ -10,7 +10,7 @@ export default defineConfig({
   publicDir: fileURLToPath(new URL('../assets', import.meta.url)),
   server: {
     port: 5173,
-    proxy: { '/api': 'http://127.0.0.1:8787' },
+    proxy: { '/api': { target: 'http://127.0.0.1:8787', ws: true } },
   },
   build: { outDir: 'dist', emptyOutDir: true },
 })
