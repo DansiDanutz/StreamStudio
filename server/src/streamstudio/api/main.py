@@ -12,7 +12,7 @@ from .. import __version__
 from ..core import db
 from ..core.config import Settings, get_settings
 from ..core.netguard import NetGuardMiddleware
-from .routes import heygen, jobs, live, projects, recordings, scenes, system
+from .routes import agent, heygen, jobs, live, projects, recordings, scenes, system
 
 REPO = Path(__file__).resolve().parents[4]
 WEB_DIST = REPO / "web" / "dist"
@@ -38,6 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(recordings.router)
     app.include_router(live.router)
     app.include_router(heygen.router)
+    app.include_router(agent.router)
 
     if WEB_DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="web-assets")

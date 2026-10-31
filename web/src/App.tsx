@@ -5,6 +5,7 @@ import { SceneStrip } from './stage/SceneStrip'
 import { IS_PROGRAM, openProgram, startController, useProgram } from './output/link'
 import { ProgramView } from './output/ProgramView'
 import { loadGestureManifest } from './avatar/gestures'
+import { startAgentBridge } from './agent/bridge'
 import { initSceneSync } from './stage/sceneSync'
 import { ScriptPanel } from './director/ScriptPanel'
 import { Library, fileToItem } from './stage/Library'
@@ -51,6 +52,7 @@ function Editor() {
 
   useEffect(() => { void initSceneSync(); void loadGestureManifest() }, [])
   useEffect(() => startController(), [])
+  useEffect(() => startAgentBridge(), [])
   const program = useProgram()
 
   useEffect(() => {
