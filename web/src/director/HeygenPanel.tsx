@@ -3,6 +3,9 @@ import { useDirector } from './store'
 import { MOTION, SOURCE_GESTURES, motionFor, pickGesture, SEATED, type GestureId } from '../avatar/gestures'
 import type { Segment } from './types'
 
+/** HeyGen API list price for Avatar IV photo avatars (platform.heygen.com/pricing, Oct 2026). */
+const API_USD_PER_S = 0.0385
+
 type Cfg = { has_key: boolean; api_key: string; avatar_id: string; voice_id: string; look_name: string }
 type Look = { id: string; name: string; avatar_type: string; default_voice_id: string | null; preview_image_url: string | null }
 type Account = { billing_type: string; premium_remaining: number | null; wallet_remaining: number | null; spending_usd: number | null }
@@ -114,7 +117,7 @@ export function HeygenPanel({ onDone }: { onDone: () => void }) {
               {looks.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           </label>
-          <p className="wf-hint">Key {cfg.api_key} · {balance != null ? `balance ${balance} ${acct?.premium_remaining != null ? 'premium credits' : ''}` : 'balance unknown'}</p>
+          <p className="wf-hint">Key {cfg.api_key} · {acct?.premium_remaining != null ? `${acct.premium_remaining} premium credits` : acct?.wallet_remaining != null ? `API balance $${acct.wallet_remaining}` : 'balance unknown'}</p>
           <div className="wf-actions">
             <button disabled={!needVoice.length} onClick={() => estimate(needVoice.map(segmentItem), `${needVoice.length} script line${needVoice.length === 1 ? '' : 's'}`)}>
               Voice my script ({needVoice.length})
@@ -129,7 +132,9 @@ export function HeygenPanel({ onDone }: { onDone: () => void }) {
               {plan.est.clips === 0
                 ? <p>Already rendered: nothing to pay. {plan.est.ready.length} clip(s) attached.</p>
                 : <p>{plan.est.clips} clip{plan.est.clips === 1 ? '' : 's'} · ≈{plan.est.seconds}s of Avatar IV{plan.est.with_motion ? ` · ${plan.est.with_motion} with custom motion (about 2× cost)` : ''}.<br />
-                    Guide: ≈1 premium credit per 3 s, about {Math.ceil((plan.est.seconds / 3) * (plan.est.with_motion ? 2 : 1))} credits{balance != null ? ` of your ${balance}` : ''}. HeyGen bills the exact amount.</p>}
+                    {acct?.billing_type === 'wallet' || acct?.billing_type === 'usage_based'
+                      ? <>API price: Avatar IV photo avatar ${API_USD_PER_S}/s ≈ <b>${(plan.est.seconds * API_USD_PER_S).toFixed(2)}</b>{acct.wallet_remaining != null ? ` from your $${acct.wallet_remaining} API balance` : ''} (custom motion may cost more). HeyGen bills the exact amount.</>
+                      : <>Guide: ≈1 premium credit per 3 s, about {Math.ceil((plan.est.seconds / 3) * (plan.est.with_motion ? 2 : 1))} credits{balance != null ? ` of your ${balance}` : ''}. HeyGen bills the exact amount.</>}</p>}
               <div className="wf-actions">
                 <button onClick={() => setPlan(null)}>Cancel</button>
                 <button className="primary" onClick={go}>{plan.est.clips ? `Render ${plan.est.clips} clip${plan.est.clips === 1 ? '' : 's'}` : 'Attach'}</button>
