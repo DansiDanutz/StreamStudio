@@ -241,3 +241,23 @@ A segment with `via: monitor` has the Main card grow out of the monitor's screen
 - Outro.
 
 They set the scene, cue, gesture, target and `via` on every segment. Each is created from its template scenes if those are missing from the library.
+
+## Program window and recording
+
+**Program ↗** opens a clean output window (`/?program=1`).
+- The editor is the controller: it runs the Director and posts its state on a BroadcastChannel, coalesced per frame.
+- The Program window only mirrors that state.
+- The Program window plays the sound. The editor goes quiet while a Program window is connected.
+
+**Record** (in the Program window):
+1. The window captures itself (`getDisplayMedia` with `preferCurrentTab`).
+2. It crops the capture to the Base card (Region Capture `CropTarget`), so the toolbar is never in the take.
+3. It records with MediaRecorder: MP4 when the browser offers it, otherwise WebM, at 16 Mb/s.
+4. It uploads the take to `/api/recordings`.
+5. The worker job `finish_recording` makes an H.264/AAC MP4 at −14 LUFS, using VideoToolbox on the Mac Studio.
+
+The take can also be downloaded straight from the window.
+
+**Live sources (tab, camera):**
+- A MediaStream belongs to one window, so the Program window asks once for its own.
+- The empty-card picker never appears in the output.

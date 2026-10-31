@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -12,7 +12,7 @@ from .. import __version__
 from ..core import db
 from ..core.config import Settings, get_settings
 from ..core.netguard import NetGuardMiddleware
-from .routes import jobs, projects, scenes, system
+from .routes import jobs, projects, recordings, scenes, system
 
 REPO = Path(__file__).resolve().parents[4]
 WEB_DIST = REPO / "web" / "dist"
@@ -35,12 +35,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(projects.router)
     app.include_router(jobs.router)
     app.include_router(scenes.router)
+    app.include_router(recordings.router)
 
     if WEB_DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="web-assets")
 
         @app.get("/{path:path}", include_in_schema=False)
         def spa(path: str) -> FileResponse:
+            if path == "api" or path.startswith("api/"):
+                # unknown API paths never fall back to the app
+                raise HTTPException(404, "not found")
             for root in (WEB_DIST, REPO_ASSETS):
                 f = (root / path).resolve()
                 if path and f.is_file() and root in f.parents:

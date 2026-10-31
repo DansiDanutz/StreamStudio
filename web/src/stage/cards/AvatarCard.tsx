@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useDirector } from '../../director/store'
 import { lipsMatch } from '../../director/types'
+import { IS_PROGRAM, useProgram } from '../../output/link'
 import { gesture as findGesture, gestureClip } from '../../avatar/gestures'
 import { useStage } from '../store'
 
@@ -31,6 +32,9 @@ export function AvatarCard() {
   // On air with a lip-synced clip: that clip is the voice (unmuted, no loop) and its end advances the script.
   // With separate narration the face is the idle clip, muted, and the narration track drives the timing.
   const onAir = playing && !!seg && lipsMatch(seg)
+  // With a Program window open, the sound plays there (and is recorded there); the editor stays quiet.
+  const quiet = useProgram((p) => p.connected) && !IS_PROGRAM
+  const advance = () => { if (!IS_PROGRAM) next() } // only the editor drives the script
   const narration = playing && seg?.voice === 'narration' && seg.audio ? seg.audio : undefined
   const src = onAir ? seg!.clip! : (override ?? DEFAULT[orientation])
   const cutoutPref = useStage((s) => s.cutout)
@@ -65,10 +69,10 @@ export function AvatarCard() {
             onEnded={() => useDirector.getState().endGesture(gest.seq)}
             onError={() => useDirector.getState().markGestureMissing(gest.seq)} />
         : <video key={(alpha ?? src) + (onAir ? '-air' : '')} className={alpha ? 'cutout' : 'fill cover'} style={style}
-            src={alpha ?? src} autoPlay loop={!onAir} muted={!onAir} playsInline
-            onEnded={() => onAir && next()}
+            src={alpha ?? src} autoPlay loop={!onAir} muted={!onAir || quiet} playsInline
+            onEnded={() => onAir && advance()}
             onError={(e) => (alpha ? setMissing((m) => ({ ...m, [alpha]: true })) : ((e.target as HTMLVideoElement).style.opacity = '0'))} />}
-      {narration && <audio key={narration} src={narration} autoPlay onEnded={() => next()} />}
+      {narration && <audio key={narration} src={narration} autoPlay muted={quiet} onEnded={advance} />}
       {showDesk && <img className="desk" src={DESK[orientation]} alt="" draggable={false} onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
       <label className="avatar-pick" onPointerDown={(e) => e.stopPropagation()} title="Replace avatar clip">
         ⤓

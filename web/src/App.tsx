@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Stage } from './stage/Stage'
 import { orderedScenes, useStage } from './stage/store'
 import { SceneStrip } from './stage/SceneStrip'
+import { IS_PROGRAM, openProgram, startController, useProgram } from './output/link'
+import { ProgramView } from './output/ProgramView'
 import { initSceneSync } from './stage/sceneSync'
 import { ScriptPanel } from './director/ScriptPanel'
 import { Library, fileToItem } from './stage/Library'
@@ -29,6 +31,7 @@ function RenderView() {
 
 export default function App() {
   if (RENDER) return <RenderView />
+  if (IS_PROGRAM) return <ProgramView />
   return <Editor />
 }
 
@@ -46,6 +49,8 @@ function Editor() {
   const { applyCue, stop } = useDirector.getState()
 
   useEffect(() => { void initSceneSync() }, [])
+  useEffect(() => startController(), [])
+  const program = useProgram()
 
   useEffect(() => {
     fetch('/api/health').then((r) => r.json()).then((h) => setHealth(`api ${h.version} · ${h.hw_encoders?.length ? `${h.hw_encoders.length} hw encoders` : 'no hw encoder'} · ${h.jobs.queued} queued`)).catch(() => setHealth(location.hostname.endsWith('vercel.app') ? 'hosted demo · no server' : 'api offline'))
@@ -92,6 +97,11 @@ function Editor() {
             <button key={c} className={live && cue === c ? 'on' : ''} onClick={() => applyCue(c)} title={c[0].toUpperCase()}>{c}</button>
           ))}
           {live && <button onClick={stop} title="Esc">reset</button>}
+        </div>
+        <div className="group">
+          <button className={program.connected ? 'on' : ''} onClick={() => openProgram(orientation)} title="Open the clean output window: it mirrors this editor, plays the sound and records">
+            {program.recording ? `● REC ${Math.floor(program.seconds / 60)}:${String(program.seconds % 60).padStart(2, '0')}` : program.connected ? 'Program ↗ on' : 'Program ↗'}
+          </button>
         </div>
         <div className="status">{health}</div>
       </header>

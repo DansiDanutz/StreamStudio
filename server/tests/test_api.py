@@ -128,8 +128,12 @@ def test_scenes_crud_is_idempotent_and_ordered(env):
     got = client.get("/api/scenes").json()
     assert [s["id"] for s in got] == ["scene_b", "scene_a"]
     assert got[1] == {
-        "bezel": "studio", "id": "scene_a", "name": "Studio desk", "collection": "Talk",
-        "position": 2, "updated_at": got[1]["updated_at"],
+        "bezel": "studio",
+        "id": "scene_a",
+        "name": "Studio desk",
+        "collection": "Talk",
+        "position": 2,
+        "updated_at": got[1]["updated_at"],
     }
     assert client.delete("/api/scenes/scene_a").status_code == 204
     assert client.delete("/api/scenes/scene_a").status_code == 204
@@ -137,3 +141,44 @@ def test_scenes_crud_is_idempotent_and_ordered(env):
     assert client.put("/api/scenes/bad id!", json=body).status_code == 422
     big = {**body, "data": {"x": "a" * 300_000}}
     assert client.put("/api/scenes/scene_c", json=big).status_code == 413
+
+
+def test_recording_upload_becomes_mp4(env, tmp_path):
+    import subprocess
+
+    client, settings = env
+    take = tmp_path / "take.webm"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=320x180:rate=30:duration=1",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-c:v", "libvpx-vp9", "-b:v", "200k",
+         "-c:a", "libopus", "-shortest", str(take)],
+        check=True,
+    )  # fmt: skip
+    r = client.post(
+        "/api/recordings", content=take.read_bytes(), headers={"content-type": "video/webm"}
+    )
+    assert r.status_code == 201, r.text
+    rid = r.json()["id"]
+    assert client.get(f"/api/recordings/{rid}.mp4").status_code == 404  # not encoded yet
+    c = db.connect(settings.db_path)
+    assert run_one(c, settings, "w1")
+    rec = client.get("/api/recordings").json()[0]
+    assert rec["id"] == rid and rec["mp4"]
+    got = client.get(f"/api/recordings/{rid}.mp4")
+    assert got.status_code == 200 and got.content[4:8] == b"ftyp"
+    assert run_one(c, settings, "w1") is False  # nothing left; the job is done
+    assert (
+        client.post(
+            "/api/recordings", content=b"", headers={"content-type": "video/webm"}
+        ).status_code
+        == 400
+    )
+    assert (
+        client.post(
+            "/api/recordings", content=b"x", headers={"content-type": "text/plain"}
+        ).status_code
+        == 415
+    )
+    bad = client.get("/api/recordings/..%2Fsecret.mp4")
+    assert bad.status_code in (404, 422)
+    assert client.get("/api/recordings/rec_bad.mp4").status_code == 422

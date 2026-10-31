@@ -43,11 +43,16 @@ class Settings(BaseSettings):
     def projects_dir(self) -> Path:
         return self.data_dir / "projects"
 
+    @property
+    def recordings_dir(self) -> Path:
+        return self.data_dir / "recordings"
+
     def allowed_import_roots(self) -> list[Path]:
         return [self.data_dir, *self.import_roots]
 
     def ensure_dirs(self) -> None:
         self.projects_dir.mkdir(parents=True, exist_ok=True)
+        self.recordings_dir.mkdir(parents=True, exist_ok=True)
 
 
 @lru_cache
