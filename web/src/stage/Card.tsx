@@ -74,6 +74,10 @@ export function Card({ kind, baseW, baseH, className = '', children }: Props) {
         <span key={h} className={`handle handle-${h}`} onPointerDown={onDown(h)} onPointerMove={onMove} onPointerUp={onUp} />
       ))}
       {selected && <span className="card-tag">{kind}{layout.locked ? ' · locked' : ''}</span>}
+      {selected && kind !== 'avatar' && (
+        <button className="card-point" title="Dan points at this card (T)" onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => useDirector.getState().pointAt(kind)}>☝ point</button>
+      )}
     </div>
   )
 }

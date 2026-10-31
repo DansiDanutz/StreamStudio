@@ -7,7 +7,7 @@ import { estimateMs, guardCue, lipsMatch, newSegment, type AvatarShape, type Cue
 import { RESET_ON } from '../overlays/sketches'
 import { OBJECTS } from '../overlays/objects'
 import type { TableState } from '../overlays/ObjectLayer'
-import { GESTURES, SEATED, gesture as findGesture, pickGesture, type GestureId } from '../avatar/gestures'
+import { GESTURES, SEATED, aimAt, gesture as findGesture, hasClip, nearestMade, type GestureId } from '../avatar/gestures'
 import { hotspot } from '../stage/hotspots'
 
 /** A gesture on air: the clip plays in the Avatar card; without a clip, a pointer cue is drawn instead. */
@@ -40,6 +40,8 @@ interface State {
   markGestureMissing: (seq: number) => void
   /** Resolve a segment target ('main', 'hotspot:monitor', 'media:<id>') to a frame rect. */
   targetRect: (target?: string) => Rect | null
+  /** Dan points at any card or place: 'main', 'media:<id>', 'hotspot:<id>'. Returns the gesture used. */
+  pointAt: (target: string) => GestureId | null
   /** Desk sketches currently on the table, in draw order. */
   sketches: string[]
   pushSketch: (id: string | null) => void
@@ -155,6 +157,7 @@ export const useDirector = create<State>((set, get) => {
       const seq = (get().gesture?.seq ?? 0) + 1
       set({ gesture: { id: g.id, seq, ms: g.ms, from: presenterRect(), to } })
       setTimeout(() => get().endGesture(seq), g.ms + 2500) // safety: a stuck clip never blocks the show
+      if (!hasClip(g.id)) get().markGestureMissing(seq) // no clip yet: the pointer cue stands in
       return seq
     },
     endGesture: (seq) => { if (get().gesture?.seq === seq) set({ gesture: null }) },
@@ -171,10 +174,17 @@ export const useDirector = create<State>((set, get) => {
         const m = (stage.active().media?.[stage.orientation] ?? []).find((c) => c.id === target.slice(6) || c.label === target.slice(6))
         return m ? m.layout : null
       }
-      const k = (target === 'avatar' ? 'avatar' : 'main') as CardKind
+      const k = (target === 'avatar' || target === 'menu' ? target : 'main') as CardKind
       const l = get().live?.[k]
       const saved = stage.active().layouts[stage.orientation][k]
       return l ? { x: l.x, y: l.y, w: l.w, h: l.h } : saved
+    },
+    pointAt: (target) => {
+      const to = get().targetRect(target)
+      if (!to) return null
+      const id = aimAt(presenterRect(), to)
+      get().doGesture(id, to)
+      return id
     },
     avatarShape: (() => { try { return (localStorage.getItem(SHAPE_KEY) as AvatarShape) || 'circle' } catch { return 'circle' } })(),
     setAvatarShape: (avatarShape) => {
@@ -247,7 +257,7 @@ export const useDirector = create<State>((set, get) => {
       if (seg.gesture) {
         const target = seg.target ?? (seg.via ? `hotspot:${seg.via}` : 'main')
         const to = get().targetRect(target)
-        const id = (seg.gesture === 'auto' ? pickGesture(presenterRect(), to ?? { x: 0.7, y: 0.3, w: 0.2, h: 0.2 }) : seg.gesture) as GestureId
+        const id = (seg.gesture === 'auto' ? aimAt(presenterRect(), to ?? { x: 0.7, y: 0.3, w: 0.2, h: 0.2 }) : nearestMade(seg.gesture as GestureId) ?? seg.gesture) as GestureId
         const g = findGesture(id)
         if (g) { get().doGesture(g.id, to); lead = g.ms }
       }

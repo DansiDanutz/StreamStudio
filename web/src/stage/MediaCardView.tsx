@@ -1,5 +1,6 @@
 import { useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import { useStage } from './store'
+import { useDirector } from '../director/store'
 import { isImageUrl, tagUrl } from './media'
 import type { MediaCard } from './types'
 
@@ -76,6 +77,7 @@ export function MediaCardView({ card, baseW, baseH }: { card: MediaCard; baseW: 
           {HANDLES.map((h) => <span key={h} className={`handle handle-${h}`} onPointerDown={onDown(h)} onPointerMove={onMove} onPointerUp={onUp} />)}
           <div className="mcard-bar" onPointerDown={(e) => e.stopPropagation()}>
             <span className="mcard-name">{card.label}</span>
+            <button title="Dan points at this card (T)" onClick={() => useDirector.getState().pointAt(`media:${card.id}`)}>☝</button>
             {!image && <button title="Replay" onClick={() => { const v = vid.current; if (v) { v.currentTime = 0; void v.play() } }}>↻</button>}
             {!image && <button title="Play once / loop" className={card.playback === 'loop' ? 'on' : ''} onClick={() => updateMedia(card.id, { playback: card.playback === 'loop' ? 'once' : 'loop' })}>∞</button>}
             <button title="Card frame" className={card.framed ? 'on' : ''} onClick={() => updateMedia(card.id, { framed: !card.framed })}>▢</button>

@@ -4,6 +4,7 @@ import { orderedScenes, useStage } from './stage/store'
 import { SceneStrip } from './stage/SceneStrip'
 import { IS_PROGRAM, openProgram, startController, useProgram } from './output/link'
 import { ProgramView } from './output/ProgramView'
+import { loadGestureManifest } from './avatar/gestures'
 import { initSceneSync } from './stage/sceneSync'
 import { ScriptPanel } from './director/ScriptPanel'
 import { Library, fileToItem } from './stage/Library'
@@ -48,7 +49,7 @@ function Editor() {
   const live = useDirector((s) => s.live)
   const { applyCue, stop } = useDirector.getState()
 
-  useEffect(() => { void initSceneSync() }, [])
+  useEffect(() => { void initSceneSync(); void loadGestureManifest() }, [])
   useEffect(() => startController(), [])
   const program = useProgram()
 
@@ -74,6 +75,11 @@ function Editor() {
       if (k === 'escape') stop()
       if (k === 'z') applyCue('content', { x: 0.5, y: 0.5, scale: 1.6 })
       if (k === 'x') useDirector.getState().pushSketch(null)
+      if (k === 't') { // Dan points at whatever is selected
+        const st = useStage.getState()
+        if (st.selectedMedia) useDirector.getState().pointAt(`media:${st.selectedMedia}`)
+        else if (st.selected && st.selected !== 'avatar') useDirector.getState().pointAt(st.selected)
+      }
       const sm = useStage.getState().selectedMedia
       if (sm && (k === 'delete' || k === 'backspace')) useStage.getState().removeMedia(sm)
     }
@@ -121,7 +127,7 @@ function Editor() {
         </aside>
       </main>
       <footer className="hints">
-        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–9</b> scenes · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>P</b> pip <b>Z</b> zoom <b>Esc</b> reset · drag from Library to add a card · <b>Del</b> removes it
+        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–9</b> scenes · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>P</b> pip <b>Z</b> zoom <b>T</b> point at the selected card <b>Esc</b> reset · drag from Library to add a card · <b>Del</b> removes it
       </footer>
     </div>
   )

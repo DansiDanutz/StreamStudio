@@ -87,3 +87,34 @@ export const motionFor = (id: GestureId) => {
   return base.replace(/right side/g, '§').replace(/left side/g, 'right side').replace(/§/g, 'left side')
     .replace(/His left/g, 'His right')
 }
+
+/* ---- what we actually have clips for (assets/avatar/gestures/manifest.json) ---- */
+
+let made: Set<GestureId> | null = null
+/** Load once which gesture clips exist; until then every gesture is assumed available. */
+export async function loadGestureManifest(f: typeof fetch = fetch): Promise<void> {
+  try {
+    const r = await f('/avatar/gestures/manifest.json', { cache: 'no-store' })
+    const j = (await r.json()) as { gestures?: Record<string, number> }
+    made = new Set(Object.keys(j.gestures ?? {}) as GestureId[])
+  } catch { /* offline/hosted demo: keep trying clips, the pointer cue covers misses */ }
+}
+export const setMadeGestures = (ids: GestureId[] | null) => { made = ids ? new Set(ids) : null }
+export const hasClip = (id: GestureId) => { const g = gesture(id); return !made || !!(g && made.has(g.mirrorOf ?? g.id)) }
+
+/** The closest gesture we have a clip for, aiming the same way (side first, then height). */
+export function nearestMade(id: GestureId): GestureId | null {
+  if (hasClip(id)) return id
+  const want = gesture(id)?.aim
+  if (!want) return null
+  const cands = GESTURES.filter((g) => g.aim && hasClip(g.id))
+  if (!cands.length) return null
+  const cost = (a: { x: number; y: number }) => (a.x === want.x ? 0 : 10) + Math.abs(a.y - want.y)
+  return cands.sort((a, b) => cost(a.aim!) - cost(b.aim!))[0].id
+}
+
+/** Aim at anything: the gesture we will play for this presenter → target, given the clips we have. */
+export function aimAt(presenter: Rect, target: Rect): GestureId {
+  const ideal = pickGesture(presenter, target)
+  return nearestMade(ideal) ?? ideal
+}

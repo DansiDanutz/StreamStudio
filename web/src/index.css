@@ -302,3 +302,6 @@ input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; bor
 .hg-jobs { margin: 0; padding-left: 16px; font: 11px var(--mono); color: var(--muted) }
 .wf-hint.warn { color: #f3b14a }
 .wf-hint a, .wf-field a { color: var(--accent-2) }
+.pc-ring.soft { stroke: rgba(255,226,170,.85); stroke-width: .22em }
+.card-point { position: absolute; right: .5em; top: .5em; z-index: 6; font-size: .9em; padding: .15em .6em; border-radius: .5em }
+.render-mode .card-point { display: none }
