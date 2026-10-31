@@ -24,7 +24,7 @@ export const OBJECTS: ObjectDef[] = [
   { id: 'hermes', name: 'Hermes', x: 0.57, y: 0.86, scale: 0.11 },
   { id: 'kimi', name: 'Kimi', x: 0.71, y: 0.86, scale: 0.11 },
   { id: 'glm', name: 'GLM', x: 0.85, y: 0.86, scale: 0.11 },
-  { id: 'openclaw', name: 'OpenClaw', x: 0.5, y: 0.86, scale: 0.2 },
+  { id: 'openclaw', name: 'OpenClaw', x: 0.5, y: 0.88, scale: 0.2 }, // stays centre stage; it leaves, it never joins the row
 ]
 /** Hero spot: where an object arrives (big, centre) before it settles into its place. */
 export const HERO = { x: 0.5, y: 0.88, scale: 0.2 }

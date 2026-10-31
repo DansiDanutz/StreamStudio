@@ -34,6 +34,8 @@ Everything is composited in StreamStudio's stage (render mode) or, for the final
 | 5 | Hermes. The messenger of my fleet; it runs the machines and talks to every other agent. | Hermes arrives | avatar |
 | 6 | Kimi. Long documents, research, the reader of the team. | Kimi arrives | avatar |
 | 7 | And GLM. Fast, cheap, local when I need it. | GLM arrives, right | avatar |
+| 7b | And one more. OpenClaw, the lobster. The most exciting, most attractive thing I saw this year. And I gave up on it. | OpenClaw (red glass lobster) arrives centre and stays there | avatar |
+| 7c | Not because it was bad. That is how fast AI moves: the thing that made me fall in love got replaced in months. | OpenClaw dims | avatar |
 | 8 | Six minds, one table. I'm the conductor. Let's make something. | all `react` in sequence, then together | avatar |
 | end | *(closer, reused)* Thanks for watching. Same table, next time. | objects dim, button light off | avatar |
 

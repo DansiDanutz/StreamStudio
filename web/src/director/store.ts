@@ -8,7 +8,7 @@ import { RESET_ON } from '../overlays/sketches'
 import { OBJECTS } from '../overlays/objects'
 import type { TableState } from '../overlays/ObjectLayer'
 
-const KEY = 'streamstudio.script.v4'
+const KEY = 'streamstudio.script.v5'
 
 export type LiveLayouts = Partial<Record<CardKind, Rect & { visible?: boolean; radius?: number; z?: number }>>
 
@@ -54,7 +54,9 @@ const INTRO: { text: string; table?: string }[] = [
   { text: 'Hermes. The messenger of my fleet; it runs the machines and talks to every other agent.', table: 'arrive:hermes' },
   { text: 'Kimi. Long documents, research, the reader of the team.', table: 'arrive:kimi' },
   { text: 'And GLM. Fast, cheap, local when I need it.', table: 'arrive:glm' },
-  { text: "Six minds, one table. I'm the conductor. Let's make something.", table: 'react:all' },
+  { text: 'And one more. OpenClaw, the lobster. The most exciting, most attractive thing I saw this year. And I gave up on it.', table: 'arrive:openclaw' },
+  { text: "Not because it was bad. That's how fast AI moves: the thing that made me fall in love got replaced in months.", table: 'dim:openclaw' },
+  { text: "Six minds, one table. I'm the conductor. Let's make something.", table: 'remove:openclaw;react:all' },
 ]
 
 let raf = 0
@@ -118,7 +120,10 @@ export const useDirector = create<State>((set, get) => {
     cue: 'split',
     sketches: [],
     table: {},
-    tableEvent: (ev) => set((s) => {
+    tableEvent: (ev) => {
+      // several events in one field: 'remove:openclaw;react:all'
+      if (ev.includes(';')) { ev.split(';').forEach((e) => e.trim() && get().tableEvent(e.trim())); return }
+      set((s) => {
       const [kind, arg = ''] = ev.split(':')
       if (kind === 'clear') return { table: {} }
       const ids = arg === 'all' ? Object.keys(s.table).filter((k) => s.table[k].phase !== 'gone') : arg.split(',').map((x) => x.trim()).filter(Boolean)
@@ -132,7 +137,8 @@ export const useDirector = create<State>((set, get) => {
         if (kind === 'remove') table[id] = { phase: 'gone', seq: prev.seq + 1 }
       }
       return { table }
-    }),
+    })
+    },
     pushSketch: (id) => set((s) => (id === null ? { sketches: [] } : RESET_ON.has(id) ? { sketches: [id] } : { sketches: [...s.sketches, id] })),
 
     setText: (text) => save((s) => ({ ...s, segments: splitScript(text).map((t, i) => ({ ...(s.segments[i] ?? newSegment()), text: t, durationMs: estimateMs(t) })) })),
