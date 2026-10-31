@@ -83,6 +83,7 @@ export const INTRO: { text: string; table?: string }[] = [
 ]
 
 let raf = 0
+let gestureSeq = 0
 let timer: ReturnType<typeof setTimeout> | null = null
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
@@ -154,7 +155,7 @@ export const useDirector = create<State>((set, get) => {
     gesture: null,
     doGesture: (id, to = null) => {
       const g = findGesture(id) ?? GESTURES[0]
-      const seq = (get().gesture?.seq ?? 0) + 1
+      const seq = ++gestureSeq // never reused: a stale safety timer must not end a newer gesture
       set({ gesture: { id: g.id, seq, ms: g.ms, from: presenterRect(), to } })
       setTimeout(() => get().endGesture(seq), g.ms + 2500) // safety: a stuck clip never blocks the show
       if (!hasClip(g.id)) get().markGestureMissing(seq) // no clip yet: the pointer cue stands in
