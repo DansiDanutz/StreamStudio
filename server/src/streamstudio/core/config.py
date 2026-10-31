@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # Where projects, proxies, caches and renders live.
     data_dir: Path = Field(default_factory=lambda: Path.home() / "StreamStudioData")
 
+    # The repo's assets/ folder (served at the web root): generated avatar clips land here.
+    assets_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[4] / "assets")
+
     # Folders the importer may read source footage from (colon-separated in env).
     # The data_dir is always allowed.
     import_roots: list[Path] = Field(default_factory=lambda: [Path.home() / "Movies"])

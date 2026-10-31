@@ -5,6 +5,7 @@ import { guardCue, lipsMatch, type Cue } from './types'
 import { tagUrl } from '../stage/media'
 import { SKETCHES } from '../overlays/sketches'
 import { WorkflowPicker } from './WorkflowPicker'
+import { HeygenPanel } from './HeygenPanel'
 import { GESTURES } from '../avatar/gestures'
 import { HOTSPOTS } from '../stage/hotspots'
 import { orderedScenes, useStage } from '../stage/store'
@@ -27,6 +28,7 @@ export function ScriptPanel() {
   const { updateSegment, addSegment, removeSegment, runAutoDirect, play, stop, setText, setAvatarShape } = useDirector.getState()
   const [raw, setRaw] = useState<string | null>(null)
   const [flows, setFlows] = useState(false)
+  const [hg, setHg] = useState(false)
   const scenes = useStage((s) => s.scenes)
   const media = useStage((s) => s.active().media?.[s.orientation])
   const targets = [
@@ -44,7 +46,8 @@ export function ScriptPanel() {
           <div className="script-title">{script.title} · {script.segments.length} segments · ~{Math.round(total / 1000)}s</div>
         </div>
         <div className="group">
-          <button onClick={() => { setFlows(!flows); setRaw(null) }} className={flows ? 'on' : ''} title="Ready-made script shapes">Workflows</button>
+          <button onClick={() => { setHg(!hg); setFlows(false); setRaw(null) }} className={hg ? 'on' : ''} title="Render your lines and gestures on HeyGen">HeyGen</button>
+          <button onClick={() => { setFlows(!flows); setHg(false); setRaw(null) }} className={flows ? 'on' : ''} title="Ready-made script shapes">Workflows</button>
           <button onClick={() => setRaw(raw === null ? script.segments.map((s) => s.text).join('\n\n') : null)}>{raw === null ? 'Paste text' : 'Back'}</button>
           <button onClick={runAutoDirect} title="Propose a cue for every unpinned segment">Auto-direct</button>
           <button onClick={() => setAvatarShape(shape === 'circle' ? 'portrait' : 'circle')} title="Shape of your small card">{shape === 'circle' ? '◯ circle' : '▯ portrait'}</button>
@@ -54,7 +57,7 @@ export function ScriptPanel() {
         </div>
       </div>
 
-      {flows ? <WorkflowPicker onDone={() => setFlows(false)} /> : raw !== null ? (
+      {hg ? <HeygenPanel onDone={() => setHg(false)} /> : flows ? <WorkflowPicker onDone={() => setFlows(false)} /> : raw !== null ? (
         <div className="script-raw">
           <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={18} spellCheck={false} />
           <button className="primary" onClick={() => { setText(raw); setRaw(null) }}>Split into segments</button>

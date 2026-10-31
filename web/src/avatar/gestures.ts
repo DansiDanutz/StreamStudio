@@ -60,3 +60,25 @@ export const SEATED: Record<'landscape' | 'portrait', Rect> = {
   landscape: { x: 0.47 - 0.2, y: 0.68 - 0.85 * 0.66, w: 0.4, h: 0.66 },
   portrait: { x: 0.2, y: 0.8 - 0.85 * 0.75, w: 0.6, h: 0.75 },
 }
+
+/** HeyGen motion prompts (Avatar IV) for the clips we render; mirrored gestures reuse their source. */
+export const MOTION: Partial<Record<GestureId, string>> = {
+  'point-up-right': 'Right arm raises and points up to the right at a screen behind him, holds one beat, then returns both hands to the desk. Calm, confident.',
+  'point-right': 'Right arm extends and points to the right at shoulder height, holds one beat, then returns both hands to the desk.',
+  'point-down-right': 'Right hand points down and to the right at the table, holds one beat, then returns both hands to the desk.',
+  'present-right': 'Right hand opens palm-up toward the right as if presenting something, holds one beat, then returns to the desk.',
+  welcome: 'Both hands open outward, palms up, welcoming, then return together on the desk. Warm smile.',
+  'thumbs-up': 'Right hand gives a thumbs-up at chest height, holds one beat, then returns to the desk. Friendly.',
+  wave: 'Right hand raises and waves twice, friendly, then returns to the desk.',
+  think: 'Right hand rises to the chin, thoughtful look for one beat, then returns to the desk.',
+}
+
+/** The clips to render: every gesture that is not a mirror. */
+export const SOURCE_GESTURES = GESTURES.filter((g) => !g.mirrorOf).map((g) => g.id)
+
+/** A motion prompt for a gesture inside a spoken clip (the gesture happens while talking). */
+export const motionFor = (id: GestureId) => {
+  const g = gesture(id)
+  const base = MOTION[g?.mirrorOf ?? id] ?? ''
+  return g?.mirrorOf ? base.replace(/right/g, 'left').replace(/Right/g, 'Left') : base
+}
