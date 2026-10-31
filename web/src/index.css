@@ -190,7 +190,7 @@ button, select { font: inherit }
 .lib-upload .plus { font-size: 28px; line-height: 1 }
 
 /* lip-sync guard: the small presenter card as a circle, face-centred */
-.card-avatar.is-circle { border-radius: 50% !important }
+.card-avatar.is-circle { border-radius: 50% !important; border: 0; box-shadow: 0 .8em 2.4em rgba(0,0,0,.5) }
 .card-avatar.is-circle video.fill { object-fit: cover; object-position: 50% 0; transform: scale(1.18); transform-origin: 50% 8% }
 .card-avatar.is-circle .lipsync { display: none }
 .lips { font-family: var(--mono); font-size: .8em; padding: .05em .45em; border-radius: .5em; border: 1px solid var(--line) }
@@ -200,3 +200,41 @@ button, select { font: inherit }
 .card-avatar.is-live:not(.is-fullframe) { border: 0; box-shadow: 0 .8em 2.4em rgba(0,0,0,.5) }
 .card-avatar.is-live:not(.is-fullframe):not(.is-circle) { border-radius: .6em !important }
 .card-avatar.is-live:not(.is-fullframe):not(.is-circle) video.fill { object-fit: cover; object-position: 50% 0 }
+
+/* ---- scene strip ---- */
+.stage-col { display: grid; grid-template-rows: 1fr auto; min-height: 0; min-width: 0 }
+.strip { position: relative; z-index: 40; border-top: 1px solid var(--line); background: var(--panel); padding: 8px 12px 6px; display: grid; gap: 6px; min-width: 0 }
+.strip-cols { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin }
+.strip-col { flex: none; display: grid; align-content: start; gap: 6px; padding: 4px; border-radius: 10px; border: 1px dashed transparent }
+.strip-col.is-over { border-color: var(--accent-2); background: rgba(160,140,255,.06) }
+.strip-col header { position: relative; display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted) }
+.strip-new { padding: 0 6px; font-size: 12px; line-height: 16px; border-radius: 6px }
+.strip-menu { font-size: 12px; position: absolute; bottom: calc(100% - 30px); transform: translateY(-4px); z-index: 60; display: grid; gap: 2px; min-width: 170px; padding: 6px; background: #1b1926; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.5); text-transform: none; letter-spacing: 0 }
+.strip-menu .lbl { padding: 2px 6px 4px }
+.strip-menu button { text-align: left; font-family: inherit; font-size: 12px; border: 0; background: transparent }
+.strip-menu button:hover { background: rgba(255,255,255,.08) }
+.strip-row { display: flex; gap: 8px }
+.strip-empty { width: 132px; height: 74px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 11px }
+.thumb { position: relative; width: 132px; cursor: pointer; border-radius: 8px }
+.thumb-frame { position: relative; width: 132px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background-size: cover; background-position: center; outline: 2px solid transparent; outline-offset: 1px; transition: outline-color .12s }
+.thumb-frame.portrait { aspect-ratio: auto; height: 74px; width: auto; aspect-ratio: 9 / 16 }
+.thumb.is-on .thumb-frame { outline-color: var(--accent-2) }
+.thumb.is-drop .thumb-frame { box-shadow: -4px 0 0 var(--accent-2) }
+.thumb-frame i { position: absolute; display: block; border-radius: 3px }
+.t-main { background: rgba(28,26,40,.92); border: 1px solid rgba(255,255,255,.25) }
+.t-avatar { background-size: cover; background-position: 50% 20%; box-shadow: 0 1px 4px rgba(0,0,0,.5) }
+.t-avatar.round { border-radius: 50% !important }
+.t-menu { background: rgba(255,255,255,.12); border: 1px dashed rgba(255,255,255,.4) }
+.t-media { background-size: contain; background-repeat: no-repeat; background-position: center; background-color: rgba(255,170,90,.18) }
+.t-key { position: absolute; right: 4px; top: 3px; font: 600 10px var(--mono); color: #fff; background: rgba(0,0,0,.55); border-radius: 4px; padding: 0 4px }
+.thumb-name { font-size: 11px; padding: 3px 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg) }
+input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; border: 1px solid var(--accent-2); border-radius: 4px; padding: 2px 4px }
+.thumb-actions { position: absolute; left: 4px; top: 4px; display: flex; gap: 2px; opacity: 0; transition: opacity .12s }
+.thumb:hover .thumb-actions { opacity: 1 }
+.thumb-actions button { padding: 0 4px; font-size: 10px; line-height: 16px; border-radius: 4px; background: rgba(0,0,0,.6); border: 0; color: #fff }
+.strip-foot { display: flex; align-items: center; gap: 8px; font-size: 11px }
+.strip-foot button { padding: 2px 8px; font-size: 11px }
+.sync { font-family: var(--mono); color: var(--muted); margin-right: auto }
+.sync-server { color: var(--ok) } .sync-saving { color: var(--accent-2) } .sync-error { color: #f3b14a }
+.scene-now { display: grid; line-height: 1.1; font-weight: 700; font-size: 13px; padding: 0 6px; min-width: 120px }
+.scene-now span { font: 500 9px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted) }

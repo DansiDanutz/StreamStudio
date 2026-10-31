@@ -2,6 +2,7 @@ import { useRef, type PointerEvent, type ReactNode } from 'react'
 import { useDirector } from '../director/store'
 import { useStage } from './store'
 import type { CardKind } from './types'
+import { isPipShaped } from '../director/cueLayouts'
 
 interface Props {
   kind: CardKind
@@ -22,7 +23,10 @@ export function Card({ kind, baseW, baseH, className = '', children }: Props) {
   // While the director drives, cards follow the tweened live geometry (menu is never driven).
   const layout = live ? { ...saved, ...live, visible: live.visible ?? saved.visible, radius: live.radius ?? saved.radius, z: live.z ?? saved.z } : saved
   // The small presenter card can be a circle (pip/content cues, or whenever the lip-sync guard shrank it).
-  const circle = useDirector((s) => kind === 'avatar' && !!s.live && s.avatarShape === 'circle' && (s.cue === 'pip' || s.cue === 'content' || s.guarded))
+  const orientation = useStage((s) => s.orientation)
+  const circle = useDirector((s) => kind === 'avatar' && s.avatarShape === 'circle' && (s.live
+    ? s.cue === 'pip' || s.cue === 'content' || s.guarded
+    : isPipShaped(saved, orientation)))
   const selected = useStage((s) => s.selected === kind)
   const { setRect, select, bringToFront } = useStage.getState()
   const drag = useRef<{ mode: Mode; sx: number; sy: number; start: typeof layout } | null>(null)

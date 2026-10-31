@@ -39,6 +39,8 @@ export interface MediaCard {
 export interface Scene {
   id: string
   name: string
+  /** Strip group: Openers, Talk, Demo, Data, Social (see presets.COLLECTIONS). */
+  collection?: string
   bezel: Bezel
   /** When false (default) the Menu card is transparent in the output. */
   menuShown: boolean

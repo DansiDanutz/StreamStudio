@@ -112,3 +112,28 @@ def test_netguard_blocks_public_ip(env):
     assert not is_allowed("100.101.102.103", False)
     assert not is_allowed("8.8.8.8", True)
     assert is_allowed("::ffff:127.0.0.1", False)
+
+
+def test_scenes_crud_is_idempotent_and_ordered(env):
+    client, _ = env
+    assert client.get("/api/scenes").json() == []
+    body = {"name": "Studio desk", "collection": "Talk", "position": 2, "data": {"bezel": "studio"}}
+    a = client.put("/api/scenes/scene_a", json=body)
+    assert a.status_code == 200 and a.json()["bezel"] == "studio"
+    assert client.put("/api/scenes/scene_a", json=body).status_code == 200  # same again: fine
+    client.put(
+        "/api/scenes/scene_b",
+        json={"name": "World of AI", "collection": "Openers", "position": 1, "data": {}},
+    )
+    got = client.get("/api/scenes").json()
+    assert [s["id"] for s in got] == ["scene_b", "scene_a"]
+    assert got[1] == {
+        "bezel": "studio", "id": "scene_a", "name": "Studio desk", "collection": "Talk",
+        "position": 2, "updated_at": got[1]["updated_at"],
+    }
+    assert client.delete("/api/scenes/scene_a").status_code == 204
+    assert client.delete("/api/scenes/scene_a").status_code == 204
+    assert [s["id"] for s in client.get("/api/scenes").json()] == ["scene_b"]
+    assert client.put("/api/scenes/bad id!", json=body).status_code == 422
+    big = {**body, "data": {"x": "a" * 300_000}}
+    assert client.put("/api/scenes/scene_c", json=big).status_code == 413

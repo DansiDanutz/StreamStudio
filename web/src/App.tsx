@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { PRESETS } from './stage/presets'
 import { Stage } from './stage/Stage'
-import { useStage } from './stage/store'
+import { orderedScenes, useStage } from './stage/store'
+import { SceneStrip } from './stage/SceneStrip'
+import { initSceneSync } from './stage/sceneSync'
 import { ScriptPanel } from './director/ScriptPanel'
 import { Library, fileToItem } from './stage/Library'
 import { useDirector } from './director/store'
@@ -32,19 +33,19 @@ export default function App() {
 }
 
 function Editor() {
-  const scenes = useStage((s) => s.scenes)
-  const activeId = useStage((s) => s.activeId)
   const scene = useStage((s) => s.active())
   const orientation = useStage((s) => s.orientation)
   const guides = useStage((s) => s.guides)
   const selected = useStage((s) => s.selected)
-  const { toggleOrientation, toggleMenu, toggleGuides, setActive, saveAs, deleteScene, loadPreset, toggleLocked, toggleVisible, toggleCutout } = useStage.getState()
+  const { toggleOrientation, toggleMenu, toggleGuides, toggleLocked, toggleVisible, toggleCutout } = useStage.getState()
   const cutout = useStage((s) => s.cutout)
   const [health, setHealth] = useState<string>('…')
   const [tab, setTab] = useState<'library' | 'script'>('library')
   const cue = useDirector((s) => s.cue)
   const live = useDirector((s) => s.live)
   const { applyCue, stop } = useDirector.getState()
+
+  useEffect(() => { void initSceneSync() }, [])
 
   useEffect(() => {
     fetch('/api/health').then((r) => r.json()).then((h) => setHealth(`api ${h.version} · ${h.hw_encoders?.length ? `${h.hw_encoders.length} hw encoders` : 'no hw encoder'} · ${h.jobs.queued} queued`)).catch(() => setHealth(location.hostname.endsWith('vercel.app') ? 'hosted demo · no server' : 'api offline'))
@@ -59,7 +60,10 @@ function Editor() {
       if (k === 'g') toggleGuides()
       if (k === 'l' && selected) toggleLocked(selected)
       if (k === 'h' && selected) toggleVisible(selected)
-      if (/^[1-6]$/.test(k)) loadPreset(PRESETS[Number(k) - 1].id)
+      if (/^[1-9]$/.test(k)) {
+        const sc = orderedScenes(useStage.getState().scenes)[Number(k) - 1]
+        if (sc) { if (!useDirector.getState().playing) stop(); useStage.getState().setActive(sc.id) }
+      }
       const cues: Record<string, Cue> = { a: 'avatar', d: 'duo', s: 'split', c: 'content', f: 'full', p: 'pip' }
       if (cues[k]) applyCue(cues[k])
       if (k === 'escape') stop()
@@ -70,19 +74,13 @@ function Editor() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selected, toggleOrientation, toggleMenu, toggleGuides, toggleLocked, toggleVisible, loadPreset, applyCue, stop])
+  }, [selected, toggleOrientation, toggleMenu, toggleGuides, toggleLocked, toggleVisible, applyCue, stop])
 
   return (
     <div className="app">
       <header className="bar">
         <div className="brand">Stream<em>Studio</em></div>
-        <div className="group">
-          <select value={activeId} onChange={(e) => setActive(e.target.value)} aria-label="Scene">
-            {scenes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <button onClick={() => { const n = prompt('Scene name', `${scene.name} copy`); if (n) saveAs(n) }}>Save as</button>
-          <button onClick={() => deleteScene(activeId)} disabled={scenes.length <= 1}>Delete</button>
-        </div>
+        <div className="scene-now" title="Current scene (switch in the strip below, or keys 1–9)"><span>{scene.collection ?? 'Scene'}</span>{scene.name}</div>
         <div className="group">
           <button onClick={toggleOrientation} title="O">{orientation === 'landscape' ? '16:9' : '9:16'}</button>
           <button onClick={toggleMenu} className={scene.menuShown ? 'on' : ''} title="M">Menu {scene.menuShown ? 'shown' : 'transparent'}</button>
@@ -98,7 +96,10 @@ function Editor() {
         <div className="status">{health}</div>
       </header>
       <main className="work">
-        <Stage />
+        <div className="stage-col">
+          <Stage />
+          <SceneStrip />
+        </div>
         <aside className="side">
           <div className="tabs" role="tablist">
             <button role="tab" aria-selected={tab === 'library'} className={tab === 'library' ? 'on' : ''} onClick={() => setTab('library')}>Library</button>
@@ -110,7 +111,7 @@ function Editor() {
         </aside>
       </main>
       <footer className="hints">
-        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–6</b> presets · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>P</b> pip <b>Z</b> zoom <b>Esc</b> reset · drag from Library to add a card · <b>Del</b> removes it
+        Drag cards · corner handles resize · Alt = no snap · <b>O</b> orientation · <b>M</b> menu · <b>G</b> guides · <b>L</b> lock · <b>H</b> hide · <b>1–9</b> scenes · cues <b>A</b> avatar <b>D</b> duo <b>S</b> split <b>C</b> content <b>F</b> full <b>P</b> pip <b>Z</b> zoom <b>Esc</b> reset · drag from Library to add a card · <b>Del</b> removes it
       </footer>
     </div>
   )

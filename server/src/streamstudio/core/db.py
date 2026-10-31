@@ -58,6 +58,18 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX jobs_status ON jobs(status, created_at);
     """,
+    # 2 — scenes: reusable stage sets (layout + cards + media), grouped into collections
+    """
+    CREATE TABLE scenes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        collection TEXT NOT NULL DEFAULT 'Talk',
+        position REAL NOT NULL DEFAULT 0,
+        data_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    CREATE INDEX scenes_order ON scenes(collection, position);
+    """,
 ]
 
 

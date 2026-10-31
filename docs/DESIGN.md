@@ -177,3 +177,31 @@ Viewers forgive a small talking-head bubble; they never forgive a large face who
   - `director/cueLayouts.ts` (`pipRect`, `guardLayout`);
   - `render/lipsync.py` for offline renders.
 - **Script panel:** every segment shows `lips ✓/✕` and the cue it will really play as. The header toggles the circle or portrait shape.
+
+## Scenes
+
+The model has four levels:
+- **Show:** the channel, with its studio, avatar, opener and closer.
+- **Episode:** one video or stream, with its script.
+- **Scene:** a reusable set. It holds the backdrop, the card layout in both orientations, and the media cards.
+- **Cue:** the camera move the Director makes inside a scene.
+
+**Collections:** Openers, Talk, Demo, Data and Social, shown in that order in the strip under the stage.
+
+**Scene strip:**
+- Each scene has a live thumbnail. Keys 1–9 follow strip order.
+- Drag a thumbnail to reorder it, or drop it on another collection to move it there.
+- Double-click a name to rename it. Hover a thumbnail to duplicate or delete it.
+- Each collection has a **+** button to make a new scene from a template.
+- Export and Import move the library as a JSON file.
+
+**Storage:** the source of truth is `/api/scenes` (SQLite on the Mac Studio).
+- The server copy wins on load.
+- Each change is written back, debounced by 500 ms per scene.
+- The browser keeps a localStorage copy as the fallback. The hosted demo has no server, so it uses only that copy.
+
+**Templates:**
+- World of AI (Openers);
+- Studio Desk, Studio + Circle, Avatar Stage (Talk);
+- Browser + Cam, Side Cam, App + Menu (Demo);
+- Raw (Data).

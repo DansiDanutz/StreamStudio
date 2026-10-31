@@ -1,4 +1,5 @@
 import type { CardKind, CardLayout, Orientation, Scene } from './types'
+import { pipRect } from '../director/cueLayouts'
 
 const L = (x: number, y: number, w: number, h: number, z = 1, extra: Partial<CardLayout> = {}): CardLayout => ({
   x, y, w, h, z, visible: true, locked: false, radius: 0.012, ...extra,
@@ -71,13 +72,33 @@ const studioDesk: Layouts = {
   },
 }
 
+// Presenter alone in the 3D studio, full frame: the opener set (objects arrive on the table).
+const worldOfAi: Layouts = {
+  landscape: { ...avatarStage.landscape },
+  portrait: { ...avatarStage.portrait },
+}
+
+// Presenter in the small circle over the studio: the lip-sync-safe talking set.
+const circle = (o: Orientation) => L(pipRect(o).x, pipRect(o).y, pipRect(o).w, pipRect(o).h, 3, { radius: 0 })
+const studioCircle: Layouts = {
+  landscape: { ...avatarStage.landscape, avatar: circle('landscape') },
+  portrait: { ...avatarStage.portrait, avatar: circle('portrait') },
+}
+
+/** Scene collections, in strip order. */
+export const COLLECTIONS = ['Openers', 'Talk', 'Demo', 'Data', 'Social'] as const
+export type Collection = (typeof COLLECTIONS)[number]
+
+/** Templates: the starting scenes, and what "+ New" builds from. */
 export const PRESETS: Scene[] = [
-  { id: 'studio-desk', name: 'Studio Desk', bezel: 'studio', menuShown: false, layouts: studioDesk },
-  { id: 'browser-cam', name: 'Browser + Cam', bezel: 'violet', menuShown: false, layouts: browserCam },
-  { id: 'side-cam', name: 'Side Cam', bezel: 'ink', menuShown: false, layouts: sideCam },
-  { id: 'app-menu', name: 'App + Menu', bezel: 'violet', menuShown: true, layouts: browserCam },
-  { id: 'avatar-stage', name: 'Avatar Stage', bezel: 'mono', menuShown: false, layouts: avatarStage },
-  { id: 'raw', name: 'Raw', bezel: 'mono', menuShown: false, layouts: raw },
+  { id: 'world-of-ai', name: 'World of AI', collection: 'Openers', bezel: 'studio', menuShown: false, layouts: worldOfAi },
+  { id: 'studio-desk', name: 'Studio Desk', collection: 'Talk', bezel: 'studio', menuShown: false, layouts: studioDesk },
+  { id: 'studio-circle', name: 'Studio + Circle', collection: 'Talk', bezel: 'studio', menuShown: false, layouts: studioCircle },
+  { id: 'avatar-stage', name: 'Avatar Stage', collection: 'Talk', bezel: 'mono', menuShown: false, layouts: avatarStage },
+  { id: 'browser-cam', name: 'Browser + Cam', collection: 'Demo', bezel: 'violet', menuShown: false, layouts: browserCam },
+  { id: 'side-cam', name: 'Side Cam', collection: 'Demo', bezel: 'ink', menuShown: false, layouts: sideCam },
+  { id: 'app-menu', name: 'App + Menu', collection: 'Demo', bezel: 'violet', menuShown: true, layouts: browserCam },
+  { id: 'raw', name: 'Raw', collection: 'Data', bezel: 'mono', menuShown: false, layouts: raw },
 ]
 
 export const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
