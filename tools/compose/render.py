@@ -432,7 +432,7 @@ def compose(frame, f):
         chip = fact_draw([t for _, t in facts])
         for k, (fa, text) in enumerate(facts):
             al = ease((tl - fa * dur) / 0.35) * (1 - ease((tl - (dur - 0.5)) / 0.4))
-            out = overlay(out, f'fact:{p["still"]}:{k}', chip(k), al)
+            out = overlay(out, f'fact:{i}:{k}', chip(k), al)
         return out
     out = studio(frame, f)
     if p.get('title'):
