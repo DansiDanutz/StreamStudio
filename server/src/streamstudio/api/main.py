@@ -12,7 +12,7 @@ from .. import __version__
 from ..core import db, vault
 from ..core.config import Settings, get_settings
 from ..core.netguard import NetGuardMiddleware
-from .routes import agent, heygen, jobs, live, projects, recordings, scenes, system
+from .routes import agent, heygen, jobs, live, projects, recordings, scenes, system, youtube
 from .routes import vault as vault_routes
 
 REPO = Path(__file__).resolve().parents[4]
@@ -31,7 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="StreamStudio", version=__version__)
     app.state.settings = s
-    app.add_middleware(NetGuardMiddleware, allow_tailnet=s.allow_tailnet)
+    app.add_middleware(NetGuardMiddleware, allow_tailnet=s.allow_tailnet, extra_hosts=s.extra_hosts)
     app.include_router(system.router)
     app.include_router(projects.router)
     app.include_router(jobs.router)
@@ -41,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(heygen.router)
     app.include_router(agent.router)
     app.include_router(vault_routes.router)
+    app.include_router(youtube.router)
 
     if WEB_DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="web-assets")

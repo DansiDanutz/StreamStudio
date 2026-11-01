@@ -102,6 +102,67 @@ def finish_recording(ctx: JobContext) -> dict[str, Any]:
     return {"mp4": dst.name, "encoder": "videotoolbox" if hw else "x264"}
 
 
+@handler("transcribe")
+def transcribe_recording(ctx: JobContext) -> dict[str, Any]:
+    """Take MP4 → <id>.transcript.json + <id>.srt (whisper.cpp, local). Idempotent: a transcript
+    newer than the MP4 is kept."""
+    from ..core import transcribe
+
+    p = ctx.job.get("payload") or {}
+    d = ctx.settings.recordings_dir
+    mp4 = d / f"{p['id']}.mp4"
+    if not mp4.exists():
+        raise ValueError("the take has no MP4 yet")
+    out_json, out_srt = d / f"{p['id']}.transcript.json", d / f"{p['id']}.srt"
+    if out_json.exists() and out_srt.exists() and out_json.stat().st_mtime >= mp4.stat().st_mtime:
+        return {"transcript": out_json.name, "skipped": True}
+    ctx.progress(0.1, "transcribing")
+    t = transcribe.transcribe(mp4, out_json, out_srt, ctx.settings)
+    return {"transcript": out_json.name, "srt": out_srt.name, "language": t["language"],
+            "words": len(t["words"]), "model": t["model"]}  # fmt: skip
+
+
+#: Tests replace this with a fake Google.
+YOUTUBE_TRANSPORT = None
+
+
+@handler("youtube_upload")
+def youtube_upload(ctx: JobContext) -> dict[str, Any]:
+    """Take MP4 → a YouTube video (private unless asked otherwise), then its captions if the take
+    has a transcript. Resumable and idempotent: a retried job never creates a second video."""
+    import json
+
+    from ..core import youtube
+
+    p = ctx.job.get("payload") or {}
+    d = ctx.settings.recordings_dir
+    mp4 = d / f"{p['id']}.mp4"
+    if not mp4.exists():
+        raise ValueError("the take has no MP4 yet")
+    api = youtube.Client(ctx.settings.data_dir, p["channel"], YOUTUBE_TRANSPORT)
+    state = youtube.folder(ctx.settings.data_dir) / "uploads" / f"{p['channel']}-{p['id']}.json"
+    ctx.progress(0.02, "uploading to YouTube")
+    video_id = youtube.upload(
+        api, mp4, p["meta"], state, lambda f: ctx.progress(0.02 + 0.9 * f, "uploading to YouTube")
+    )
+    captions = None
+    srt, transcript = d / f"{p['id']}.srt", d / f"{p['id']}.transcript.json"
+    done = json.loads(state.read_text())
+    if srt.exists() and not done.get("captions"):
+        ctx.progress(0.95, "adding captions")
+        lang = json.loads(transcript.read_text()).get("language") if transcript.exists() else None
+        captions = youtube.add_captions(api, video_id, srt, lang or "en")
+        youtube._write_private(state, {**done, "captions": captions})
+    return {
+        "video_id": video_id,
+        "url": f"https://youtu.be/{video_id}",
+        "studio": f"https://studio.youtube.com/video/{video_id}/edit",
+        "privacy": p["meta"]["privacy"],
+        "channel": p["channel"],
+        "captions": captions or done.get("captions"),
+    }
+
+
 # ---------------------------------------------------------------- HeyGen avatar clips
 
 #: Tests replace these: the HTTP transport, the poll interval, and the cut-out step.

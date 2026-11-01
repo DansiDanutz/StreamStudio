@@ -114,9 +114,9 @@ TOOLS: list[dict[str, Any]] = [
         "name": "studio_do",
         "description": (
             "Run a stage action in the open editor. Use the 'actions' listed by library_list "
-            "(e.g. timeline.get, segment.update, segment.add, segment.preview, scene.activate, "
-            "cue.apply, point.at, table.event, media.add, workflow.insert, script.play). Needs the "
-            "editor open."
+            "(e.g. timeline.get, publish.kit, segment.update, segment.add, segment.preview, "
+            "scene.activate, cue.apply, point.at, table.event, media.add, workflow.insert, "
+            "script.play). Needs the editor open."
         ),
         "inputSchema": {
             "type": "object",
@@ -134,6 +134,55 @@ TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {"items": {"type": "array", "items": {"type": "object"}}},
             "required": ["items"],
+        },
+    },
+    {
+        "name": "recording_transcribe",
+        "description": (
+            "Transcribe a recorded take locally with whisper.cpp (free, offline). Queues a job and "
+            "returns its id; poll the job, then read recording_transcript."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "string", "description": "recording id (rec_...)"}},
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "recording_transcript",
+        "description": "A take's transcript: language, full text, segments and word timings (ms).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "string", "description": "recording id (rec_...)"}},
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "youtube_status",
+        "description": "Which YouTube channels are connected (id and title).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "youtube_upload",
+        "description": (
+            "Upload a finished take to the connected YouTube channel as a PRIVATE video (captions "
+            "are added if the take was transcribed). Agents cannot publish: Dan makes it public "
+            "in YouTube Studio. Returns a job id; the job result has the video and Studio links."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "recording id (rec_...)"},
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "channel": {
+                    "type": "string",
+                    "description": "channel id (UC...) from youtube_status; needed when several "
+                    "are connected",
+                },
+            },
+            "required": ["id", "title"],
         },
     },
 ]
@@ -154,6 +203,11 @@ def _http(method: str, path: str, body: Any = None) -> Any:
     except urllib.error.URLError as e:
         raise RuntimeError(f"StreamStudio is not running at {BASE} ({e.reason})") from e
     return json.loads(raw) if raw else None
+
+
+def _seg(value: str) -> str:
+    """One URL path segment: slashes and dots cannot climb out of it."""
+    return urllib.parse.quote(value, safe="")
 
 
 def call(name: str, args: dict[str, Any]) -> Any:
@@ -190,6 +244,22 @@ def call(name: str, args: dict[str, Any]) -> Any:
         )
     if name == "heygen_estimate":
         return _http("POST", "/api/heygen/render", {"items": args["items"], "confirm": False})
+    if name == "recording_transcribe":
+        return _http("POST", f"/api/recordings/{_seg(args['id'])}/transcribe")
+    if name == "recording_transcript":
+        return _http("GET", f"/api/recordings/{_seg(args['id'])}/transcript")
+    if name == "youtube_status":
+        return _http("GET", "/api/youtube")
+    if name == "youtube_upload":
+        body = {
+            "title": args["title"],
+            "description": args.get("description", ""),
+            "tags": args.get("tags") or [],
+            "privacy": "private",  # agents never publish
+        }
+        if args.get("channel"):
+            body["channel"] = args["channel"]
+        return _http("POST", f"/api/recordings/{_seg(args['id'])}/youtube", body)
     raise ValueError(f"unknown tool {name}")
 
 

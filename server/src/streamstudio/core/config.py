@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # that is not loopback or tailnet.
     allow_tailnet: bool = True
 
+    # Extra host names the API answers to, on top of localhost, IP literals, *.ts.net and this
+    # Mac's name (env: a JSON list). Anything else is rejected (DNS-rebinding guard).
+    extra_hosts: list[str] = []
+
     # Worker
     worker_concurrency: int = 2
     job_heartbeat_timeout_s: int = 120
@@ -37,6 +41,10 @@ class Settings(BaseSettings):
 
     ffmpeg_bin: str = "ffmpeg"
     ffprobe_bin: str = "ffprobe"
+
+    # Local transcripts (whisper.cpp). No model set: the best one in ~/.local/share/whisper-models.
+    whisper_bin: str = "whisper-cli"
+    whisper_model: Path | None = None
 
     @property
     def db_path(self) -> Path:

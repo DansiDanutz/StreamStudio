@@ -98,13 +98,13 @@ export function Stage() {
         )}
         {backdrop === 'studio' && sketches.length > 0 && <DeskSketch stack={sketches} />}
         {backdrop === 'studio' && Object.keys(table).length > 0 && <ObjectLayer table={table} onGone={(id) => useDirector.getState().tableEvent(`remove:${id}`)} />}
-        {guides && <div className="safe" />}
+        {guides && <div className="safe editor-only" />}
         <Card kind="main" baseW={size.w} baseH={size.h}><MainCard /></Card>
         <Card kind="avatar" baseW={size.w} baseH={size.h}><AvatarCard /></Card>
         {media.map((m) => <MediaCardView key={m.id} card={m} baseW={size.w} baseH={size.h} />)}
         <PointerCue />
-        <Card kind="menu" baseW={size.w} baseH={size.h} className={scene.menuShown ? '' : 'card-ghost'}><MenuCard /></Card>
-        <div className="base-label">{OUTPUT[orientation].w}×{OUTPUT[orientation].h} · {scene.name}</div>
+        <Card kind="menu" baseW={size.w} baseH={size.h} className={scene.menuShown ? '' : 'card-ghost editor-only'}><MenuCard /></Card>
+        <div className="base-label editor-only">{OUTPUT[orientation].w}×{OUTPUT[orientation].h} · {scene.name}</div>
       </div>
     </div>
   )

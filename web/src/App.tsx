@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Stage } from './stage/Stage'
 import { orderedScenes, useStage } from './stage/store'
 import { SceneStrip } from './stage/SceneStrip'
-import { Timeline } from './director/Timeline'
+import { Timeline } from './director/TimelinePanel'
 import { IS_PROGRAM, openProgram, startController, useProgram } from './output/link'
 import { ProgramView } from './output/ProgramView'
 import { loadGestureManifest } from './avatar/gestures'
@@ -12,6 +12,7 @@ import { initSceneSync } from './stage/sceneSync'
 import { ScriptPanel } from './director/ScriptPanel'
 import { fileToItem } from './stage/Library'
 import { useDirector } from './director/store'
+import { staleServerWarning } from './health'
 import { guardCue, lipsMatch, type Cue } from './director/types'
 
 const RENDER = new URLSearchParams(location.search).get('render') === '1'
@@ -48,6 +49,7 @@ function Editor() {
   const { toggleOrientation, toggleMenu, toggleGuides, toggleLocked, toggleVisible, toggleCutout } = useStage.getState()
   const cutout = useStage((s) => s.cutout)
   const [health, setHealth] = useState<string>('…')
+  const [serverWarning, setServerWarning] = useState<string | null>(null)
   const [bottom, setBottom] = useState<'scenes' | 'timeline'>('scenes')
   const [tab, setTab] = useState<'library' | 'script'>('library')
   const cue = useDirector((s) => s.cue)
@@ -60,7 +62,13 @@ function Editor() {
   const program = useProgram()
 
   useEffect(() => {
-    fetch('/api/health').then((r) => r.json()).then((h) => setHealth(`api ${h.version} · ${h.hw_encoders?.length ? `${h.hw_encoders.length} hw encoders` : 'no hw encoder'} · ${h.jobs.queued} queued`)).catch(() => setHealth(location.hostname.endsWith('vercel.app') ? 'hosted demo · no server' : 'api offline'))
+    const check = () => fetch('/api/health').then((r) => r.json()).then((h) => {
+      setHealth(`api ${h.version} · ${h.hw_encoders?.length ? `${h.hw_encoders.length} hw encoders` : 'no hw encoder'} · ${h.jobs.queued} queued`)
+      setServerWarning(staleServerWarning(h))
+    }).catch(() => setHealth(location.hostname.endsWith('vercel.app') ? 'hosted demo · no server' : 'api offline'))
+    void check()
+    const every = setInterval(check, 60_000) // a pull while the editor is open makes the server stale
+    return () => clearInterval(every)
   }, [])
 
   useEffect(() => {
@@ -116,6 +124,7 @@ function Editor() {
           </button>
         </div>
         <div className="status">{health}</div>
+        {serverWarning && <div className="server-warning" role="alert">{serverWarning}</div>}
       </header>
       <main className="work">
         <div className="stage-col">

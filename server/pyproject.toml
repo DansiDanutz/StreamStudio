@@ -10,6 +10,10 @@ dependencies = [
     "pydantic-settings>=2.4",
 ]
 
+[project.optional-dependencies]
+# offline media tools: lip-sync guard, avatar cut-out, object dissolve, opener renders
+media = ["pillow>=10", "numpy>=1.26", "scipy>=1.11", "rembg>=2"]
+
 [project.scripts]
 streamstudio-api = "streamstudio.api.main:run"
 streamstudio-worker = "streamstudio.worker.main:run"
@@ -21,6 +25,7 @@ dev = [
     "pytest>=8",
     "httpx>=0.27",
     "ruff>=0.6",
+    "pillow>=10",  # tests/test_lipsync.py
 ]
 
 [build-system]

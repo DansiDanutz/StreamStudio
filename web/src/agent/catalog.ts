@@ -36,6 +36,7 @@ export const ACTIONS: ActionSpec[] = [
   { action: 'main.source', description: 'What the Main card shows.', args: { src: "web page URL, '/path/file.mp4', or null to clear" } },
   { action: 'workflow.insert', description: 'Fill a workflow and put its segments in the script.', args: { id: 'workflow id', fields: '{key: value} (optional)', mode: "'replace' | 'append'" } },
   { action: 'timeline.get', description: 'The script as a timeline: start/end of every segment, what really plays (after the lip-sync guard and available gesture clips) and warnings.', args: {} },
+  { action: 'publish.kit', description: 'What YouTube needs next to the video: title, description with chapters, captions (.srt) from the script and voice timings, and notes on anything missing.', args: {} },
   { action: 'segment.preview', description: 'Show one segment on stage without playing (scene, layout, table, Main card).', args: { index: 'segment index' } },
   { action: 'segment.update', description: 'Change one segment. Only the fields you pass change.', args: { index: 'segment index (or id)', patch: '{text, cue, scene, gesture, target, via, visual, table, media, zoom, voice, clip}' } },
   { action: 'segment.add', description: 'Add a segment (at the end, or after an index).', args: { after: 'index (optional)', segment: '{text, cue, ...same fields as patch}' } },

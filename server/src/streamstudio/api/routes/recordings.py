@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from ...core import store, vault
+from ...core import store, transcribe, vault
 from ...core.config import Settings
 from ...core.db import tx
 from ..deps import conn, settings
@@ -84,6 +84,7 @@ def list_recordings(
             "source_bytes": src.stat().st_size,
             "mp4": mp4.exists(),
             "mp4_bytes": mp4.stat().st_size if mp4.exists() else None,
+            "transcript": (src.parent / f"{rid}.transcript.json").exists(),
         })  # fmt: skip
     return out
 
@@ -101,3 +102,41 @@ def download(rid: str, s: Settings = Depends(settings)) -> FileResponse:
         if got is None:
             raise HTTPException(404, "not ready yet")
     return FileResponse(f, media_type="video/mp4", filename=f"streamstudio-{rid[4:]}.mp4")
+
+
+@router.post("/{rid}/transcribe", status_code=202)
+def queue_transcript(
+    rid: str, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)
+) -> dict:
+    """Transcribe a finished take locally (whisper.cpp). A repeat request reuses the queued job."""
+    _check(rid)
+    if not (_dir(s) / f"{rid}.mp4").exists():
+        raise HTTPException(404, "no MP4 for this take yet")
+    try:
+        transcribe.require_whisper(s)
+    except transcribe.TranscribeError as e:
+        raise HTTPException(503, str(e)) from e
+    with tx(c):
+        job = store.find_active_job(c, "transcribe", rid) or store.enqueue(
+            c, "transcribe", payload={"id": rid}
+        )
+    return {"id": rid, "job_id": job["id"]}
+
+
+@router.get("/{rid}/transcript")
+def get_transcript(rid: str, s: Settings = Depends(settings)) -> FileResponse:
+    _check(rid)
+    f = _dir(s) / f"{rid}.transcript.json"
+    if not f.exists():
+        raise HTTPException(404, "no transcript yet: POST /api/recordings/{id}/transcribe")
+    return FileResponse(f, media_type="application/json")
+
+
+@router.get("/{rid}.srt")
+def get_captions(rid: str, s: Settings = Depends(settings)) -> FileResponse:
+    _check(rid)
+    f = _dir(s) / f"{rid}.srt"
+    if not f.exists():
+        raise HTTPException(404, "no captions yet: POST /api/recordings/{id}/transcribe")
+    name = f"streamstudio-{rid[4:]}.srt"
+    return FileResponse(f, media_type="application/x-subrip", filename=name)
