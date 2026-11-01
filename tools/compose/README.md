@@ -42,6 +42,9 @@ whole thing to −14 LUFS. Every cue is written to `OUT.mp4.cues.json`. Music an
 (`MEDIA_LIB`, ElevenLabs-generated on Dan's account).
 
 ## Scenes of ~10 s
+Fixing one scene after the full render: `render.py WORKDIR x --scenes=4,31` composes only those scenes into
+`WORKDIR/patches/`, then `splice.py WORKDIR main.mp4 main-fixed.mp4` swaps them in frame-exact and `mix.py` remixes.
+
 `scenecut.py` cuts a long take into scene clips by caption text, so each scene is checked
 (`qa_avatar.py`) and, if faulty, re-rendered alone and swapped in.
 

@@ -19,6 +19,7 @@ W = Path(sys.argv[1])
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else W / 'danslab-network.mp4'
 PREVIEW = '--preview' in sys.argv  # every 5th second only, for checking
 PREVIEW_EVERY = 5
+SCENES = next(([int(x) for x in a.split('=')[1].split(',')] for a in sys.argv if a.startswith('--scenes=')), None)  # re-render only these scenes (1-based) into WORKDIR/patches/
 UNTIL = next((float(a.split('=')[1]) for a in sys.argv if a.startswith('--until=')), None)  # render only the start (video only)
 WW, HH, FPS = 1920, 1080, 25
 STUDIO = Path('/home/claude/streamstudio/assets/studio')
@@ -418,13 +419,20 @@ def compose(frame, f):
         names = p['chips']
         co = p['chips_out'] * dur if p.get('chips_out') else dur - 0.8
         al_out = 1 - ease((tl - co) / 0.6)
-        xs = np.linspace(WW * 0.14, WW * 0.86, len(names))
+        cw = [max(300, int(font(36, 'Bold').getlength(n)) + 70) for n in names]  # each chip fits its words
+        gap = max(30, min(90, (WW * 0.92 - sum(cw)) / max(len(names) - 1, 1)))
+        span = sum(cw) + gap * (len(names) - 1)
+        x = (WW - span) / 2
+        xs = []
+        for wk in cw:
+            xs.append(x + wk / 2)
+            x += wk + gap
         times = p.get('chip_at') or [k * 1.3 / max(dur, 1) for k in range(len(names))]
         for k, name in enumerate(names):
             t_in = times[k] * dur
             al = ease((tl - t_in) / 0.35) * al_out
-            out = table_glow(out, xs[k], 300, al)
-            out = place_table_card(out, 'chip:' + name, [(name, 36, 'Bold', WHITE)], 300, 96, xs[k], al, ease((tl - t_in) / 0.45))
+            out = table_glow(out, xs[k], cw[k], al)
+            out = place_table_card(out, 'chip:' + name, [(name, 36, 'Bold', WHITE)], cw[k], 96, xs[k], al, ease((tl - t_in) / 0.45))
     e_in = p['end_at'] * dur if 'end_at' in p else dur - 6.5
     e_out = p['end_until'] * dur if 'end_until' in p else dur + 1
     if p.get('endcard') and e_in < tl < e_out + 0.6:
@@ -483,6 +491,8 @@ def main():
                      '-crf', '18', '-pix_fmt', 'yuv420p', '-r', str(FPS),
                      '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
                      '-movflags', '+faststart', '-shortest', str(OUT)]
+    if SCENES:
+        return render_scenes(dec)
     enc = subprocess.Popen(enc_args, stdin=subprocess.PIPE)
     size = WW * HH * 3
     f = 0
@@ -506,6 +516,36 @@ def main():
     dec.kill() if UNTIL is not None else None
     dec.wait()
     print('done', OUT, flush=True)
+
+
+def render_scenes(dec):
+    """Compose only the given scenes, each into patches/scene-NN.mp4 (video only, exact frames),
+    for splice.py to swap into the finished main video."""
+    (W / 'patches').mkdir(exist_ok=True)
+    ranges = {s: (round(cuts[s - 1] * FPS), round(cuts[s] * FPS)) for s in SCENES}
+    last = max(b for a, b in ranges.values())
+    size, f, enc, cur = WW * HH * 3, 0, None, None
+    while f < last:
+        buf = dec.stdout.read(size)
+        if len(buf) < size:
+            break
+        s = next((k for k, (a, b) in ranges.items() if a <= f < b), None)
+        if s != cur:
+            if enc:
+                enc.stdin.close(); enc.wait()
+            enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{WW}x{HH}',
+                                    '-r', str(FPS), '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', '14',
+                                    '-pix_fmt', 'yuv420p', str(W / 'patches' / f'scene-{s:02d}.mp4')],
+                                   stdin=subprocess.PIPE) if s else None
+            cur = s
+        if s:
+            frame = np.frombuffer(buf, np.uint8).reshape(HH, WW, 3).astype(np.float32)
+            enc.stdin.write(np.clip(compose(frame, f), 0, 255).astype(np.uint8).tobytes())
+        f += 1
+    if enc:
+        enc.stdin.close(); enc.wait()
+    dec.kill(); dec.wait()
+    print('patched scenes', SCENES, flush=True)
 
 
 if __name__ == '__main__':

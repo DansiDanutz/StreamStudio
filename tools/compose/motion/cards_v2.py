@@ -37,7 +37,7 @@ def g06(C):
     c.show(fr, 0, slide=False)
     c.url(0, 'fake-real.live')
     c.cam(fr, 0, 0, y=0)
-    t_in = c.navigate(sp, 0.35, 'nervix.space')
+    t_in = c.navigate(sp, 1.05, 'nervix.space')  # Fake-Real stays a beat, then the tab changes
     c.cam(sp, 0, 0, y=0)
     c.cam(sp, t_in + 0.1, 1.0, focus=(100, 150, 520, 280), z=1.3)
     c.ring(sp, t_in + 0.4, T(off, 6, 'Builders') - 0.1, (100, 160, 510, 265))
