@@ -17,6 +17,12 @@ describe('artifact library', () => {
     for (const a of artifacts) for (const x of a.actions) expect(EXECUTORS[x.action], `${a.id} → ${x.action}`).toBeTypeOf('function')
     for (const s of ACTIONS) expect(EXECUTORS[s.action]).toBeTypeOf('function')
   })
+  it('has the DansLab logo-reveal intro as a media item', () => {
+    const intro = artifacts.find((a) => a.id === 'media:danslab-intro')
+    expect(intro?.kind).toBe('media')
+    expect(intro?.name).toMatch(/DansLab intro/)
+    expect(intro?.actions[0]).toMatchObject({ action: 'media.add', args: { item: 'danslab-intro' } })
+  })
 })
 
 describe('agent actions run on the stage', () => {

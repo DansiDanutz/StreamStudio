@@ -96,7 +96,7 @@ export function buildCatalog(): { artifacts: Artifact[]; actions: ActionSpec[] }
       ],
     })
   }
-  for (const it of LIBRARY) if (!OBJECTS.some((o) => o.id === it.id)) a.push({ id: `media:${it.id}`, kind: 'media', name: it.label, description: 'A media card source.', preview: it.poster, actions: [{ action: 'media.add', args: { item: it.id } }] })
+  for (const it of LIBRARY) if (!OBJECTS.some((o) => o.id === it.id)) a.push({ id: `media:${it.id}`, kind: 'media', name: it.label, description: it.id === 'danslab-intro' ? 'The DansLab logo-reveal intro (7 s, with sound). Opens every video.' : 'A media card source.', preview: it.poster, actions: [{ action: 'media.add', args: { item: it.id } }] })
   for (const w of WORKFLOWS) {
     a.push({
       id: `workflow:${w.id}`, kind: 'workflow', name: w.name, description: w.summary,

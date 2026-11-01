@@ -14,7 +14,12 @@ export interface LibraryItem {
   aspect: number
 }
 
-export const LIBRARY: LibraryItem[] = OBJECTS.map((o) => ({
+/** Brand pieces: the DansLab logo-reveal intro (HyperFrames port of the channel intro, with its sound). */
+export const BRAND: LibraryItem[] = [
+  { id: 'danslab-intro', label: 'DansLab intro · logo reveal', src: '/brand/danslab-intro.mp4', poster: '/brand/danslab-intro.jpg', playback: 'once', framed: false, w: 1, aspect: 16 / 9 },
+]
+
+export const LIBRARY: LibraryItem[] = [...OBJECTS.map((o) => ({
   id: o.id,
   label: o.name,
   src: objectClip(o, 'arrive'),
@@ -23,7 +28,7 @@ export const LIBRARY: LibraryItem[] = OBJECTS.map((o) => ({
   framed: false,
   w: 0.24,
   aspect: 940 / 750,
-}))
+}) as LibraryItem), ...BRAND]
 
 export const DRAG_MIME = 'application/x-streamstudio-item'
 /** A clip or take dragged from the Library: JSON {label, src}. */
