@@ -16,7 +16,7 @@ export function MainCard() {
 
   if (!src) {
     return (
-      <div className="drop" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="drop editor-only" onPointerDown={(e) => e.stopPropagation()}>
         <span className="drop-title">Main card</span>
         <span className="drop-sub">What do you want to show?</span>
         <div className="drop-actions">
@@ -45,7 +45,7 @@ export function MainCard() {
         : isUrlSource(src) ? <BrowserView url={urlOf(src)} />
         : isImageUrl(src) ? <img className="fill" src={src} alt="" />
         : <video className="fill" src={src} autoPlay loop muted playsInline />}
-      <button className="source-x" title="Change what the Main card shows" onPointerDown={(e) => e.stopPropagation()} onClick={() => setSource('main', null)}>⟲</button>
+      <button className="source-x editor-only" title="Change what the Main card shows" onPointerDown={(e) => e.stopPropagation()} onClick={() => setSource('main', null)}>⟲</button>
     </div>
   )
 }
