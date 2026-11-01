@@ -75,8 +75,8 @@ export function MediaCardView({ card, baseW, baseH }: { card: MediaCard; baseW: 
             onError={() => setBroken(true)} />}
       {selected && (
         <>
-          {HANDLES.map((h) => <span key={h} className={`handle handle-${h}`} onPointerDown={onDown(h)} onPointerMove={onMove} onPointerUp={onUp} />)}
-          <div className="mcard-bar" onPointerDown={(e) => e.stopPropagation()}>
+          {HANDLES.map((h) => <span key={h} className={`handle handle-${h} editor-only`} onPointerDown={onDown(h)} onPointerMove={onMove} onPointerUp={onUp} />)}
+          <div className="mcard-bar editor-only" onPointerDown={(e) => e.stopPropagation()}>
             <span className="mcard-name">{card.label}</span>
             <button title="Dan points at this card (T)" onClick={() => useDirector.getState().pointAt(`media:${card.id}`)}>☝</button>
             {!image && <button title="Replay" onClick={() => { const v = vid.current; if (v) { v.currentTime = 0; void v.play() } }}>↻</button>}

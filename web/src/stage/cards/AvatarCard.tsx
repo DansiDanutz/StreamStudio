@@ -75,14 +75,14 @@ export function AvatarCard() {
             onError={(e) => (alpha ? setMissing((m) => ({ ...m, [alpha]: true })) : ((e.target as HTMLVideoElement).style.opacity = '0'))} />}
       {narration && <audio key={narration} src={narration} autoPlay muted={quiet} onEnded={advance} />}
       {showDesk && <img className="desk" src={DESK[orientation]} alt="" draggable={false} onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-      <label className="avatar-pick" onPointerDown={(e) => e.stopPropagation()} title="Replace avatar clip">
+      <label className="avatar-pick editor-only" onPointerDown={(e) => e.stopPropagation()} title="Replace avatar clip">
         ⤓
         <input type="file" accept="video/*" hidden onChange={(e) => {
           const f = e.target.files?.[0]
           if (f) setSource('avatar', URL.createObjectURL(f))
         }} />
       </label>
-      <span className="lipsync" aria-hidden><i /><i /><i /><i /></span>
+      <span className="lipsync editor-only" aria-hidden><i /><i /><i /><i /></span>
     </div>
   )
 }

@@ -146,8 +146,10 @@ button, select { font: inherit }
 .render-root { position: fixed; inset: 0; display: grid; place-items: center; background: #000 }
 .render-root .stage-host { padding: 0; width: 100%; height: 100% }
 .render-root .base { border-radius: 0; box-shadow: none }
-.render-mode .card-ghost, .render-mode .base-label, .render-mode .safe, .render-mode .card-tag, .render-mode .handle, .render-mode .avatar-pick, .render-mode .lipsync { display: none !important }
-.render-mode .card.is-selected { outline: 0 }
+/* editor UI inside the Base card carries `editor-only`: the Program window and renders never show it */
+.render-mode .editor-only { display: none !important }
+.render-mode .card.is-selected, .render-mode .mcard.is-selected, .render-mode .mcard.is-over, .render-mode .base.is-drop { outline: 0 }
+.render-mode .card-avatar.is-selected:has(.is-cutout) { border-color: transparent }
 
 /* ---- 3D objects on the table (clips on black, screen-blended) ---- */
 .object-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3 }
@@ -174,8 +176,6 @@ button, select { font: inherit }
 .mcard-bar .on { background: var(--accent-2); color: #14102a }
 .mcard-name { color: var(--muted); padding: 0 .4em; font-family: var(--mono); font-size: .85em }
 .base.is-drop { outline: .25em dashed var(--ok); outline-offset: -.25em }
-.render-mode .mcard-bar, .render-mode .mcard .handle { display: none !important }
-.render-mode .mcard.is-selected { outline: 0 }
 
 /* ---- library ---- */
 .library { display: grid; grid-template-rows: auto 1fr; min-height: 0 }
@@ -252,7 +252,6 @@ input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; bor
 .drop-actions input { font-size: 1.1em; padding: .4em .7em; border-radius: .6em; min-width: 16em }
 .source-x { position: absolute; right: .6em; bottom: .6em; z-index: 4; font-size: 1em; padding: .1em .5em; border-radius: .5em; opacity: 0; transition: opacity .15s }
 .card-main:hover .source-x { opacity: .9 }
-.render-mode .source-x { display: none }
 .browser { position: absolute; inset: 0; display: grid; grid-template-rows: 2.2em 1fr; background: #fff; overflow: hidden }
 .browser-bar { display: flex; align-items: center; gap: .45em; padding: 0 .8em; background: #1d1b26; color: #c9c6d6; font: 500 .9em var(--mono) }
 .browser-bar i { width: .7em; height: .7em; border-radius: 50%; background: #4a4658 }
@@ -287,8 +286,6 @@ input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; bor
 .program-stage .stage-host { padding: 0; background: #000 }
 :fullscreen .program-bar { display: none }
 .render-mode .live-ask { display: grid !important }
-/* the output never shows the empty-card picker (only the "share again" prompt a live source needs) */
-.render-mode .card-main .drop:not(.live-ask) { visibility: hidden }
 .program-bar .live { font-weight: 800 }
 .program-bar .live.on { background: #d4002a; color: #fff; border-color: #d4002a; animation: livepulse 1.6s ease-in-out infinite }
 @keyframes livepulse { 50% { box-shadow: 0 0 0 4px rgba(212,0,42,.35) } }
@@ -304,7 +301,6 @@ input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; bor
 .wf-hint a, .wf-field a { color: var(--accent-2) }
 .pc-ring.soft { stroke: rgba(255,226,170,.85); stroke-width: .22em }
 .card-point { position: absolute; right: .5em; top: .5em; z-index: 6; font-size: .9em; padding: .15em .6em; border-radius: .5em }
-.render-mode .card-point { display: none }
 /* the clip's own frame edge can cut an extended arm: fade the cut-out out at its left/right edges */
 video.cutout { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%) }
 

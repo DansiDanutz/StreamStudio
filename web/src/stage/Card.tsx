@@ -71,11 +71,11 @@ export function Card({ kind, baseW, baseH, className = '', children }: Props) {
     >
       <div className="card-body">{children}</div>
       {selected && !layout.locked && HANDLES.map((h) => (
-        <span key={h} className={`handle handle-${h}`} onPointerDown={onDown(h)} onPointerMove={onMove} onPointerUp={onUp} />
+        <span key={h} className={`handle handle-${h} editor-only`} onPointerDown={onDown(h)} onPointerMove={onMove} onPointerUp={onUp} />
       ))}
-      {selected && <span className="card-tag">{kind}{layout.locked ? ' · locked' : ''}</span>}
+      {selected && <span className="card-tag editor-only">{kind}{layout.locked ? ' · locked' : ''}</span>}
       {selected && kind !== 'avatar' && (
-        <button className="card-point" title="Dan points at this card (T)" onPointerDown={(e) => e.stopPropagation()}
+        <button className="card-point editor-only" title="Dan points at this card (T)" onPointerDown={(e) => e.stopPropagation()}
           onClick={() => useDirector.getState().pointAt(kind)}>☝ point</button>
       )}
     </div>
