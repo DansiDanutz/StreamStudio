@@ -328,3 +328,15 @@ only after confirming the vault's copy is identical; the file returns by itself 
 it is used (`/avatar/...` and `/api/recordings/...` fetch on a miss). **Sync from vault** on a new
 machine restores scenes and names and lists what can be brought back. Keys live in
 `<data_dir>/vault.json` (0600) and are only ever returned masked.
+
+
+## Where the eye goes: neon cards, a frameless Dan, the magic table
+
+- **Content cards** (the Main card, framed media cards) carry a **neon rim**: a thin teal edge with a
+  teal→violet glow that breathes slowly. That is the message, so that is where the light is.
+- **Dan's own card** (circle or portrait) has **no frame, no ring, no colour** at its edge: a soft
+  feathered edge into the scene. A coloured margin pulls the viewer's eye to his lips; we want the opposite.
+- **The table is the magic table.** Small cards (names, project chips, titles, the end card) appear
+  standing on the desk in front of Dan: glass cards with a neon rim that rise out of the wood, with a pool
+  of light and a faint reflection under them. They never float over the wall or Dan's face.
+- The offline compositor (tools/compose/render.py) follows the same rules.

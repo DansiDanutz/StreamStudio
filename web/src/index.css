@@ -423,3 +423,15 @@ video.cutout { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%
 .v-where, .v-stats .v-row, .v-job { grid-column: 1 / -1; font: 10.5px var(--mono); color: var(--muted); word-break: break-all }
 .v-job.done { color: var(--ok) }
 .v-job.failed { color: var(--accent) }
+
+/* Where the eye goes (Dan, 1 Nov): content cards carry a neon rim; Dan's own card has no frame or
+   colour at all, so nobody looks at his lips. Small cards appear on the studio table ("magic table"). */
+@keyframes neonPulse { 50% { box-shadow: 0 0 0 .12em rgba(45,226,196,.95), 0 0 1.6em rgba(45,226,196,.6), 0 0 3.2em rgba(124,92,255,.45) } }
+.card-main:not(.is-fullframe), .mcard.is-framed {
+  border: 0;
+  box-shadow: 0 0 0 .12em rgba(45,226,196,.9), 0 0 1.2em rgba(45,226,196,.5), 0 0 2.6em rgba(124,92,255,.35), 0 2em 6em rgba(0,0,0,.55);
+  animation: neonPulse 2.6s ease-in-out infinite;
+}
+.card-avatar, .card-avatar.is-circle { border: 0; box-shadow: none }
+.card-avatar:not(.is-fullframe) .card-body { -webkit-mask-image: radial-gradient(closest-side, #000 86%, transparent 100%); mask-image: radial-gradient(closest-side, #000 86%, transparent 100%) }
+.card-avatar:not(.is-fullframe):not(.is-circle) .card-body { -webkit-mask-image: linear-gradient(#000, #000); mask-image: none }
