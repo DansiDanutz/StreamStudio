@@ -31,7 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="StreamStudio", version=__version__)
     app.state.settings = s
-    app.add_middleware(NetGuardMiddleware, allow_tailnet=s.allow_tailnet)
+    app.add_middleware(NetGuardMiddleware, allow_tailnet=s.allow_tailnet, extra_hosts=s.extra_hosts)
     app.include_router(system.router)
     app.include_router(projects.router)
     app.include_router(jobs.router)
