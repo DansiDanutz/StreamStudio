@@ -56,8 +56,8 @@ PLAN = [
     dict(kind='card', still='nervixpay-hero.png', tag='nervixpay.live'),
     dict(kind='card', still='nervixpay-reasons.png', tag='nervixpay.live · 0.2% per payment, at most $2'),
     dict(kind='avatar', lower=('Zmarty', 'AI trading companion')),
-    dict(kind='avatar', lower=('KryptoStack Exchange', None), zoom=(0.19, 0.30, 1.55)),
-    dict(kind='avatar', lower=('iRise Coin', None), zoom=(0.12, 0.46, 1.75), zoom_from=(0.19, 0.30, 1.55)),
+    dict(kind='avatar', lower=('KryptoStack Exchange', None), zoom=(0.26, 0.61, 1.30)),
+    dict(kind='avatar', lower=('iRise Coin', None), zoom=(0.20, 0.62, 1.42), zoom_from=(0.26, 0.61, 1.30)),
     dict(kind='avatar', chips=['Fake-Real', 'NervixPay', 'Zmarty', 'KryptoStack', 'iRise']),
     dict(kind='card', still='market-home.png', tag='nervix-market.vercel.app'),
     dict(kind='card', still='market-directory.png', tag='Nervix Market · the directory'),
@@ -174,11 +174,25 @@ CIRCLE = 300
 CX0, CY0 = 92, HH - 92 - CIRCLE
 circ = np.zeros((CIRCLE, CIRCLE), np.float32)
 cv2.circle(circ, (CIRCLE // 2, CIRCLE // 2), CIRCLE // 2 - 2, 1.0, -1, lineType=cv2.LINE_AA)
-circ = cv2.GaussianBlur(circ, (0, 0), 0.8)[..., None]
+circ = cv2.GaussianBlur(circ, (0, 0), 2.2)[..., None]  # soft edge, no frame: nothing draws the eye to the lips
 ring = np.zeros((CIRCLE + 12, CIRCLE + 12), np.float32)
 cv2.circle(ring, ((CIRCLE + 12) // 2, (CIRCLE + 12) // 2), (CIRCLE + 12) // 2 - 2, 1.0, 3, lineType=cv2.LINE_AA)
 ring = ring[..., None]
 RING_RGB = np.array([45, 226, 196], np.float32)
+
+
+def neon_frame(x, y, w, h, r=22, width=3, blur=16):
+    """A neon rim (teal → violet) with its glow, as additive RGB."""
+    m = Image.new('L', (WW, HH), 0)
+    ImageDraw.Draw(m).rounded_rectangle((x - 2, y - 2, x + w + 1, y + h + 1), r + 2, outline=255, width=width)
+    m = np.asarray(m).astype(np.float32) / 255.0
+    grad = np.linspace(0, 1, WW, dtype=np.float32)[None, :, None]
+    col = np.array([45, 226, 196], np.float32) * (1 - grad) + np.array([140, 100, 255], np.float32) * grad
+    glow = cv2.GaussianBlur(m, (0, 0), blur) * 2.2 + cv2.GaussianBlur(m, (0, 0), 4) * 0.9
+    return col * np.clip(glow, 0, 1.4)[..., None], col * m[..., None], m[..., None]
+
+
+NEON_GLOW, NEON_RGB, NEON_A = neon_frame(CARD_X, CARD_Y, CARD_W, CARD_H)
 
 
 def card_layer(frame, still, tl, dur, tag):
@@ -202,13 +216,16 @@ def card_layer(frame, still, tl, dur, tag):
         img_s, rm, x0, y0, sw, sh = img, card_round, CARD_X, CARD_Y, CARD_W, CARD_H
     region = out[y0:y0 + sh, x0:x0 + sw]
     out[y0:y0 + sh, x0:x0 + sw] = region * (1 - rm * a) + img_s * rm * a
+    # the neon rim: this is where the eye should go
+    if s >= 0.999:
+        pulse = 0.82 + 0.18 * np.sin(tl * 2.4)
+        out = out + NEON_GLOW * (a * pulse)
+        out = out * (1 - NEON_A * a) + NEON_RGB * 1.15 * a
     # Dan in the circle: head and shoulders from his own clip
     side = int(0.60 * HH)
     cxf, cyf = WW // 2, int(0.37 * HH)
     crop = frame[cyf - side // 2:cyf + side // 2, cxf - side // 2:cxf + side // 2]
     face = cv2.resize(crop, (CIRCLE, CIRCLE), interpolation=cv2.INTER_AREA)
-    rr = out[CY0 - 6:CY0 + CIRCLE + 6, CX0 - 6:CX0 + CIRCLE + 6]
-    out[CY0 - 6:CY0 + CIRCLE + 6, CX0 - 6:CX0 + CIRCLE + 6] = rr * (1 - ring) + RING_RGB * ring
     reg = out[CY0:CY0 + CIRCLE, CX0:CX0 + CIRCLE]
     out[CY0:CY0 + CIRCLE, CX0:CX0 + CIRCLE] = reg * (1 - circ) + face * circ
     return out, tag, a
@@ -235,20 +252,6 @@ def overlay(out, key, draw_fn, alpha):
     return out * (1 - a) + rgb * a
 
 
-def pill(d, x, y, text, size=30, sub=None):
-    f1 = font(size, 'Bold')
-    f2 = font(int(size * 0.72), 'Medium')
-    w1 = d.textlength(text, font=f1)
-    w2 = d.textlength(sub, font=f2) if sub else 0
-    w = max(w1, w2) + 56
-    h = size + 34 + (int(size * 0.72) + 10 if sub else 0)
-    d.rounded_rectangle((x, y, x + w, y + h), 16, fill=(10, 12, 20, 210), outline=(45, 226, 196, 160), width=2)
-    d.rectangle((x, y + 14, x + 5, y + h - 14), fill=(45, 226, 196, 255))
-    d.text((x + 28, y + 15), text, font=f1, fill=(240, 242, 248, 255))
-    if sub:
-        d.text((x + 28, y + 19 + size), sub, font=f2, fill=(160, 166, 186, 255))
-
-
 def tag_draw(text):
     def fn(d):
         f = font(26, 'SemiBold')
@@ -259,37 +262,85 @@ def tag_draw(text):
     return fn
 
 
-def title_draw(d):
-    f1, f2 = font(132, 'Bold'), font(46, 'Medium')
-    t1, t2 = 'DansLab', 'The AI Business Network'
-    w1, w2 = d.textlength(t1, font=f1), d.textlength(t2, font=f2)
-    d.rounded_rectangle((WW / 2 - 560, 300, WW / 2 + 560, 620), 36, fill=(6, 8, 14, 170))
-    d.text((WW / 2 - w1 / 2, 330), t1, font=f1, fill=(244, 246, 252, 255))
-    d.text((WW / 2 - w2 / 2, 500), t2, font=f2, fill=(45, 226, 196, 255))
+TABLE_BOTTOM = 1004  # where cards stand on the desk (just in front of Dan's hands)
+_tc = {}
 
 
-def chips_draw(n):
-    names = PLAN[10]['chips']
+def table_card(key, lines, w, h):
+    """A glass mini card with a neon rim, standing on the table, plus its reflection in the wood.
+    lines: [(text, size, weight, rgb)]. Returns (rgb, alpha) arrays of (h*2) x w incl. reflection."""
+    if key in _tc:
+        return _tc[key]
+    pad = 40
+    W2, H2 = w + pad * 2, h + pad * 2
+    im = Image.new('RGBA', (W2, H2), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle((pad, pad, pad + w, pad + h), 18, fill=(8, 10, 18, 205))
+    rim = Image.new('L', (W2, H2), 0)
+    ImageDraw.Draw(rim).rounded_rectangle((pad, pad, pad + w, pad + h), 18, outline=255, width=3)
+    rim_a = np.asarray(rim).astype(np.float32) / 255.0
+    total = sum(sz for _, sz, _, _ in lines) + 14 * (len(lines) - 1)
+    y = pad + (h - total) / 2 - 4
+    for text, sz, wt, rgb in lines:
+        f = font(sz, wt)
+        tw = d.textlength(text, font=f)
+        d.text((pad + (w - tw) / 2, y), text, font=f, fill=rgb + (255,))
+        y += sz + 14
+    base = np.asarray(im).astype(np.float32)
+    grad = np.linspace(0, 1, W2, dtype=np.float32)[None, :, None]
+    col = np.array([45, 226, 196], np.float32) * (1 - grad) + np.array([140, 100, 255], np.float32) * grad
+    glow = np.clip(cv2.GaussianBlur(rim_a, (0, 0), 10) * 2.4, 0, 1)[..., None]
+    rgb = base[..., :3] * (base[..., 3:4] / 255.0)
+    a = base[..., 3:4] / 255.0
+    # glow under the card, then the rim on top
+    rgb = rgb * (1 - glow * (1 - a)) + col * glow * (1 - a)
+    a = np.clip(a + glow * 0.85, 0, 1)
+    rgb = rgb * (1 - rim_a[..., None]) + col * 1.1 * rim_a[..., None]
+    a = np.maximum(a, rim_a[..., None])
+    # reflection in the polished wood
+    ref_rgb, ref_a = rgb[::-1], a[::-1]
+    fade = np.linspace(0.32, 0, H2, dtype=np.float32)[:, None, None]
+    out_rgb = np.concatenate([rgb, ref_rgb], 0)
+    out_a = np.concatenate([a, ref_a * fade], 0)
+    _tc[key] = (out_rgb, out_a, pad)
+    return _tc[key]
 
-    def fn(d):
-        f = font(40, 'Bold')
-        y = 230
-        for k, name in enumerate(names[:n]):
-            w = d.textlength(name, font=f) + 60
-            d.rounded_rectangle((90, y, 90 + w, y + 74), 37, fill=(10, 12, 20, 215), outline=(45, 226, 196, 190), width=2)
-            d.text((120, y + 13), name, font=f, fill=(240, 242, 248, 255))
-            y += 92
-    return fn
+
+def place_table_card(out, key, lines, w, h, cx, alpha, rise=0.0):
+    """Stand a mini card on the table centred at cx; rise=0..1 animates it up out of the table."""
+    if alpha <= 0.01:
+        return out
+    rgb, a, pad = table_card(key, lines, w, h)
+    H2 = h + pad * 2
+    lift = int((1 - rise) * 46)
+    x0 = int(cx - (w + pad * 2) / 2)
+    y0 = TABLE_BOTTOM - h - pad + lift
+    hh, ww = rgb.shape[:2]
+    # cards rise out of the table: hide what is still below the surface
+    vis = np.ones((hh, 1, 1), np.float32)
+    cut = H2 - pad - lift  # rows of the card above the table line
+    vis[max(cut, 0):H2] = 0 if lift > 0 else vis[max(cut, 0):H2]
+    ys, xs = max(0, y0), max(0, x0)
+    ye, xe = min(HH, y0 + hh), min(WW, x0 + ww)
+    if ye <= ys or xe <= xs:
+        return out
+    sa = a[ys - y0:ye - y0, xs - x0:xe - x0] * vis[ys - y0:ye - y0] * alpha
+    sr = rgb[ys - y0:ye - y0, xs - x0:xe - x0]
+    out[ys:ye, xs:xe] = out[ys:ye, xs:xe] * (1 - sa) + sr * sa
+    return out
 
 
-def end_draw(d):
-    f1, f2, f3 = font(76, 'Bold'), font(40, 'SemiBold'), font(30, 'Medium')
-    d.rounded_rectangle((WW / 2 - 640, 120, WW / 2 + 640, 430), 34, fill=(6, 8, 14, 200), outline=(124, 92, 255, 180), width=3)
-    for txt, f, y, col in (('List your AI business', f1, 150, (244, 246, 252, 255)),
-                           ('nervix-market.vercel.app', f2, 260, (45, 226, 196, 255)),
-                           ('10 USD membership · USDT or USDC · paid with NervixPay', f3, 340, (176, 182, 202, 255))):
-        w = d.textlength(txt, font=f)
-        d.text((WW / 2 - w / 2, y), txt, font=f, fill=col)
+def table_glow(out, cx, w, alpha):
+    """A soft pool of neon light on the wood where cards appear."""
+    if alpha <= 0.01:
+        return out
+    g = np.zeros((HH, WW), np.float32)
+    cv2.ellipse(g, (int(cx), TABLE_BOTTOM), (int(w * 0.62), 26), 0, 0, 360, 1.0, -1)
+    g = cv2.GaussianBlur(g, (0, 0), 22)[..., None] * 0.5 * alpha
+    return out + np.array([60, 200, 190], np.float32) * g
+
+
+WHITE, TEAL, MUTED = (242, 244, 250), (45, 226, 196), (170, 176, 196)
 
 
 # ------------------------------------------------------------------ main loop
@@ -308,6 +359,36 @@ def compose(frame, f):
         out = overlay(out, 'tag:' + tag, tag_draw(tag), a)
         return out
     out = studio(frame, f)
+    if p.get('title'):
+        al = ease(tl / 0.5) * (1 - ease((tl - 2.6) / 0.6))
+        out = table_glow(out, WW / 2, 820, al)
+        out = place_table_card(out, 'title', [('DansLab', 64, 'Bold', WHITE), ('The AI Business Network', 30, 'Medium', TEAL)],
+                               820, 170, WW / 2, al, ease(tl / 0.6))
+    if p.get('lower'):
+        name, sub = p['lower']
+        t_in = 0.3
+        al = ease((tl - t_in) / 0.4) * (1 - ease((tl - min(dur - 0.6, 7.0)) / 0.5))
+        lines = [(name, 44, 'Bold', WHITE)] + ([(sub, 26, 'Medium', TEAL)] if sub else [])
+        w = max(460, int(font(44, 'Bold').getlength(name)) + 120)
+        cx = WW * 0.47 if 'zoom' not in p else WW * 0.30  # world space: zoom is applied after the table cards
+        out = table_glow(out, cx, w, al)
+        out = place_table_card(out, 'lower:' + name, lines, w, 150 if sub else 112, cx, al, ease((tl - t_in) / 0.5))
+    if p.get('chips'):
+        names = p['chips']
+        al_out = 1 - ease((tl - (dur - 0.8)) / 0.6)
+        xs = np.linspace(WW * 0.14, WW * 0.86, len(names))
+        for k, name in enumerate(names):
+            t_in = k * 1.3
+            al = ease((tl - t_in) / 0.35) * al_out
+            out = table_glow(out, xs[k], 300, al)
+            out = place_table_card(out, 'chip:' + name, [(name, 36, 'Bold', WHITE)], 300, 96, xs[k], al, ease((tl - t_in) / 0.45))
+    if p.get('endcard') and tl > dur - 6.5:
+        al = ease((tl - (dur - 6.5)) / 0.6)
+        out = table_glow(out, WW / 2, 1100, al)
+        out = place_table_card(out, 'end', [('List your AI business', 56, 'Bold', WHITE),
+                                            ('nervix-market.vercel.app', 36, 'SemiBold', TEAL),
+                                            ('10 USD membership · USDT or USDC · paid with NervixPay', 24, 'Medium', MUTED)],
+                               1100, 230, WW / 2, al, ease((tl - (dur - 6.5)) / 0.7))
     if 'zoom' in p:
         cx, cy, z = p['zoom']
         if 'zoom_from' in p:
@@ -316,20 +397,6 @@ def compose(frame, f):
             out = zoom(out, fx + (cx - fx) * k, fy + (cy - fy) * k, fz + (z - fz) * k)
         else:
             out = zoom(out, cx, cy, 1 + (z - 1) * ease(tl / min(dur, 2.2)))
-    if p.get('title'):
-        a = 1 - ease((tl - 2.4) / 0.6)
-        out = overlay(out, 'title', title_draw, ease(tl / 0.4) * a)
-    if p.get('lower'):
-        name, sub = p['lower']
-        a = ease((tl - 0.3) / 0.4) * (1 - ease((tl - min(dur - 0.6, 6.5)) / 0.5))
-        out = overlay(out, 'lower:' + name, lambda d: pill(d, 90, HH - 240, name, 40, sub), a)
-    if p.get('chips'):
-        # the five names land as Dan says them (about one per 1.3 s from the start)
-        n = min(5, int(tl / 1.3) + 1)
-        a = 1 - ease((tl - (dur - 0.8)) / 0.6)
-        out = overlay(out, f'chips:{n}', chips_draw(n), a)
-    if p.get('endcard') and tl > dur - 6.5:
-        out = overlay(out, 'end', end_draw, ease((tl - (dur - 6.5)) / 0.6))
     return out
 
 
