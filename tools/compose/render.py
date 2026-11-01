@@ -394,23 +394,40 @@ def place_feature(out, kind, u, cx, alpha):
     return out
 
 
-def fact_draw(items):
-    """Fact chips in a row under the site card; one RGBA per chip so each can rise on its own word."""
-    f = font(26, 'SemiBold')
-    xs, x = [], CARD_X
-    for text in items:
-        xs.append(x)
-        x += f.getlength(text) + 64 + 14
-    def chip(k):
-        def fn(d):
-            x0, text = xs[k], items[k]
-            w = f.getlength(text) + 64
-            y0 = CARD_Y + CARD_H + 30
-            d.rounded_rectangle((x0, y0, x0 + w, y0 + 52), 26, fill=(10, 14, 22, 230), outline=(45, 226, 196, 200), width=2)
-            d.line([(x0 + 20, y0 + 27), (x0 + 26, y0 + 34), (x0 + 38, y0 + 19)], fill=(45, 226, 196, 255), width=4, joint='curve')
-            d.text((x0 + 48, y0 + 26), text, font=f, fill=(236, 238, 246, 255), anchor='lm')
-        return fn
-    return chip
+FACT_Y, FACT_H, FACT_GAP, FACT_RISE = CARD_Y + CARD_H + 30, 52, 14, 22
+_chips = {}
+
+
+def fact_chip(text):
+    """One proof chip as a small RGBA (only its own pixels are kept, not a full frame)."""
+    if text not in _chips:
+        f = font(26, 'SemiBold')
+        w = int(f.getlength(text)) + 64
+        im = Image.new('RGBA', (w + 2, FACT_H + 2), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        d.rounded_rectangle((0, 0, w, FACT_H), 26, fill=(10, 14, 22, 230), outline=(45, 226, 196, 200), width=2)
+        d.line([(20, 27), (26, 34), (38, 19)], fill=(45, 226, 196, 255), width=4, joint='curve')
+        d.text((48, 26), text, font=f, fill=(236, 238, 246, 255), anchor='lm')
+        arr = np.asarray(im).astype(np.float32)
+        _chips[text] = (arr[..., :3], arr[..., 3:4] / 255.0)
+    return _chips[text]
+
+
+def place_facts(out, facts, tl, dur):
+    """Fact chips in a row under the site card, each rising and fading in on its own word."""
+    x = CARD_X
+    for fa, text in facts:
+        rgb, a = fact_chip(text)
+        h, w = a.shape[:2]
+        k = ease((tl - fa * dur) / 0.35)
+        al = k * (1 - ease((tl - (dur - 0.5)) / 0.4))
+        if al > 0.01 and x + w <= WW:
+            y = FACT_Y + round((1 - k) * FACT_RISE)
+            y1 = min(y + h, HH)
+            aa = a[:y1 - y] * al
+            out[y:y1, x:x + w] = out[y:y1, x:x + w] * (1 - aa) + rgb[:y1 - y] * aa
+        x += w + FACT_GAP
+    return out
 
 
 # ------------------------------------------------------------------ main loop
@@ -425,14 +442,12 @@ def compose(frame, f):
         if iz and tl < 1.1:  # into the studio monitor, then the site
             out = zoom(studio(frame, f) if mask_for(f) is not None else plate.copy(), iz[0], iz[1], 1 + 1.6 * ease(tl / 1.1))
             return out
-        tc = tl - (1.1 if iz else 0)
-        out, tag, a = card_layer(frame, p['still'], tc, dur, p['tag'], p.get('focus'))
+        intro = 1.1 if iz else 0.0
+        tc, dc = tl - intro, dur - intro  # the card's own clock, after the push into the monitor
+        out, tag, a = card_layer(frame, p['still'], tc, dc, p['tag'], p.get('focus'))
         out = overlay(out, 'tag:' + tag, tag_draw(tag), a)
-        facts = p.get('facts') or []  # [[frac, text], …]: proof chips rising on the words that name them
-        chip = fact_draw([t for _, t in facts])
-        for k, (fa, text) in enumerate(facts):
-            al = ease((tl - fa * dur) / 0.35) * (1 - ease((tl - (dur - 0.5)) / 0.4))
-            out = overlay(out, f'fact:{i}:{k}', chip(k), al)
+        # [[frac, text], …]: proof chips rising on the words that name them (fractions of the whole segment)
+        out = place_facts(out, p.get('facts') or [], tl, dur)
         return out
     out = studio(frame, f)
     if p.get('title'):
