@@ -412,8 +412,10 @@ _feat = {}
 def feature_rgba(kind, u):
     q = round(min(max(u, 0), 1) * 60)  # 60 steps over the feature is smooth at 25 fps
     if (kind, q) not in _feat:
-        arr = np.asarray(features.draw(kind, q / 60, FEAT_W - FEAT_TEXT_W - 30, FEAT_H - 40)).astype(np.float32)
-        _feat[kind, q] = (arr[..., :3], arr[..., 3:4] / 255.0)
+        if any(k != kind for k, _ in _feat):  # one question card is up at a time: drop the finished one's frames
+            _feat.clear()
+        arr = np.asarray(features.draw(kind, q / 60, FEAT_W - FEAT_TEXT_W - 30, FEAT_H - 40))
+        _feat[kind, q] = (arr[..., :3].astype(np.float32), arr[..., 3:4].astype(np.float32) / 255.0)
     return _feat[kind, q]
 
 
