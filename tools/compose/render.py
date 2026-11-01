@@ -228,6 +228,22 @@ class CardVideo:
         return img
 
 
+def require_motion_cards(plan):
+    """Hard rule: a site card is a HyperFrames motion piece, never a still image."""
+    bad = []
+    for n, p in enumerate(plan):
+        if p['kind'] != 'card':
+            continue
+        v = p.get('video')
+        f = W / 'cards' / v if v else None
+        if not v or not f.exists() or f.stat().st_size < 10_000:
+            bad.append(f"segment {n} ({p.get('tag', '?')}): " + ('no "video" in the plan' if not v else f'{f} missing or empty'))
+    if bad:
+        sys.exit('REFUSING TO RENDER: site cards must be motion (tools/compose/motion/):\n  ' + '\n  '.join(bad)
+                 + '\nBuild them with motion/build.py and copy the MP4s to WORKDIR/cards/. '
+                   '(--allow-stills is for throwaway previews only.)')
+
+
 def card_layer(frame, still, tl, dur, tag, video=None):
     out = blurred.copy()
     a = ease(tl / 0.45)
@@ -444,6 +460,8 @@ def compose(frame, f):
 
 
 def main():
+    if '--allow-stills' not in sys.argv:
+        require_motion_cards(PLAN)
     dec = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', str(SRC), '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
                            stdout=subprocess.PIPE)
     enc_args = ['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{WW}x{HH}', '-r', str(FPS), '-i', '-']
