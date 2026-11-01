@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -92,24 +93,46 @@ def connect(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path, timeout=30, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA busy_timeout=30000")
+    _use_wal(conn)
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
-def migrate(conn: sqlite3.Connection) -> int:
-    current = conn.execute("PRAGMA user_version").fetchone()[0]
-    for i, sql in enumerate(MIGRATIONS[current:], start=current + 1):
-        conn.execute("BEGIN")
+WAL_RETRIES = 100
+WAL_RETRY_S = 0.05
+
+
+def _use_wal(conn: sqlite3.Connection) -> None:
+    """Switch to WAL. On a new file the switch fails at once ('database is locked') while another
+    connection holds it, without waiting on busy_timeout, so it is retried."""
+    for _ in range(WAL_RETRIES):
         try:
+            if conn.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal":
+                return
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e):
+                raise
+        time.sleep(WAL_RETRY_S)
+    raise sqlite3.OperationalError("could not switch the database to WAL mode")
+
+
+def migrate(conn: sqlite3.Connection) -> int:
+    """Apply pending migrations. The API and every worker thread call this at start-up, so the
+    version is read under the write lock: whoever gets the lock second sees the work done."""
+    if conn.execute("PRAGMA user_version").fetchone()[0] >= len(MIGRATIONS):
+        return len(MIGRATIONS)
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        current = conn.execute("PRAGMA user_version").fetchone()[0]
+        for i, sql in enumerate(MIGRATIONS[current:], start=current + 1):
             for stmt in _split(sql):
                 conn.execute(stmt)
             conn.execute(f"PRAGMA user_version={i}")
-            conn.execute("COMMIT")
-        except Exception:
-            conn.execute("ROLLBACK")
-            raise
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
     return len(MIGRATIONS)
 
 
