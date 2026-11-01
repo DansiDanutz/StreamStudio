@@ -11,7 +11,8 @@ import { WORKFLOWS, workflowDefaults } from '../director/workflows'
 import { LIBRARY } from '../stage/Library'
 import { toUrlSource } from '../stage/media'
 import { newSegment, parseMediaEvents, type AvatarShape, type Cue, type Segment, type Zoom } from '../director/types'
-import { compileTimeline } from '../director/timeline'
+import { clipDurations, compileTimeline } from '../director/timeline'
+import { buildPublishKit } from '../publish/kit'
 import type { GestureId } from '../avatar/gestures'
 
 type Args = Record<string, unknown>
@@ -69,6 +70,7 @@ export const EXECUTORS: Record<string, (a: Args) => unknown> = {
     return { segments: segs.length }
   },
   'timeline.get': () => timelineNow(),
+  'publish.kit': () => buildPublishKit(useDirector.getState().script, timelineNow(), clipDurations),
   'segment.preview': (a) => { const i = segIndex(a.index); useDirector.getState().preview(i); return { index: i } },
   'segment.update': (a) => {
     const i = segIndex(a.index)

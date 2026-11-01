@@ -52,6 +52,7 @@ the wait.
 
 **Script and timeline actions:**
 - `timeline.get`;
+- `publish.kit` (title, description with chapters, captions as .srt);
 - `segment.preview {index}`;
 - `segment.update {index, patch}`;
 - `segment.add {after?, segment}`;
