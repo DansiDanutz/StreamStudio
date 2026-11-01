@@ -282,6 +282,7 @@ input.thumb-name { width: 100%; box-sizing: border-box; background: #0f0e16; bor
 .program-bar .rec.on { background: #c8322a; color: #fff; border-color: #c8322a }
 .program-bar .warn { color: #f3b14a }
 .program-bar .take a { color: var(--accent-2) }
+.program-bar .take button.link { background: none; border: 0; padding: 0; color: var(--accent-2); text-decoration: underline; cursor: pointer; font: inherit }
 .program-bar > button:last-child { margin-left: auto }
 .program-stage { min-height: 0; display: grid }
 .program-stage .stage-host { padding: 0; background: #000 }

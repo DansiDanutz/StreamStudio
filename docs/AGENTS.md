@@ -25,6 +25,8 @@ The connection is plain HTTP on the same API, so it's open to localhost and the 
 | `studio_state()` | `GET /api/agent/state` | What is on stage now |
 | `studio_do(action, args)` | `POST /api/agent/do` | Run an action in the open editor |
 | `heygen_estimate(items)` | `POST /api/heygen/render` with `confirm:false` | Cost estimate only |
+| `recording_transcribe(id)` | `POST /api/recordings/{id}/transcribe` | Transcribe a take locally (whisper.cpp, a job) |
+| `recording_transcript(id)` | `GET /api/recordings/{id}/transcript` | Text, segments and word timings; captions at `/api/recordings/{id}.srt` |
 
 ## Library tabs, names, storage
 

@@ -226,6 +226,18 @@ def fail_job(conn: sqlite3.Connection, jid: str, error: str, max_attempts: int) 
     return status
 
 
+def find_active_job(conn: sqlite3.Connection, kind: str, payload_id: str) -> dict[str, Any] | None:
+    """A queued or running job of `kind` whose payload `id` matches: lets a repeated request
+    reuse the job instead of queueing duplicate work."""
+    return row(
+        conn.execute(
+            "SELECT * FROM jobs WHERE kind = ? AND json_extract(payload, '$.id') = ?"
+            " AND status IN ('queued', 'running') ORDER BY created_at LIMIT 1",
+            (kind, payload_id),
+        ).fetchone()
+    )
+
+
 def cancel_job(conn: sqlite3.Connection, jid: str) -> bool:
     return (
         conn.execute(
