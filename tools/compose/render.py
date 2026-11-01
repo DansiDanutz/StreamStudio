@@ -199,12 +199,41 @@ def neon_frame(x, y, w, h, r=22, width=3, blur=16):
 NEON_GLOW, NEON_RGB, NEON_A = neon_frame(CARD_X, CARD_Y, CARD_W, CARD_H)
 
 
-def card_layer(frame, still, tl, dur, tag):
+class CardVideo:
+    """A motion card (HyperFrames render, CARD_W x CARD_H, 25 fps), read forward frame by frame."""
+    _open = {}
+
+    def __init__(self, path):
+        self.path, self.cap, self.i, self.last = path, None, -1, None
+
+    @classmethod
+    def get(cls, name):
+        if name not in cls._open:
+            cls._open[name] = cls(W / 'cards' / name)
+        return cls._open[name]
+
+    def frame(self, i):
+        i = max(0, i)
+        if self.cap is None or i < self.i:
+            self.cap, self.i = cv2.VideoCapture(str(self.path)), -1
+        while self.i < i:
+            ok, fr = self.cap.read()
+            if not ok:
+                break
+            self.i += 1
+            self.last = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
+        img = self.last.astype(np.float32)
+        if img.shape[1] != CARD_W:
+            img = cv2.resize(img, (CARD_W, CARD_H), interpolation=cv2.INTER_AREA)
+        return img
+
+
+def card_layer(frame, still, tl, dur, tag, video=None):
     out = blurred.copy()
     a = ease(tl / 0.45)
     out = out * (1 - shadow * a)
-    img = card_img(still)
-    z = 1.0 + 0.045 * min(tl / max(dur, 1), 1.0)
+    img = CardVideo.get(video).frame(int(tl * FPS)) if video else card_img(still)
+    z = 1.0 + 0.045 * min(tl / max(dur, 1), 1.0) if not video else 1.0
     if z > 1.0:
         h, w = img.shape[:2]
         cw, ch = w / z, h / z
@@ -359,7 +388,7 @@ def compose(frame, f):
         if iz and tl < 1.1:  # into the studio monitor, then the site
             out = zoom(studio(frame, f) if mask_for(f) is not None else plate.copy(), iz[0], iz[1], 1 + 1.6 * ease(tl / 1.1))
             return out
-        out, tag, a = card_layer(frame, p['still'], tl - (1.1 if iz else 0), dur, p['tag'])
+        out, tag, a = card_layer(frame, p.get('still'), tl - (1.1 if iz else 0), dur, p['tag'], p.get('video'))
         out = overlay(out, 'tag:' + tag, tag_draw(tag), a)
         return out
     out = studio(frame, f)

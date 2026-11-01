@@ -28,7 +28,8 @@
   "intro_zoom": [
    0.73,
    0.36
-  ]
+  ],
+  "video": "seg04.mp4"
  },
  {
   "kind": "avatar",
@@ -55,12 +56,14 @@
  {
   "kind": "card",
   "still": "nervixpay-hero.png",
-  "tag": "nervixpay.live \u00b7 wallet to wallet, verified on-chain"
+  "tag": "nervixpay.live \u00b7 wallet to wallet, verified on-chain",
+  "video": "seg07.mp4"
  },
  {
   "kind": "card",
   "still": "nervixpay-checkout.png",
-  "tag": "USDT \u00b7 USDC  \u00b7  Polygon \u00b7 Ethereum \u00b7 BNB Chain  \u00b7  0.2%, max $2"
+  "tag": "USDT \u00b7 USDC  \u00b7  Polygon \u00b7 Ethereum \u00b7 BNB Chain  \u00b7  0.2%, max $2",
+  "video": "seg08.mp4"
  },
  {
   "kind": "avatar",
@@ -72,7 +75,8 @@
  {
   "kind": "card",
   "still": "worldcup26.png",
-  "tag": "worldcup26.world \u00b7 121 Legend cards \u00b7 free to play"
+  "tag": "worldcup26.world \u00b7 121 Legend cards \u00b7 free to play",
+  "video": "seg10.mp4"
  },
  {
   "kind": "avatar",
@@ -84,7 +88,8 @@
  {
   "kind": "card",
   "still": "jev.png",
-  "tag": "JEV \u00b7 live trading bot \u00b7 KuCoin futures"
+  "tag": "JEV \u00b7 live trading bot \u00b7 KuCoin futures",
+  "video": "seg12.mp4"
  },
  {
   "kind": "avatar",
@@ -103,12 +108,14 @@
  {
   "kind": "card",
   "still": "market-list.png",
-  "tag": "List your project \u00b7 10 USD in USDT or USDC"
+  "tag": "List your project \u00b7 10 USD in USDT or USDC",
+  "video": "seg15.mp4"
  },
  {
   "kind": "card",
   "still": "market-directory.png",
-  "tag": "Nervix Market \u00b7 the directory"
+  "tag": "Nervix Market \u00b7 the directory",
+  "video": "seg16.mp4"
  },
  {
   "kind": "avatar",
