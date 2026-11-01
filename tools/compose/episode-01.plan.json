@@ -1,0 +1,177 @@
+[
+ {
+  "kind": "avatar",
+  "title": [
+   "DansLab \u00b7 Episode 1",
+   "Build it. Show it. Sell it."
+  ]
+ },
+ {
+  "kind": "avatar",
+  "lower": [
+   "Dan",
+   "Romanian entrepreneur \u00b7 AI"
+  ]
+ },
+ {
+  "kind": "avatar",
+  "zoom": [
+   0.47,
+   0.42,
+   1.1
+  ]
+ },
+ {
+  "kind": "card",
+  "still": "market-home.png",
+  "tag": "Nervix Market \u00b7 nervix-market.vercel.app",
+  "intro_zoom": [
+   0.73,
+   0.36
+  ]
+ },
+ {
+  "kind": "avatar",
+  "chips": [
+   "Pay",
+   "Play",
+   "Trade",
+   "Sell"
+  ],
+  "chip_at": [
+   0.548,
+   0.703,
+   0.789,
+   0.864
+  ]
+ },
+ {
+  "kind": "avatar",
+  "lower": [
+   "1 \u00b7 Get paid",
+   "without a third party"
+  ]
+ },
+ {
+  "kind": "card",
+  "still": "nervixpay-hero.png",
+  "tag": "nervixpay.live \u00b7 wallet to wallet, verified on-chain"
+ },
+ {
+  "kind": "card",
+  "still": "nervixpay-checkout.png",
+  "tag": "USDT \u00b7 USDC  \u00b7  Polygon \u00b7 Ethereum \u00b7 BNB Chain  \u00b7  0.2%, max $2"
+ },
+ {
+  "kind": "avatar",
+  "lower": [
+   "2 \u00b7 Play",
+   "How do you make a game?"
+  ]
+ },
+ {
+  "kind": "card",
+  "still": "worldcup26.png",
+  "tag": "worldcup26.world \u00b7 121 Legend cards \u00b7 free to play"
+ },
+ {
+  "kind": "avatar",
+  "lower": [
+   "3 \u00b7 Trade",
+   "Can AI really trade?"
+  ]
+ },
+ {
+  "kind": "card",
+  "still": "jev.png",
+  "tag": "JEV \u00b7 live trading bot \u00b7 KuCoin futures"
+ },
+ {
+  "kind": "avatar",
+  "lower": [
+   "Every win. Every loss.",
+   "An experiment, not financial advice"
+  ]
+ },
+ {
+  "kind": "avatar",
+  "lower": [
+   "4 \u00b7 Sell",
+   "How do you sell what you built?"
+  ]
+ },
+ {
+  "kind": "card",
+  "still": "market-list.png",
+  "tag": "List your project \u00b7 10 USD in USDT or USDC"
+ },
+ {
+  "kind": "card",
+  "still": "market-directory.png",
+  "tag": "Nervix Market \u00b7 the directory"
+ },
+ {
+  "kind": "avatar",
+  "zoom_path": [
+   [
+    0,
+    0.47,
+    0.5,
+    1.0
+   ],
+   [
+    0.1,
+    0.26,
+    0.61,
+    1.3
+   ],
+   [
+    0.33,
+    0.26,
+    0.61,
+    1.3
+   ],
+   [
+    0.42,
+    0.2,
+    0.62,
+    1.42
+   ],
+   [
+    0.66,
+    0.2,
+    0.62,
+    1.42
+   ],
+   [
+    0.8,
+    0.47,
+    0.5,
+    1.0
+   ]
+  ],
+  "lowers": [
+   [
+    0.03,
+    0.36,
+    "KryptoStack Exchange",
+    null
+   ],
+   [
+    0.38,
+    0.7,
+    "iRise",
+    "our own coin"
+   ]
+  ],
+  "card_x": 0.3
+ },
+ {
+  "kind": "avatar",
+  "endcard": [
+   "List your project",
+   "nervix-market.vercel.app",
+   "Share a demo \u00b7 sell your app \u00b7 10 USD in USDT or USDC"
+  ]
+ }
+]

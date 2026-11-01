@@ -8,11 +8,19 @@ from rembg import new_session, remove
 W = Path(sys.argv[1])
 cuts = json.load(open(W / 'cuts.json'))
 AVATAR = [0, 1, 7, 8, 9, 10, 15, 16]  # segment indexes shown full frame
+if (W / 'plan.json').exists():  # avatar segments, plus card segments that open with a push into the studio
+    PLAN = json.load(open(W / 'plan.json'))
+    AVATAR = [i for i, p in enumerate(PLAN) if p['kind'] == 'avatar' or p.get('intro_zoom')]
+else:
+    PLAN = None
+(W / 'masks').mkdir(exist_ok=True)
 FPS = 25
 STEP = 4
 s = new_session('u2net_human_seg')
 for i in AVATAR:
     a, b = cuts[i], cuts[i + 1]
+    if PLAN and PLAN[i]['kind'] == 'card':
+        b = min(b, a + 1.3)  # only the push-in needs Dan cut out
     f0, f1 = round(a * FPS), round(b * FPS)
     todo = [f for f in range(f0, f1 + 2) if f % STEP == 0 and not (W / 'masks' / f'{f:05d}.png').exists()]
     if not todo:

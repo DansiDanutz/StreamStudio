@@ -14,3 +14,15 @@ Used for "DansLab — the AI Business Network" (docs/scripts/danslab-network.md)
    Audio is the HeyGen track, loudness-normalised to −14 LUFS.
 
 WORKDIR holds `heygen.mp4`, `cuts.json`, `masks/` and `stills/` (16:9 captures of the sites).
+
+## Per-episode plans
+A WORKDIR may also hold `plan.json`: one entry per segment, replacing the built-in plan
+(`episode-01.plan.json` is Episode 1's). Keys:
+- `kind`: `avatar` (Dan in the studio) or `card` (`still`, `tag`, optional `intro_zoom` [cx, cy] = push into the studio monitor first).
+- `title` [line 1, line 2]: title card rising on the table.
+- `lower` [name, sub]: one table card; `lowers` [[from, to, name, sub], …] several, timed as fractions of the segment.
+- `chips` [names] with optional `chip_at` [fractions]: small cards rising one by one, e.g. on the words that name them.
+- `zoom` [cx, cy, z] or `zoom_path` [[fraction, cx, cy, z], …]; `card_x` places table cards while zoomed.
+- `endcard` [title, link, small print].
+
+`peek.py WORKDIR t1 t2 …` renders single frames at those seconds into `WORKDIR/peek.jpg` for checking.

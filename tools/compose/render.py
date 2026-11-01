@@ -18,10 +18,12 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 W = Path(sys.argv[1])
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else W / 'danslab-network.mp4'
 PREVIEW = '--preview' in sys.argv  # every 5th second only, for checking
+PREVIEW_EVERY = 5
 WW, HH, FPS = 1920, 1080, 25
 STUDIO = Path('/home/claude/streamstudio/assets/studio')
 FONT = '/usr/share/fonts/opentype/inter/Inter-{}.otf'
 cuts = json.load(open(W / 'cuts.json'))
+SRC = W / 'heygen.mp4'
 N = round(cuts[-1] * FPS)
 
 
@@ -66,7 +68,9 @@ PLAN = [
     dict(kind='avatar', lower=('Join the AI Business Network', 'nervix-market.vercel.app')),
     dict(kind='avatar', endcard=True),
 ]
-assert len(PLAN) == len(cuts) - 1
+if (W / 'plan.json').exists():  # an episode's own plan (same keys as above, lists for tuples)
+    PLAN = json.load(open(W / 'plan.json'))
+assert len(PLAN) == len(cuts) - 1, (len(PLAN), len(cuts) - 1)
 
 
 def seg_at(t):
@@ -362,34 +366,44 @@ def compose(frame, f):
     if p.get('title'):
         al = ease(tl / 0.5) * (1 - ease((tl - 2.6) / 0.6))
         out = table_glow(out, WW / 2, 820, al)
-        out = place_table_card(out, 'title', [('DansLab', 64, 'Bold', WHITE), ('The AI Business Network', 30, 'Medium', TEAL)],
-                               820, 170, WW / 2, al, ease(tl / 0.6))
-    if p.get('lower'):
-        name, sub = p['lower']
-        t_in = 0.3
-        al = ease((tl - t_in) / 0.4) * (1 - ease((tl - min(dur - 0.6, 7.0)) / 0.5))
+        t1_, t2_ = p['title']
+        out = place_table_card(out, 'title:' + t1_, [(t1_, 64, 'Bold', WHITE), (t2_, 30, 'Medium', TEAL)],
+                               max(820, int(font(64, 'Bold').getlength(t1_)) + 140), 170, WW / 2, al, ease(tl / 0.6))
+    lowers = p.get('lowers') or ([[0, None] + list(p['lower'])] if p.get('lower') else [])
+    for fa, fb, name, sub in lowers:  # fa/fb: start/end as fractions of the segment (fb None = default)
+        t_in = 0.3 + fa * dur
+        t_out = fb * dur - 0.5 if fb is not None else min(dur - 0.6, 7.0 + t_in)
+        al = ease((tl - t_in) / 0.4) * (1 - ease((tl - t_out) / 0.5))
         lines = [(name, 44, 'Bold', WHITE)] + ([(sub, 26, 'Medium', TEAL)] if sub else [])
         w = max(460, int(font(44, 'Bold').getlength(name)) + 120)
-        cx = WW * 0.47 if 'zoom' not in p else WW * 0.30  # world space: zoom is applied after the table cards
+        cx = WW * 0.47 if not ('zoom' in p or 'zoom_path' in p) else WW * p.get('card_x', 0.30)  # world space: zoom is applied after the table cards
         out = table_glow(out, cx, w, al)
         out = place_table_card(out, 'lower:' + name, lines, w, 150 if sub else 112, cx, al, ease((tl - t_in) / 0.5))
     if p.get('chips'):
         names = p['chips']
         al_out = 1 - ease((tl - (dur - 0.8)) / 0.6)
         xs = np.linspace(WW * 0.14, WW * 0.86, len(names))
+        times = p.get('chip_at') or [k * 1.3 / max(dur, 1) for k in range(len(names))]
         for k, name in enumerate(names):
-            t_in = k * 1.3
+            t_in = times[k] * dur
             al = ease((tl - t_in) / 0.35) * al_out
             out = table_glow(out, xs[k], 300, al)
             out = place_table_card(out, 'chip:' + name, [(name, 36, 'Bold', WHITE)], 300, 96, xs[k], al, ease((tl - t_in) / 0.45))
     if p.get('endcard') and tl > dur - 6.5:
         al = ease((tl - (dur - 6.5)) / 0.6)
         out = table_glow(out, WW / 2, 1100, al)
-        out = place_table_card(out, 'end', [('List your AI business', 56, 'Bold', WHITE),
-                                            ('nervix-market.vercel.app', 36, 'SemiBold', TEAL),
-                                            ('10 USD membership · USDT or USDC · paid with NervixPay', 24, 'Medium', MUTED)],
+        e = p['endcard'] if isinstance(p['endcard'], list) else ['List your AI business', 'nervix-market.vercel.app',
+                                                                 '10 USD membership · USDT or USDC · paid with NervixPay']
+        out = place_table_card(out, 'end:' + e[0], [(e[0], 56, 'Bold', WHITE), (e[1], 36, 'SemiBold', TEAL), (e[2], 24, 'Medium', MUTED)],
                                1100, 230, WW / 2, al, ease((tl - (dur - 6.5)) / 0.7))
-    if 'zoom' in p:
+    if 'zoom_path' in p:  # keyframes [frac, cx, cy, z]; eased between them
+        ks = p['zoom_path']
+        fr = tl / dur
+        k0 = max((k for k in ks if k[0] <= fr), key=lambda k: k[0], default=ks[0])
+        k1 = min((k for k in ks if k[0] > fr), key=lambda k: k[0], default=k0)
+        u = 0 if k1 is k0 else ease((fr - k0[0]) / (k1[0] - k0[0]))
+        out = zoom(out, *(k0[j] + (k1[j] - k0[j]) * u for j in (1, 2, 3)))
+    elif 'zoom' in p:
         cx, cy, z = p['zoom']
         if 'zoom_from' in p:
             fx, fy, fz = p['zoom_from']
@@ -401,13 +415,13 @@ def compose(frame, f):
 
 
 def main():
-    dec = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', str(W / 'heygen.mp4'), '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
+    dec = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', str(SRC), '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
                            stdout=subprocess.PIPE)
     enc_args = ['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{WW}x{HH}', '-r', str(FPS), '-i', '-']
     if PREVIEW:
         enc_args += ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', str(OUT)]
     else:
-        enc_args += ['-i', str(W / 'heygen.mp4'), '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'medium',
+        enc_args += ['-i', str(SRC), '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'medium',
                      '-crf', '18', '-pix_fmt', 'yuv420p', '-r', str(FPS),
                      '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
                      '-movflags', '+faststart', '-shortest', str(OUT)]
@@ -418,7 +432,7 @@ def main():
         buf = dec.stdout.read(size)
         if len(buf) < size:
             break
-        if PREVIEW and f % (FPS * 5) != 0:
+        if PREVIEW and f % (FPS * PREVIEW_EVERY) != 0:
             f += 1
             continue
         frame = np.frombuffer(buf, np.uint8).reshape(HH, WW, 3).astype(np.float32)
