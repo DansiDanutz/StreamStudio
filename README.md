@@ -35,4 +35,9 @@ kit (title, description with chapters, SRT), and agent control over HTTP and MCP
 ([docs/AGENTS.md](docs/AGENTS.md)). The API only answers on loopback and the tailnet, checks
 Host and Origin, and the editor warns when the running server is older than the checkout.
 
-Next: YouTube upload (needs a Google OAuth client), per-agent permission scopes, a phone layout.
+Also in: cut suggestions from a transcript (long silences, EN/RO filler words:
+`GET /api/recordings/{id}/cuts`, MCP `recording_cuts`) and the audio-mixer core
+(`web/src/output/mixer.ts`: gain, mute, meters, ducking; not yet wired into the Program window).
+
+Next: wire the mixer into the recorder, apply cuts to an EDL from the editor, per-agent permission
+scopes, a phone layout, Shorts export.

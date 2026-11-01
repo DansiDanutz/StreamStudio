@@ -62,7 +62,8 @@ def test_mcp_speaks_json_rpc_and_never_renders(monkeypatch):
     assert names == [
         "library_list", "library_get", "library_name", "vault_status", "vault_backup",
         "vault_fetch", "studio_state", "studio_guide", "studio_timeline", "studio_do",
-        "heygen_estimate", "recording_transcribe", "recording_transcript", "youtube_status",
+        "heygen_estimate", "recording_transcribe", "recording_transcript", "recording_cuts",
+        "youtube_status",
         "youtube_upload",
     ]  # fmt: skip
     do = {"name": "studio_do", "arguments": {"action": "point.at", "args": {"target": "main"}}}

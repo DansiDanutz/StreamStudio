@@ -29,6 +29,7 @@ The connection is plain HTTP on the same API, so it's open to localhost and the 
 | `youtube_status()` | `GET /api/youtube` | Which channels are connected |
 | `youtube_upload(id, title, description?, tags?, channel?)` | `POST /api/recordings/{id}/youtube` | Upload a take as a **private** video (a job) to a connected channel; Dan publishes it |
 | `recording_transcript(id)` | `GET /api/recordings/{id}/transcript` | Text, segments and word timings; captions at `/api/recordings/{id}.srt` |
+| `recording_cuts(id, silence_ms?, fillers?)` | `GET /api/recordings/{id}/cuts` | Suggested cuts (long silences, EN/RO filler words) from the transcript; changes nothing |
 
 ## Library tabs, names, storage
 
