@@ -130,6 +130,20 @@ def test_connect_saves_a_refresh_token_and_the_channel(env):
     assert "rt-1" not in client.get("/api/youtube").text
 
 
+def test_connect_refuses_a_channel_other_than_the_configured_one(env, tmp_path):
+    _, _, downloads, _ = env
+    s = Settings(data_dir=tmp_path / "data", import_roots=[], youtube_channel="UCsomeoneelse")
+    client = TestClient(create_app(s))
+    (downloads / "client_secret_cid.json").write_text(json.dumps(CLIENT))
+    client.post("/api/youtube/client")
+    r = client.get("/api/youtube/connect", follow_redirects=False)
+    q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.headers["location"]).query))
+    assert q["prompt"] == "select_account consent"
+    done = client.get(f"/api/youtube/callback?state={q['state']}&code=the-code")
+    assert done.status_code == 400 and "DansLab" in done.text and "UCsomeoneelse" in done.text
+    assert client.get("/api/youtube").json()["connected"] is False
+
+
 def test_callback_rejects_a_forged_state(env):
     client, _, downloads, _ = env
     (downloads / "client_secret_cid.json").write_text(json.dumps(CLIENT))

@@ -66,7 +66,7 @@ def callback(
     if error or not code:
         return _page("YouTube not connected", error or "Google sent no code.", 400)
     try:
-        got = youtube.finish_auth(s.data_dir, state, code)
+        got = youtube.finish_auth(s.data_dir, state, code, expected_channel=s.youtube_channel)
     except youtube.YouTubeError as e:
         return _page("YouTube not connected", str(e), 400)
     name = (got["channel"] or {}).get("title") or "your channel"
