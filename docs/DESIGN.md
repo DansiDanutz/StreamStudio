@@ -339,4 +339,8 @@ machine restores scenes and names and lists what can be brought back. Keys live 
 - **The table is the magic table.** Small cards (names, project chips, titles, the end card) appear
   standing on the desk in front of Dan: glass cards with a neon rim that rise out of the wood, with a pool
   of light and a faint reflection under them. They never float over the wall or Dan's face.
+- **A site card is never a still image.** When a project is presented, its card is a motion piece (a
+  HyperFrames composition): a browser bar with the URL, the real site scrolled and zoomed, a cursor that
+  moves and clicks, neon highlights with a spotlight, and short explanation callouts timed to the words.
+  See tools/compose/motion/.
 - The offline compositor (tools/compose/render.py) follows the same rules.
