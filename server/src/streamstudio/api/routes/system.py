@@ -4,7 +4,6 @@ import platform
 import shutil
 import sqlite3
 import subprocess
-from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
@@ -21,9 +20,8 @@ router = APIRouter(prefix="/api", tags=["system"])
 ROOT = Path(__file__).resolve().parents[5]
 
 
-@lru_cache(maxsize=1)
-def code_rev() -> str | None:
-    """Git revision of the running code, so the Mac app can spot a stale server."""
+def _git_head() -> str | None:
+    """The checkout's current git revision (changes on pull)."""
     try:
         out = subprocess.run(
             ["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3
@@ -33,15 +31,24 @@ def code_rev() -> str | None:
     return out.stdout.strip() or None
 
 
+#: The revision this server process started with: the code it is actually running. Captured at
+#: import, so a `git pull` after start can't make an old server look current.
+STARTUP_REV = _git_head()
+
+
 @router.get("/health")
 def health(s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)) -> dict:
     queued = c.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued'").fetchone()[0]
     running = c.execute("SELECT COUNT(*) FROM jobs WHERE status = 'running'").fetchone()[0]
     disk = shutil.disk_usage(s.data_dir)
+    head = _git_head()
     return {
         "ok": True,
         "version": __version__,
-        "rev": code_rev(),
+        # rev: the code running; head: the checkout on disk. They differ after a pull: restart.
+        "rev": STARTUP_REV,
+        "head": head,
+        "stale": bool(STARTUP_REV and head and head != STARTUP_REV),
         "root": str(ROOT),
         "platform": f"{platform.system()} {platform.machine()}",
         "python": platform.python_version(),

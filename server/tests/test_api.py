@@ -244,3 +244,24 @@ def test_live_ingest_pushes_through_ffmpeg(env, tmp_path):
         capture_output=True, text=True, check=True,
     ).stdout.split()  # fmt: skip
     assert probe == ["h264", "aac"]
+
+
+def test_health_reports_the_revision_the_server_started_with(env, monkeypatch):
+    # A `git pull` after start must not make an old server look current.
+    from streamstudio.api.routes import system
+
+    client, _ = env
+    started = client.get("/api/health").json()
+    monkeypatch.setattr(system, "_git_head", lambda: "f" * 40)
+    after_pull = client.get("/api/health").json()
+    assert after_pull["rev"] == started["rev"] == system.STARTUP_REV
+    assert after_pull["head"] == "f" * 40
+    assert after_pull["stale"] is (started["rev"] is not None)
+
+
+def test_health_is_not_stale_when_code_matches_checkout(env, monkeypatch):
+    from streamstudio.api.routes import system
+
+    client, _ = env
+    monkeypatch.setattr(system, "_git_head", lambda: system.STARTUP_REV)
+    assert client.get("/api/health").json()["stale"] is False
