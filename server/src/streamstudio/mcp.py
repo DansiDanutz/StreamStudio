@@ -158,6 +158,22 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "recording_cuts",
+        "description": (
+            "Suggested cuts for a transcribed take: long silences and filler words (EN/RO), as "
+            "ms ranges. Nothing is changed; transcribe first."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "recording id (rec_...)"},
+                "silence_ms": {"type": "integer", "description": "gap that counts as silence"},
+                "fillers": {"type": "boolean"},
+            },
+            "required": ["id"],
+        },
+    },
+    {
         "name": "youtube_status",
         "description": "Which YouTube channels are connected (id and title).",
         "inputSchema": {"type": "object", "properties": {}},
@@ -248,6 +264,9 @@ def call(name: str, args: dict[str, Any]) -> Any:
         return _http("POST", f"/api/recordings/{_seg(args['id'])}/transcribe")
     if name == "recording_transcript":
         return _http("GET", f"/api/recordings/{_seg(args['id'])}/transcript")
+    if name == "recording_cuts":
+        q = "&".join(f"{k}={str(args[k]).lower()}" for k in ("silence_ms", "fillers") if k in args)
+        return _http("GET", f"/api/recordings/{_seg(args['id'])}/cuts" + (f"?{q}" if q else ""))
     if name == "youtube_status":
         return _http("GET", "/api/youtube")
     if name == "youtube_upload":

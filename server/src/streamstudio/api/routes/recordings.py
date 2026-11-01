@@ -3,15 +3,16 @@ MP4 (VideoToolbox on the Mac Studio, x264 elsewhere). Files live in <data_dir>/r
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
-from ...core import store, transcribe, vault
+from ...core import cleanup, store, transcribe, vault
 from ...core.config import Settings
 from ...core.db import tx
 from ..deps import conn, settings
@@ -130,6 +131,31 @@ def get_transcript(rid: str, s: Settings = Depends(settings)) -> FileResponse:
     if not f.exists():
         raise HTTPException(404, "no transcript yet: POST /api/recordings/{id}/transcribe")
     return FileResponse(f, media_type="application/json")
+
+
+@router.get("/{rid}/cuts")
+def get_cuts(
+    rid: str,
+    silence_ms: int = Query(700, ge=200, le=10_000),
+    keep_ms: int = Query(250, ge=0, le=2_000),
+    langs: str = Query("en,ro", pattern=r"^[a-z]{2}(,[a-z]{2})*$"),
+    fillers: bool = True,
+    s: Settings = Depends(settings),
+) -> dict:
+    """Suggested cuts (long silences, filler words) from the transcript. Nothing is changed."""
+    _check(rid)
+    f = _dir(s) / f"{rid}.transcript.json"
+    if not f.exists():
+        raise HTTPException(404, "no transcript yet: POST /api/recordings/{id}/transcribe")
+    words = json.loads(f.read_text()).get("words", [])
+    cuts = cleanup.suggest_cuts(
+        words,
+        silence_ms=silence_ms,
+        keep_ms=keep_ms,
+        langs=tuple(langs.split(",")),
+        fillers=fillers,
+    )
+    return {"id": rid, "cuts": cuts, "saved_ms": cleanup.saved_ms(cuts)}
 
 
 @router.get("/{rid}.srt")
