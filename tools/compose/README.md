@@ -3,9 +3,10 @@
 Used for "DansLab — the AI Business Network" (docs/scripts/danslab-network.md).
 
 1. Render the whole script in HeyGen as one video (one scene per segment).
-2. `cuts.json`: segment boundaries in seconds. Found by matching HeyGen's scene changes
-   (ffmpeg `scene` score) with the script's character counts, then snapping each cut to the middle of
-   the nearest silence (`silencedetect`), so no word is clipped.
+2. `cuts.py WORKDIR SCRIPT.json` → `cuts.json`: segment boundaries in seconds. Download HeyGen's captions
+   too (⋮ → Download → Captions) as `WORKDIR/captions.srt`; captions are matched to the script's segments
+   and each cut is snapped to the middle of the pause between them (`silencedetect`), so no word is clipped.
+   (Scenes of the same avatar have no visible scene change, so the captions are what make this exact.)
 3. `masks.py WORKDIR`: person masks (rembg `u2net_human_seg`) for the full-frame segments, every 2nd–4th
    frame; render.py blends between them.
 4. `render.py WORKDIR OUT.mp4 [--preview]`: Dan seated in the studio plate (desk in front) for talking
