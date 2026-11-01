@@ -1,11 +1,14 @@
 # StreamStudio — developer entry points. Run on the Mac Studio.
 PY := server/.venv/bin/python
 
-.PHONY: setup dev api worker web build test lint mac-app
+.PHONY: setup setup-media dev api worker web build test lint mac-app
 
-setup:            ## install everything (python venv + node modules)
-	cd server && uv venv -p 3.12 .venv && uv pip install -e . --group dev
+setup:            ## install everything (python venv from uv.lock + node modules)
+	cd server && uv sync -p 3.12
 	cd web && npm install
+
+setup-media:      ## also the offline media tools (cut-out, dissolve, opener): large download
+	cd server && uv sync -p 3.12 --extra media
 
 dev:              ## api + worker + vite dev server with hot reload
 	@trap 'kill 0' EXIT; \
@@ -29,7 +32,7 @@ test:             ## all tests
 
 lint:
 	cd server && .venv/bin/ruff check src tests
-	cd web && npx tsc -b
+	cd web && npx tsc -b && npx oxlint
 
 mac-app:          ## install StreamStudio.app into ~/Applications (macOS)
 	mkdir -p ~/Applications && rm -rf ~/Applications/StreamStudio.app && cp -R mac/StreamStudio.app ~/Applications/ && chmod +x ~/Applications/StreamStudio.app/Contents/MacOS/StreamStudio
