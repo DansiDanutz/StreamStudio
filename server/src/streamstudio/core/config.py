@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     whisper_bin: str = "whisper-cli"
     whisper_model: Path | None = None
 
+    # The only YouTube channel StreamStudio may connect to (its UC… id). Empty: any channel.
+    youtube_channel: str = ""
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "streamstudio.db"

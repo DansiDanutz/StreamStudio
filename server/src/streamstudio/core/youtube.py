@@ -129,7 +129,8 @@ def auth_url(data_dir: Path, redirect_uri: str) -> str:
     )
     q = {
         "client_id": app["client_id"], "redirect_uri": redirect_uri, "response_type": "code",
-        "scope": SCOPE, "access_type": "offline", "prompt": "consent", "state": state,
+        "scope": SCOPE, "access_type": "offline", "state": state,
+        "prompt": "select_account consent",  # always show the account and channel picker
         "code_challenge": challenge.decode(), "code_challenge_method": "S256",
     }  # fmt: skip
     return f"{AUTH_URL}?{urllib.parse.urlencode(q)}"
@@ -146,9 +147,14 @@ def _post_form(send: Transport, url: str, form: dict[str, str]) -> dict[str, Any
 
 
 def finish_auth(
-    data_dir: Path, state: str, code: str, transport: Transport | None = None
+    data_dir: Path,
+    state: str,
+    code: str,
+    transport: Transport | None = None,
+    expected_channel: str = "",
 ) -> dict[str, Any]:
-    """Exchange the code for tokens, save them, and look up the channel they belong to."""
+    """Exchange the code for tokens, save them, and look up the channel they belong to. With
+    `expected_channel` set, any other channel is refused and its token thrown away."""
     d = folder(data_dir)
     pending = _read(d / "pending.json")
     if not pending or not secrets.compare_digest(pending["state"], state):
@@ -172,6 +178,13 @@ def finish_auth(
     api = Client(data_dir, transport)
     items = api.json("GET", "/youtube/v3/channels?part=snippet&mine=true").get("items") or []
     channel = {"id": items[0]["id"], "title": items[0]["snippet"]["title"]} if items else None
+    if expected_channel and (channel or {}).get("id") != expected_channel:
+        disconnect(data_dir)
+        got = (channel or {}).get("title") or "an account without a channel"
+        raise YouTubeError(
+            f"you picked {got}, but StreamStudio uploads only to channel {expected_channel}: "
+            "Connect again and choose that channel"
+        )
     _write_private(d / "token.json", {**token, "channel": channel})
     return {"channel": channel}
 
