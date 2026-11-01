@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { PublishKit } from './kit'
+import { YouTubeUpload } from './YouTubeUpload'
 
 function download(name: string, text: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }))
@@ -46,6 +47,7 @@ export function PublishKitPanel({ kit, onClose }: { kit: PublishKit; onClose: ()
         </span>
         <textarea readOnly rows={8} value={kit.srt || 'No voiced lines yet.'} />
       </label>
+      <YouTubeUpload title={kit.title} description={kit.description} />
     </section>
   )
 }

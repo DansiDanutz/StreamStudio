@@ -347,6 +347,11 @@ video.cutout { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%
 .kit-field > span { display: flex; align-items: center; gap: 8px; color: var(--muted); font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase }
 .kit-field > span button:first-of-type { margin-left: auto }
 .kit-field button { font: 600 11px var(--sans, inherit); letter-spacing: 0; text-transform: none; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); cursor: pointer }
+.kit-yt p { margin: 0; line-height: 1.5 }
+.kit-yt .warn { color: #f3b14a }
+.kit-yt-row { display: flex; gap: 8px; flex-wrap: wrap }
+.kit-yt select { padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: #0f0e16; color: var(--fg) }
+.kit-btn { display: inline-block; padding: 3px 10px; border: 1px solid var(--accent-2); border-radius: 6px; color: var(--accent-2); text-decoration: none; font-weight: 600 }
 .kit-field input, .kit-field textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #0f0e16; color: var(--fg); font: 12px/1.5 var(--mono); resize: vertical }
 .tl-zoom { margin-left: auto; display: flex; align-items: center; gap: 6px }
 .tl-warn { color: #f3b14a }
