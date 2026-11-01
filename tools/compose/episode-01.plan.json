@@ -28,7 +28,8 @@
   "intro_zoom": [
    0.73,
    0.36
-  ]
+  ],
+  "video": "seg04.mp4"
  },
  {
   "kind": "avatar",
@@ -57,39 +58,13 @@
   "kind": "card",
   "still": "nervixpay-hero.png",
   "tag": "nervixpay.live \u00b7 wallet to wallet, verified on-chain",
-  "facts": [
-   [
-    0.255,
-    "Wallet to wallet"
-   ],
-   [
-    0.48,
-    "Verified on-chain"
-   ],
-   [
-    0.83,
-    "No payout fee"
-   ]
-  ]
+  "video": "seg07.mp4"
  },
  {
   "kind": "card",
   "still": "nervixpay-checkout.png",
   "tag": "USDT \u00b7 USDC  \u00b7  Polygon \u00b7 Ethereum \u00b7 BNB Chain  \u00b7  0.2%, max $2",
-  "facts": [
-   [
-    0.175,
-    "0.2%, capped at $2"
-   ],
-   [
-    0.396,
-    "Agent keys you approve"
-   ],
-   [
-    0.746,
-    "Signed webhook \u00b7 PayScan"
-   ]
-  ]
+  "video": "seg08.mp4"
  },
  {
   "kind": "avatar",
@@ -103,20 +78,7 @@
   "kind": "card",
   "still": "worldcup26.png",
   "tag": "worldcup26.world \u00b7 121 Legend cards \u00b7 free to play",
-  "facts": [
-   [
-    0.162,
-    "121 Legend cards"
-   ],
-   [
-    0.287,
-    "Read \u00b7 listen \u00b7 watch \u00b7 collect"
-   ],
-   [
-    0.457,
-    "Daily quest"
-   ]
-  ]
+  "video": "seg10.mp4"
  },
  {
   "kind": "avatar",
@@ -130,20 +92,7 @@
   "kind": "card",
   "still": "jev.png",
   "tag": "JEV \u00b7 live trading bot \u00b7 KuCoin futures",
-  "facts": [
-   [
-    0.118,
-    "Runs on its own"
-   ],
-   [
-    0.405,
-    "Closes on a clear target"
-   ],
-   [
-    0.767,
-    "Stop for the whole session"
-   ]
-  ]
+  "video": "seg12.mp4"
  },
  {
   "kind": "avatar",
@@ -164,43 +113,13 @@
   "kind": "card",
   "still": "market-list.png",
   "tag": "List your project \u00b7 10 USD in USDT or USDC",
-  "facts": [
-   [
-    0.103,
-    "What it does \u00b7 price \u00b7 contact"
-   ],
-   [
-    0.296,
-    "10 USD membership"
-   ],
-   [
-    0.805,
-    "No middleman"
-   ]
-  ]
+  "video": "seg15.mp4"
  },
  {
   "kind": "card",
   "still": "market-directory.png",
   "tag": "Nervix Market \u00b7 the directory",
-  "facts": [
-   [
-    0.22,
-    "Fake-Real"
-   ],
-   [
-    0.38,
-    "NervixPay"
-   ],
-   [
-    0.42,
-    "Zmarty"
-   ],
-   [
-    0.62,
-    "StreamStudio"
-   ]
-  ]
+  "video": "seg16.mp4"
  },
  {
   "kind": "avatar",

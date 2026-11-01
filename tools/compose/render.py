@@ -211,6 +211,35 @@ def neon_frame(x, y, w, h, r=22, width=3, blur=16):
 NEON_GLOW, NEON_RGB, NEON_A = neon_frame(CARD_X, CARD_Y, CARD_W, CARD_H)
 
 
+class CardVideo:
+    """A motion card (HyperFrames render, CARD_W x CARD_H, 25 fps), read forward frame by frame."""
+    _open = {}
+
+    def __init__(self, path):
+        self.path, self.cap, self.i, self.last = path, None, -1, None
+
+    @classmethod
+    def get(cls, name):
+        if name not in cls._open:
+            cls._open[name] = cls(W / 'cards' / name)
+        return cls._open[name]
+
+    def frame(self, i):
+        i = max(0, i)
+        if self.cap is None or i < self.i:
+            self.cap, self.i = cv2.VideoCapture(str(self.path)), -1
+        while self.i < i:
+            ok, fr = self.cap.read()
+            if not ok:
+                break
+            self.i += 1
+            self.last = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
+        img = self.last.astype(np.float32)
+        if img.shape[1] != CARD_W:
+            img = cv2.resize(img, (CARD_W, CARD_H), interpolation=cv2.INTER_AREA)
+        return img
+
+
 def path_at(ks, fr):
     """Keyframes [[frac, a, b, c], …] eased at fraction fr → (a, b, c)."""
     k0 = max((k for k in ks if k[0] <= fr), key=lambda k: k[0], default=ks[0])
@@ -219,17 +248,21 @@ def path_at(ks, fr):
     return tuple(k0[j] + (k1[j] - k0[j]) * u for j in (1, 2, 3))
 
 
-def card_layer(frame, still, tl, dur, tag, focus=None):
+def card_layer(frame, still, tl, dur, tag, focus=None, video=None):
     out = blurred.copy()
     a = ease(tl / 0.45)
     out = out * (1 - shadow * a)
-    img = card_img(still)
-    if focus:  # push toward the part Dan names: [[frac, cx, cy, z], …] in fractions of the still
-        fx, fy, fz = path_at(focus, tl / max(dur, 1))
-        img = zoom_card(img, fx, fy, fz)
+    if video:  # a motion card brings its own camera, cursor and callouts
+        img = CardVideo.get(video).frame(int(tl * FPS))
         z = 1.0
     else:
-        z = 1.0 + 0.045 * min(tl / max(dur, 1), 1.0)
+        img = card_img(still)
+        if focus:  # push toward the part Dan names: [[frac, cx, cy, z], …] in fractions of the still
+            fx, fy, fz = path_at(focus, tl / max(dur, 1))
+            img = zoom_card(img, fx, fy, fz)
+            z = 1.0
+        else:
+            z = 1.0 + 0.045 * min(tl / max(dur, 1), 1.0)
     if z > 1.0:
         h, w = img.shape[:2]
         cw, ch = w / z, h / z
@@ -444,10 +477,12 @@ def compose(frame, f):
             return out
         intro = 1.1 if iz else 0.0
         tc, dc = tl - intro, dur - intro  # the card's own clock, after the push into the monitor
-        out, tag, a = card_layer(frame, p['still'], tc, dc, p['tag'], p.get('focus'))
+        out, tag, a = card_layer(frame, p.get('still'), tc, dc, p['tag'], p.get('focus'), p.get('video'))
         out = overlay(out, 'tag:' + tag, tag_draw(tag), a)
-        # [[frac, text], …]: proof chips rising on the words that name them (fractions of the whole segment)
-        out = place_facts(out, p.get('facts') or [], tl, dur)
+        # [[frac, text], …]: proof chips rising on the words that name them (fractions of the whole segment).
+        # Still cards only: a motion card times its own callouts and chips to the words.
+        if not p.get('video'):
+            out = place_facts(out, p.get('facts') or [], tl, dur)
         return out
     out = studio(frame, f)
     if p.get('title'):

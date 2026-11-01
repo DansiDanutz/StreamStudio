@@ -27,8 +27,8 @@ A WORKDIR may also hold `plan.json`: one entry per segment, replacing the built-
 - `endcard` [title, link, small print].
 - `feature`: on a segment with `lower`, makes it a question card (text left, a live feature right):
   `pay`, `play`, `trade` or `sell` (see `features.py`). The feature plays once while the card is up.
-- `facts` [[fraction, text], …] on a `card`: proof chips rising under the site card, e.g. on the words that name them.
-- `focus` [[fraction, cx, cy, z], …] on a `card`: push toward a part of the still (fractions of the still) in
-  place of the default slow push.
+- `facts` [[fraction, text], …] and `focus` [[fraction, cx, cy, z], …]: for a card that still uses a `still`
+  only (a `video` motion card brings its own callouts and camera): proof chips rising under the card on their
+  words, and a push toward a part of the still (fractions of the still) in place of the default slow push.
 
 `peek.py WORKDIR t1 t2 …` renders single frames at those seconds into `WORKDIR/peek.jpg` for checking.

@@ -6,8 +6,8 @@ Rules: studio shots for Dan; site cards with a neon rim; small cards stand on th
 
 **The question workflow.** Each of the four questions runs the same four beats, so viewers learn the rhythm and know what's coming:
 1. **Ask:** studio shot. The question card rises on the table, and its own live feature answers the question in miniature while Dan asks it.
-2. **Show:** the site card with the neon rim, with Dan in the small circle. One site per card, and the eye has one place to go.
-3. **Prove:** up to three fact chips rise under the card on the words that name them. Every chip is a fact from this script, with no extra numbers.
+2. **Show:** the site card with the neon rim, with Dan in the small circle. It is a motion card (`tools/compose/motion/`): the real site browsed with a camera, cursor and highlights.
+3. **Prove:** the motion card's callouts and chips land on the words that name them. Every one is a fact from this script, with no extra numbers.
 4. **Land:** back to Dan in the studio, or straight into the next question card.
 
 **Each card's feature** (`feature` in the plan, drawn by `tools/compose/features.py`):
