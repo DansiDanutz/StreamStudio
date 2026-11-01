@@ -58,6 +58,7 @@ export class AudioMixer {
   get output(): MediaStream { return this.dest.stream }
 
   add(ch: Channel, source: MediaStream | HTMLMediaElement): void {
+    this.remove(ch.id) // a replacement source must not leave the old one playing
     const src = source instanceof MediaStream ? this.ctx.createMediaStreamSource(source) : this.ctx.createMediaElementSource(source)
     const gain = this.ctx.createGain()
     const analyser = this.ctx.createAnalyser()
@@ -69,6 +70,16 @@ export class AudioMixer {
     this.channels.set(ch.id, ch)
     this.apply(ch.id)
     if (!this.timer) this.timer = setInterval(() => this.tick(50), 50)
+  }
+
+  remove(id: string): void {
+    const n = this.nodes.get(id)
+    if (!n) return
+    n.src.disconnect()
+    n.gain.disconnect()
+    n.analyser.disconnect()
+    this.nodes.delete(id)
+    this.channels.delete(id)
   }
 
   set(id: string, patch: Partial<Pick<Channel, 'gainDb' | 'muted'>>): void {

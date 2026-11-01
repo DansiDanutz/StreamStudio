@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { DEFAULT_DUCK, dbToGain, duckStep, effectiveGain, gainToDb, loudnessCorrection, rmsDb } from './mixer'
+import { describe, expect, it, vi } from 'vitest'
+import { AudioMixer, DEFAULT_DUCK, dbToGain, duckStep, effectiveGain, gainToDb, loudnessCorrection, rmsDb } from './mixer'
 
 describe('mixer math', () => {
   it('converts dB and gain', () => {
@@ -41,5 +41,33 @@ describe('mixer math', () => {
     expect(loudnessCorrection(-18)).toBe(2)
     expect(loudnessCorrection(-5)).toBe(-6)
     expect(loudnessCorrection(-Infinity)).toBe(0)
+  })
+})
+
+describe('AudioMixer channel replacement', () => {
+  const node = () => ({ connect: () => {}, disconnect: vi.fn(), gain: { setTargetAtTime: () => {} }, fftSize: 0 })
+  const fakeCtx = () => ({
+    currentTime: 0,
+    createMediaStreamDestination: () => ({ stream: {} }),
+    createMediaStreamSource: node,
+    createMediaElementSource: node,
+    createGain: node,
+    createAnalyser: node,
+    close: () => Promise.resolve(),
+  }) as unknown as AudioContext
+
+  it('disconnects the old nodes when a channel id is added again', () => {
+    const made: ReturnType<typeof node>[] = []
+    const ctx = fakeCtx()
+    ctx.createMediaStreamSource = (() => { const n = node(); made.push(n); return n }) as never
+    const m = new AudioMixer(ctx)
+    vi.stubGlobal('MediaStream', class {})
+    const stream = new (globalThis.MediaStream as unknown as new () => MediaStream)()
+    m.add({ id: 'mic', kind: 'mic', gainDb: 0, muted: false }, stream)
+    m.add({ id: 'mic', kind: 'mic', gainDb: 0, muted: false }, stream)
+    expect(made[0].disconnect).toHaveBeenCalled()
+    expect(made[1].disconnect).not.toHaveBeenCalled()
+    m.close()
+    vi.unstubAllGlobals()
   })
 })
