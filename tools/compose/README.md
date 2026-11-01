@@ -27,3 +27,20 @@ A WORKDIR may also hold `plan.json`: one entry per segment, replacing the built-
 - `endcard` [title, link, small print].
 
 `peek.py WORKDIR t1 t2 …` renders single frames at those seconds into `WORKDIR/peek.jpg` for checking.
+
+## Motion cards — rules (non-negotiable)
+1. **A site / project card is never an image.** It is a HyperFrames composition (`motion/`) that *browses* the real site:
+   browser bar + URL, page scroll and zoom, a moving cursor with clicks, neon highlight rings, and short callouts
+   timed to Dan's words. A still, a slow zoom on a still, or a screenshot slideshow is a defect.
+2. `render.py` enforces it: a final render exits if any `card` segment has no `video`, or its MP4 is missing in
+   `WORKDIR/cards/`. `--allow-stills` exists for throwaway layout previews only; never publish such a render.
+3. Every highlight and callout lands on a caption time (`cuts.py`), never on a guess.
+4. Capture only public pages. No balances, P&L, keys, or logged-in dashboards.
+5. A new episode = captures → `stitch.py` → storyboards in `cards.py` → `build.py` → copy MP4s → `render.py`.
+
+### Tools (open source) behind the motion cards
+- **HyperFrames** (HeyGen, Apache-2.0, `npm i hyperframes`): HTML + GSAP → deterministic MP4. The renderer we use.
+- **playcast** (MIT) and **playwright-recast**: Playwright walkthroughs with auto-zoom to clicks/typing, an animated
+  cursor and speed control. Candidates to replace manual page captures with scripted, replayable browsing; not
+  adopted yet. Evaluate on one card, check the licence, and keep HyperFrames as the compositor.
+- Playwright (already available) for scripted capture; it does not draw a cursor, so inject a DOM cursor.
