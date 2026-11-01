@@ -51,7 +51,8 @@
   "lower": [
    "1 \u00b7 Get paid",
    "without a third party"
-  ]
+  ],
+  "feature": "pay"
  },
  {
   "kind": "card",
@@ -70,7 +71,8 @@
   "lower": [
    "2 \u00b7 Play",
    "How do you make a game?"
-  ]
+  ],
+  "feature": "play"
  },
  {
   "kind": "card",
@@ -83,7 +85,8 @@
   "lower": [
    "3 \u00b7 Trade",
    "Can AI really trade?"
-  ]
+  ],
+  "feature": "trade"
  },
  {
   "kind": "card",
@@ -103,7 +106,8 @@
   "lower": [
    "4 \u00b7 Sell",
    "How do you sell what you built?"
-  ]
+  ],
+  "feature": "sell"
  },
  {
   "kind": "card",

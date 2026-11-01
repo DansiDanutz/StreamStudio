@@ -15,6 +15,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+import features
+
 W = Path(sys.argv[1])
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else W / 'danslab-network.mp4'
 PREVIEW = '--preview' in sys.argv  # every 5th second only, for checking
@@ -162,6 +164,16 @@ def card_img(name):
     return _stills[name]
 
 
+def zoom_card(img, cx, cy, z):
+    if z <= 1.001:
+        return img
+    h, w = img.shape[:2]
+    x0 = min(max(cx * w - w / z / 2, 0), w - w / z)
+    y0 = min(max(cy * h - h / z / 2, 0), h - h / z)
+    M = np.array([[z, 0, -x0 * z], [0, z, -y0 * z]], np.float32)
+    return cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_LINEAR)
+
+
 def rounded_mask(w, h, r):
     m = Image.new('L', (w, h), 0)
     ImageDraw.Draw(m).rounded_rectangle((0, 0, w - 1, h - 1), r, fill=255)
@@ -228,12 +240,29 @@ class CardVideo:
         return img
 
 
-def card_layer(frame, still, tl, dur, tag, video=None):
+def path_at(ks, fr):
+    """Keyframes [[frac, a, b, c], …] eased at fraction fr → (a, b, c)."""
+    k0 = max((k for k in ks if k[0] <= fr), key=lambda k: k[0], default=ks[0])
+    k1 = min((k for k in ks if k[0] > fr), key=lambda k: k[0], default=k0)
+    u = 0 if k1 is k0 else ease((fr - k0[0]) / (k1[0] - k0[0]))
+    return tuple(k0[j] + (k1[j] - k0[j]) * u for j in (1, 2, 3))
+
+
+def card_layer(frame, still, tl, dur, tag, focus=None, video=None):
     out = blurred.copy()
     a = ease(tl / 0.45)
     out = out * (1 - shadow * a)
-    img = CardVideo.get(video).frame(int(tl * FPS)) if video else card_img(still)
-    z = 1.0 + 0.045 * min(tl / max(dur, 1), 1.0) if not video else 1.0
+    if video:  # a motion card brings its own camera, cursor and callouts
+        img = CardVideo.get(video).frame(int(tl * FPS))
+        z = 1.0
+    else:
+        img = card_img(still)
+        if focus:  # push toward the part Dan names: [[frac, cx, cy, z], …] in fractions of the still
+            fx, fy, fz = path_at(focus, tl / max(dur, 1))
+            img = zoom_card(img, fx, fy, fz)
+            z = 1.0
+        else:
+            z = 1.0 + 0.045 * min(tl / max(dur, 1), 1.0)
     if z > 1.0:
         h, w = img.shape[:2]
         cw, ch = w / z, h / z
@@ -299,9 +328,10 @@ TABLE_BOTTOM = 1004  # where cards stand on the desk (just in front of Dan's han
 _tc = {}
 
 
-def table_card(key, lines, w, h):
+def table_card(key, lines, w, h, text_w=None):
     """A glass mini card with a neon rim, standing on the table, plus its reflection in the wood.
-    lines: [(text, size, weight, rgb)]. Returns (rgb, alpha) arrays of (h*2) x w incl. reflection."""
+    lines: [(text, size, weight, rgb)]; text_w centres them in the left text_w px (a feature fills the rest).
+    Returns (rgb, alpha) arrays of (h*2) x w incl. reflection."""
     if key in _tc:
         return _tc[key]
     pad = 40
@@ -317,7 +347,7 @@ def table_card(key, lines, w, h):
     for text, sz, wt, rgb in lines:
         f = font(sz, wt)
         tw = d.textlength(text, font=f)
-        d.text((pad + (w - tw) / 2, y), text, font=f, fill=rgb + (255,))
+        d.text((pad + ((text_w or w) - tw) / 2, y), text, font=f, fill=rgb + (255,))
         y += sz + 14
     base = np.asarray(im).astype(np.float32)
     grad = np.linspace(0, 1, W2, dtype=np.float32)[None, :, None]
@@ -339,11 +369,11 @@ def table_card(key, lines, w, h):
     return _tc[key]
 
 
-def place_table_card(out, key, lines, w, h, cx, alpha, rise=0.0):
+def place_table_card(out, key, lines, w, h, cx, alpha, rise=0.0, text_w=None):
     """Stand a mini card on the table centred at cx; rise=0..1 animates it up out of the table."""
     if alpha <= 0.01:
         return out
-    rgb, a, pad = table_card(key, lines, w, h)
+    rgb, a, pad = table_card(key, lines, w, h, text_w)
     H2 = h + pad * 2
     lift = int((1 - rise) * 46)
     x0 = int(cx - (w + pad * 2) / 2)
@@ -375,6 +405,65 @@ def table_glow(out, cx, w, alpha):
 
 WHITE, TEAL, MUTED = (242, 244, 250), (45, 226, 196), (170, 176, 196)
 
+FEAT_W, FEAT_H, FEAT_TEXT_W = 900, 190, 420  # a question card: text left, its live feature right
+_feat = {}
+
+
+def feature_rgba(kind, u):
+    q = round(min(max(u, 0), 1) * 60)  # 60 steps over the feature is smooth at 25 fps
+    if (kind, q) not in _feat:
+        if any(k != kind for k, _ in _feat):  # one question card is up at a time: drop the finished one's frames
+            _feat.clear()
+        arr = np.asarray(features.draw(kind, q / 60, FEAT_W - FEAT_TEXT_W - 30, FEAT_H - 40))
+        _feat[kind, q] = (arr[..., :3].astype(np.float32), arr[..., 3:4].astype(np.float32) / 255.0)
+    return _feat[kind, q]
+
+
+def place_feature(out, kind, u, cx, alpha):
+    rgb, a = feature_rgba(kind, u)
+    h, w = a.shape[:2]
+    x0 = int(cx - FEAT_W / 2) + FEAT_TEXT_W
+    y0 = TABLE_BOTTOM - FEAT_H + 20
+    a = a * alpha
+    out[y0:y0 + h, x0:x0 + w] = out[y0:y0 + h, x0:x0 + w] * (1 - a) + rgb * a
+    return out
+
+
+FACT_Y, FACT_H, FACT_GAP, FACT_RISE = CARD_Y + CARD_H + 30, 52, 14, 22
+_chips = {}
+
+
+def fact_chip(text):
+    """One proof chip as a small RGBA (only its own pixels are kept, not a full frame)."""
+    if text not in _chips:
+        f = font(26, 'SemiBold')
+        w = int(f.getlength(text)) + 64
+        im = Image.new('RGBA', (w + 2, FACT_H + 2), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        d.rounded_rectangle((0, 0, w, FACT_H), 26, fill=(10, 14, 22, 230), outline=(45, 226, 196, 200), width=2)
+        d.line([(20, 27), (26, 34), (38, 19)], fill=(45, 226, 196, 255), width=4, joint='curve')
+        d.text((48, 26), text, font=f, fill=(236, 238, 246, 255), anchor='lm')
+        arr = np.asarray(im).astype(np.float32)
+        _chips[text] = (arr[..., :3], arr[..., 3:4] / 255.0)
+    return _chips[text]
+
+
+def place_facts(out, facts, tl, dur):
+    """Fact chips in a row under the site card, each rising and fading in on its own word."""
+    x = CARD_X
+    for fa, text in facts:
+        rgb, a = fact_chip(text)
+        h, w = a.shape[:2]
+        k = ease((tl - fa * dur) / 0.35)
+        al = k * (1 - ease((tl - (dur - 0.5)) / 0.4))
+        if al > 0.01 and x + w <= WW:
+            y = FACT_Y + round((1 - k) * FACT_RISE)
+            y1 = min(y + h, HH)
+            aa = a[:y1 - y] * al
+            out[y:y1, x:x + w] = out[y:y1, x:x + w] * (1 - aa) + rgb[:y1 - y] * aa
+        x += w + FACT_GAP
+    return out
+
 
 # ------------------------------------------------------------------ main loop
 def compose(frame, f):
@@ -388,8 +477,14 @@ def compose(frame, f):
         if iz and tl < 1.1:  # into the studio monitor, then the site
             out = zoom(studio(frame, f) if mask_for(f) is not None else plate.copy(), iz[0], iz[1], 1 + 1.6 * ease(tl / 1.1))
             return out
-        out, tag, a = card_layer(frame, p.get('still'), tl - (1.1 if iz else 0), dur, p['tag'], p.get('video'))
+        intro = 1.1 if iz else 0.0
+        tc, dc = tl - intro, dur - intro  # the card's own clock, after the push into the monitor
+        out, tag, a = card_layer(frame, p.get('still'), tc, dc, p['tag'], p.get('focus'), p.get('video'))
         out = overlay(out, 'tag:' + tag, tag_draw(tag), a)
+        # [[frac, text], …]: proof chips rising on the words that name them (fractions of the whole segment).
+        # Still cards only: a motion card times its own callouts and chips to the words.
+        if not p.get('video'):
+            out = place_facts(out, p.get('facts') or [], tl, dur)
         return out
     out = studio(frame, f)
     if p.get('title'):
@@ -406,8 +501,17 @@ def compose(frame, f):
         lines = [(name, 44, 'Bold', WHITE)] + ([(sub, 26, 'Medium', TEAL)] if sub else [])
         w = max(460, int(font(44, 'Bold').getlength(name)) + 120)
         cx = WW * 0.47 if not ('zoom' in p or 'zoom_path' in p) else WW * p.get('card_x', 0.30)  # world space: zoom is applied after the table cards
+        rise = ease((tl - t_in) / 0.5)
+        if p.get('feature'):  # the question card answers itself in miniature while Dan asks
+            out = table_glow(out, cx, FEAT_W, al)
+            out = place_table_card(out, 'q:' + name, [(name, 44, 'Bold', WHITE), (sub or '', 24, 'Medium', TEAL)],
+                                   FEAT_W, FEAT_H, cx, al, rise, FEAT_TEXT_W)
+            if rise > 0.98:
+                u = (tl - t_in - 0.6) / max(min(t_out - t_in - 1.0, 4.5), 1.5)
+                out = place_feature(out, p['feature'], u, cx, al)
+            continue
         out = table_glow(out, cx, w, al)
-        out = place_table_card(out, 'lower:' + name, lines, w, 150 if sub else 112, cx, al, ease((tl - t_in) / 0.5))
+        out = place_table_card(out, 'lower:' + name, lines, w, 150 if sub else 112, cx, al, rise)
     if p.get('chips'):
         names = p['chips']
         al_out = 1 - ease((tl - (dur - 0.8)) / 0.6)
@@ -426,12 +530,7 @@ def compose(frame, f):
         out = place_table_card(out, 'end:' + e[0], [(e[0], 56, 'Bold', WHITE), (e[1], 36, 'SemiBold', TEAL), (e[2], 24, 'Medium', MUTED)],
                                1100, 230, WW / 2, al, ease((tl - (dur - 6.5)) / 0.7))
     if 'zoom_path' in p:  # keyframes [frac, cx, cy, z]; eased between them
-        ks = p['zoom_path']
-        fr = tl / dur
-        k0 = max((k for k in ks if k[0] <= fr), key=lambda k: k[0], default=ks[0])
-        k1 = min((k for k in ks if k[0] > fr), key=lambda k: k[0], default=k0)
-        u = 0 if k1 is k0 else ease((fr - k0[0]) / (k1[0] - k0[0]))
-        out = zoom(out, *(k0[j] + (k1[j] - k0[j]) * u for j in (1, 2, 3)))
+        out = zoom(out, *path_at(p['zoom_path'], tl / dur))
     elif 'zoom' in p:
         cx, cy, z = p['zoom']
         if 'zoom_from' in p:
