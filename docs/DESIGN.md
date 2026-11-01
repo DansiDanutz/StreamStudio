@@ -344,3 +344,21 @@ machine restores scenes and names and lists what can be brought back. Keys live 
   moves and clicks, neon highlights with a spotlight, and short explanation callouts timed to the words.
   See tools/compose/motion/.
 - The offline compositor (tools/compose/render.py) follows the same rules.
+
+## Episode production rules
+
+1. **Scenes of about 10 seconds.** The script is split into ~10 s scenes (sentence boundaries, 3–13 s).
+   Each scene is rendered, cut out as its own clip (`scenes/scene-NN.mp4`, cut by HeyGen's captions with
+   `tools/compose/cuts.py`) and checked on its own. A faulty scene is re-rendered alone and swapped in;
+   the rest is never re-rendered. Only scenes whose words changed are rendered again.
+2. **Workings stay until the video is on YouTube.** Captures, masks, scene clips, card renders and drafts are
+   kept so any scene stays easy to edit. After the video is posted, offer to delete the workings; the final
+   MP4, the script and the plan are kept.
+3. **The DansLab logo-reveal intro opens every video.** **Background music**: subtle, under the voice
+   (ducked well below speech, around −28 LUFS against −14 for the mix), fading in after the intro and out at the end.
+   **Sound effects only at special moments**: a card rising on the table, a page opening, a reveal; short and quiet.
+4. **The eye keeps moving.** Never more than ~8–10 s on Dan's face alone: table cards rise, the camera pushes
+   to the signs, monitors or coin, and every site is a motion card (see above).
+5. **Hooks.** Ask a mysterious question, then answer it ("Question one…"). End with a light-hearted reveal that
+   the presenter is Dan's AI avatar, and what the viewer will learn on the channel.
+6. **Names are written for the voice** in the HeyGen text (e.g. "Smarty" for Zmarty), and shown correctly on screen.

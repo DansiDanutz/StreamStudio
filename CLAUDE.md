@@ -16,3 +16,12 @@ Read `PLAN.md` (milestones, decisions) and `docs/DESIGN.md` (visual grammar, mea
 - API binds to localhost + Tailscale only (`core/netguard.py`). All request paths go through `core/paths.py`.
 - Agents use StreamStudio through the artifact library and the MCP server (`docs/AGENTS.md`). A new artifact kind or action goes in `web/src/agent/catalog.ts` + `bridge.ts` (editor) or `api/routes/agent.py` (server), with a test.
 - Run `make test` and `make lint` before committing. `make dev` runs api + worker + web.
+
+## Episode production rules (Dan's, every video)
+Full text in `docs/DESIGN.md` → "Episode production rules". In short:
+- **Scenes of ~10 s.** Every script is split into ~10-second scenes; each scene is its own clip, checked on its own; a faulty scene is re-rendered alone and swapped in.
+- **Keep the workings until it is on YouTube**, then offer to delete them (the final video, script and plan stay).
+- **Open with the DansLab logo-reveal intro.** Subtle background music under the whole video, sound effects only at special moments.
+- **Never hold the viewer on Dan's face.** Site cards are motion pieces (HyperFrames), never stills; studio stretches get table cards, pushes to the signs/monitors/coin, so the eye keeps moving.
+- **Mysterious question → answer** structure keeps viewers in; the ending reveals, with humour, that the presenter is Dan's AI avatar.
+- Names are written for the voice (e.g. "Smarty" for Zmarty, "WorldCup twenty-six dot world").
