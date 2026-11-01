@@ -47,6 +47,15 @@ html,body{width:1400px;height:788px;background:#07080d;overflow:hidden;font-fami
 .chip{opacity:0;padding:12px 20px;border-radius:14px;font:700 24px Inter;color:#fff;white-space:nowrap;
  background:rgba(10,12,22,.92);border:2px solid #2de2c4;box-shadow:0 0 22px rgba(45,226,196,.45),0 12px 30px rgba(0,0,0,.5)}
 .flash{position:absolute;inset:0;background:#fff;opacity:0;z-index:7;pointer-events:none}
+.load{position:absolute;left:0;top:42px;height:3px;width:1400px;background:linear-gradient(90deg,#2de2c4,#8c64ff);transform-origin:0 0;transform:scaleX(0);opacity:0;z-index:6}
+.blank{position:absolute;left:0;top:44px;width:1400px;height:744px;background:#0a0b10;opacity:0;z-index:3}
+.ov{position:absolute;opacity:0;z-index:6}
+.score{background:rgba(9,11,20,.94);border:1px solid rgba(124,92,255,.5);border-radius:18px;padding:22px 28px;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(45,226,196,.15)}
+.score h4{font:700 15px Inter;letter-spacing:.14em;text-transform:uppercase;color:#2de2c4;margin-bottom:12px}
+.score .row{display:flex;align-items:center;gap:14px;font:600 26px Inter;color:#fff;padding:9px 0;opacity:0}
+.score .tick{width:30px;height:30px;border-radius:50%;background:#2de2c4;color:#06231e;display:grid;place-items:center;font:800 18px Inter}
+.num{font:800 96px Inter;color:#fff;letter-spacing:-.02em;text-shadow:0 0 40px rgba(45,226,196,.45)}
+.numsub{font:600 24px Inter;color:#2de2c4;margin-top:4px}
 """
 
 CURSOR = ('<svg viewBox="0 0 30 30" width="30" height="30"><path d="M4 2 L4 24 L10 18.5 L14 27 L18 25.3 L14 17 L22 17 Z" '
@@ -64,6 +73,7 @@ class Comp:
         self.cid, self.dur, self.dir = cid, dur, pages_dir
         self.pages, self.html, self.js, self.calls, self.urls = [], {}, [], [], []
         self.n = 0
+        self.files = []
 
     def uid(self, p):
         self.n += 1
@@ -119,7 +129,7 @@ class Comp:
             self.js.append(f"tl.set('#{oid}',{{opacity:0}},{t:.3f});")
         if typed:
             wpx = int(len(text) * 8.1) + 14
-            self.js.append(f"tl.fromTo('#{u}',{{opacity:1,width:0}},{{width:{wpx},duration:{0.035 * len(text):.2f},ease:'none'}},{t:.3f});")
+            self.js.append(f"tl.fromTo('#{u}',{{opacity:1,width:0}},{{width:{wpx},duration:{min(0.6, 0.022 * len(text)):.2f},ease:'none'}},{t:.3f});")
         else:
             self.js.append(f"tl.set('#{u}',{{opacity:1}},{t:.3f});")
 
@@ -172,7 +182,7 @@ class Comp:
 
     # ---------------------------------------------------------------- screen-space explanations
     def call(self, t, end, title, sub=None, top=False):
-        a = self.uid('c')
+        a = self.uid('co')
         pos = ' style="top:24px;bottom:auto;left:auto;right:34px"' if top else ''
         self.calls.append(f'<div class="call" id="{a}"{pos}><h3>{esc(title)}</h3>' + (f'<p>{esc(sub)}</p>' if sub else '') + '</div>')
         self.js.append(f"tl.fromTo('#{a}',{{opacity:0,y:24}},{{opacity:1,y:0,duration:.45,ease:'power3.out'}},{t:.3f});"
@@ -187,12 +197,44 @@ class Comp:
             self.js.append(f"tl.fromTo('#{a}_{i}',{{opacity:0,y:20,scale:.9}},{{opacity:1,y:0,scale:1,duration:.4,ease:'back.out(1.8)'}},{t:.3f});"
                            f"tl.to('#{a}_{i}',{{opacity:0,duration:.3}},{end - .3:.3f});")
 
+    def overlay(self, t, end, html, style, cls='ov', pop=True):
+        """Free-placed element in card space (QR, scorecard, counter...). style: CSS for position."""
+        a = self.uid('o')
+        self.calls.append(f'<div class="{cls}" id="{a}" style="{style}">{html}</div>')
+        frm = '{opacity:0,scale:.88,y:16}' if pop else '{opacity:0}'
+        self.js.append(f"tl.fromTo('#{a}',{frm},{{opacity:1,scale:1,y:0,duration:.45,ease:'back.out(1.6)'}},{t:.3f});"
+                       f"tl.to('#{a}',{{opacity:0,duration:.3}},{end - .3:.3f});")
+        return a
+
+    def reveal_rows(self, oid, times):
+        for i, t in enumerate(times):
+            self.js.append(f"tl.fromTo('#{oid} .row:nth-of-type({i + 1})',{{opacity:0,x:-14}},{{opacity:1,x:0,duration:.35,ease:'power2.out'}},{t:.3f});")
+
+    def counter(self, oid, t, d, to, fmt, steps=24):
+        """Count up inside #oid .num from 0 to `to` (discrete steps; seek-safe)."""
+        for k in range(steps + 1):
+            v = to * (1 - (1 - k / steps) ** 3)
+            self.js.append(f"tl.call(()=>{{document.querySelector('#{oid} .num').textContent='{fmt(v)}'}},null,{t + d * k / steps:.3f});")
+
+    def navigate(self, k, t, url):
+        """Close what is open and load a new page: blank flash, address retyped, loading bar, page in."""
+        self.js.append(f"tl.to('.blank',{{opacity:1,duration:.18}},{t:.3f});")
+        self.url(t + 0.1, url, typed=True)
+        tt = t + 0.15 + min(0.6, 0.022 * len(url))
+        self.js.append(f"tl.fromTo('.load',{{scaleX:0,opacity:1}},{{scaleX:1,duration:.4,ease:'power1.inOut'}},{tt:.3f});"
+                       f"tl.to('.load',{{opacity:0,duration:.2}},{tt + .4:.3f});")
+        self.show(k, tt + 0.3, d=0.3, slide=False)
+        self.js.append(f"tl.to('.blank',{{opacity:0,duration:.3}},{tt + 0.3:.3f});")
+        return tt + 0.6
+
     # ---------------------------------------------------------------- output
     def write(self, out_dir):
         out_dir.mkdir(parents=True, exist_ok=True)
         for p in self.pages:
             shutil.copy(self.dir / p['src'], out_dir / p['src'])
         shutil.copy(HERE / 'node_modules/gsap/dist/gsap.min.js', out_dir / 'gsap.min.js')
+        for extra in getattr(self, 'files', []):
+            shutil.copy(self.dir / extra, out_dir / extra)
         pages = ''.join(
             f'<div class="page" id="p{k}"><div class="cam" id="c{k}" style="width:{p["w"]}px;height:{p["h"]}px">'
             f'<img src="{p["src"]}" width="{p["w"]}" height="{p["h"]}">{"".join(self.html[k])}</div></div>'
@@ -201,7 +243,7 @@ class Comp:
 <div id="root" data-composition-id="root" data-width="{W}" data-height="{H}" data-start="0" data-duration="{self.dur:.2f}">
 <div class="bar"><div class="dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
 <div class="urlbox">{LOCK}{''.join(self.urls)}</div></div>
-<div class="vp">{pages}</div>
+<div class="vp">{pages}</div><div class="blank"></div><div class="load"></div>
 {''.join(self.calls)}
 </div>
 <script src="gsap.min.js"></script>
@@ -227,7 +269,8 @@ def render(out_dir, mp4, draft=False):
 
 
 if __name__ == '__main__':
-    from cards import CARDS
+    import importlib, os
+    CARDS = importlib.import_module(os.environ.get('CARDS', 'cards')).CARDS
     only = [a for a in sys.argv[1:] if not a.startswith('--')] or list(CARDS)
     for cid in only:
         comp = CARDS[cid](Comp)

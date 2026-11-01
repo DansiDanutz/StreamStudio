@@ -19,6 +19,7 @@ W = Path(sys.argv[1])
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else W / 'danslab-network.mp4'
 PREVIEW = '--preview' in sys.argv  # every 5th second only, for checking
 PREVIEW_EVERY = 5
+UNTIL = next((float(a.split('=')[1]) for a in sys.argv if a.startswith('--until=')), None)  # render only the start (video only)
 WW, HH, FPS = 1920, 1080, 25
 STUDIO = Path('/home/claude/streamstudio/assets/studio')
 FONT = '/usr/share/fonts/opentype/inter/Inter-{}.otf'
@@ -222,17 +223,19 @@ class CardVideo:
                 break
             self.i += 1
             self.last = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
+        if self.last is None:
+            raise FileNotFoundError(f'motion card missing or empty: {self.path}')
         img = self.last.astype(np.float32)
         if img.shape[1] != CARD_W:
             img = cv2.resize(img, (CARD_W, CARD_H), interpolation=cv2.INTER_AREA)
         return img
 
 
-def card_layer(frame, still, tl, dur, tag, video=None):
+def card_layer(frame, still, tl, dur, tag, video=None, video_at=0.0, cont=False):
     out = blurred.copy()
-    a = ease(tl / 0.45)
+    a = 1.0 if cont else ease(tl / 0.45)
     out = out * (1 - shadow * a)
-    img = CardVideo.get(video).frame(int(tl * FPS)) if video else card_img(still)
+    img = CardVideo.get(video).frame(int(round((video_at + tl) * FPS))) if video else card_img(still)
     z = 1.0 + 0.045 * min(tl / max(dur, 1), 1.0) if not video else 1.0
     if z > 1.0:
         h, w = img.shape[:2]
@@ -388,10 +391,13 @@ def compose(frame, f):
         if iz and tl < 1.1:  # into the studio monitor, then the site
             out = zoom(studio(frame, f) if mask_for(f) is not None else plate.copy(), iz[0], iz[1], 1 + 1.6 * ease(tl / 1.1))
             return out
-        out, tag, a = card_layer(frame, p.get('still'), tl - (1.1 if iz else 0), dur, p['tag'], p.get('video'))
+        out, tag, a = card_layer(frame, p.get('still'), tl - (1.1 if iz else 0), dur, p['tag'], p.get('video'),
+                                p.get('video_at', 0.0), p.get('cont', False))
         out = overlay(out, 'tag:' + tag, tag_draw(tag), a)
         return out
     out = studio(frame, f)
+    if 'frame' in p and 'zoom' not in p and 'zoom_path' not in p:
+        out = zoom(out, *p['frame'])  # a slightly tighter framing (variety); cards stay in screen space
     if p.get('title'):
         al = ease(tl / 0.5) * (1 - ease((tl - 2.6) / 0.6))
         out = table_glow(out, WW / 2, 820, al)
@@ -410,7 +416,8 @@ def compose(frame, f):
         out = place_table_card(out, 'lower:' + name, lines, w, 150 if sub else 112, cx, al, ease((tl - t_in) / 0.5))
     if p.get('chips'):
         names = p['chips']
-        al_out = 1 - ease((tl - (dur - 0.8)) / 0.6)
+        co = p['chips_out'] * dur if p.get('chips_out') else dur - 0.8
+        al_out = 1 - ease((tl - co) / 0.6)
         xs = np.linspace(WW * 0.14, WW * 0.86, len(names))
         times = p.get('chip_at') or [k * 1.3 / max(dur, 1) for k in range(len(names))]
         for k, name in enumerate(names):
@@ -418,13 +425,15 @@ def compose(frame, f):
             al = ease((tl - t_in) / 0.35) * al_out
             out = table_glow(out, xs[k], 300, al)
             out = place_table_card(out, 'chip:' + name, [(name, 36, 'Bold', WHITE)], 300, 96, xs[k], al, ease((tl - t_in) / 0.45))
-    if p.get('endcard') and tl > dur - 6.5:
-        al = ease((tl - (dur - 6.5)) / 0.6)
+    e_in = p['end_at'] * dur if 'end_at' in p else dur - 6.5
+    e_out = p['end_until'] * dur if 'end_until' in p else dur + 1
+    if p.get('endcard') and e_in < tl < e_out + 0.6:
+        al = ease((tl - e_in) / 0.6) * (1 - ease((tl - (e_out - 0.5)) / 0.5) if p.get('end_until', 1) < 0.999 else 1)
         out = table_glow(out, WW / 2, 1100, al)
         e = p['endcard'] if isinstance(p['endcard'], list) else ['List your AI business', 'nervix-market.vercel.app',
                                                                  '10 USD membership · USDT or USDC · paid with NervixPay']
         out = place_table_card(out, 'end:' + e[0], [(e[0], 56, 'Bold', WHITE), (e[1], 36, 'SemiBold', TEAL), (e[2], 24, 'Medium', MUTED)],
-                               1100, 230, WW / 2, al, ease((tl - (dur - 6.5)) / 0.7))
+                               1100, 230, WW / 2, al, ease((tl - e_in) / 0.7))
     if 'zoom_path' in p:  # keyframes [frac, cx, cy, z]; eased between them
         ks = p['zoom_path']
         fr = tl / dur
@@ -440,6 +449,26 @@ def compose(frame, f):
             out = zoom(out, fx + (cx - fx) * k, fy + (cy - fy) * k, fz + (z - fz) * k)
         else:
             out = zoom(out, cx, cy, 1 + (z - 1) * ease(tl / min(dur, 2.2)))
+    for gf, gd in p.get('glitch', []):
+        g0 = gf * dur
+        if g0 <= tl < g0 + gd:
+            out = glitch(out, (tl - g0) / gd, f)
+    return out
+
+
+def glitch(img, u, f):
+    """A short digital glitch: RGB split and a few shifted slices, strongest in the middle."""
+    k = np.sin(np.pi * min(max(u, 0), 1))
+    rng = np.random.default_rng(f)
+    sh = int(6 + 22 * k)
+    out = img.copy()
+    out[..., 0] = np.roll(img[..., 0], sh, axis=1)
+    out[..., 2] = np.roll(img[..., 2], -sh, axis=1)
+    for _ in range(int(3 + 7 * k)):
+        y = int(rng.integers(0, HH - 40)); h = int(rng.integers(8, 60))
+        out[y:y + h] = np.roll(out[y:y + h], int(rng.integers(-80, 80) * k), axis=1)
+    if rng.random() < 0.35 * k:
+        out = out * 0.85 + np.array([20, 40, 60], np.float32) * 0.15
     return out
 
 
@@ -447,7 +476,7 @@ def main():
     dec = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', str(SRC), '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
                            stdout=subprocess.PIPE)
     enc_args = ['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{WW}x{HH}', '-r', str(FPS), '-i', '-']
-    if PREVIEW:
+    if PREVIEW or UNTIL is not None:
         enc_args += ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', str(OUT)]
     else:
         enc_args += ['-i', str(SRC), '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'medium',
@@ -461,6 +490,8 @@ def main():
         buf = dec.stdout.read(size)
         if len(buf) < size:
             break
+        if UNTIL is not None and f >= UNTIL * FPS:
+            break
         if PREVIEW and f % (FPS * PREVIEW_EVERY) != 0:
             f += 1
             continue
@@ -472,6 +503,7 @@ def main():
         f += 1
     enc.stdin.close()
     enc.wait()
+    dec.kill() if UNTIL is not None else None
     dec.wait()
     print('done', OUT, flush=True)
 
