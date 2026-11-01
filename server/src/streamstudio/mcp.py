@@ -159,7 +159,7 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "youtube_status",
-        "description": "Whether the YouTube channel is connected, and which channel.",
+        "description": "Which YouTube channels are connected (id and title).",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
@@ -176,6 +176,11 @@ TOOLS: list[dict[str, Any]] = [
                 "title": {"type": "string"},
                 "description": {"type": "string"},
                 "tags": {"type": "array", "items": {"type": "string"}},
+                "channel": {
+                    "type": "string",
+                    "description": "channel id (UC...) from youtube_status; needed when several "
+                    "are connected",
+                },
             },
             "required": ["id", "title"],
         },
@@ -252,6 +257,8 @@ def call(name: str, args: dict[str, Any]) -> Any:
             "tags": args.get("tags") or [],
             "privacy": "private",  # agents never publish
         }
+        if args.get("channel"):
+            body["channel"] = args["channel"]
         return _http("POST", f"/api/recordings/{_seg(args['id'])}/youtube", body)
     raise ValueError(f"unknown tool {name}")
 

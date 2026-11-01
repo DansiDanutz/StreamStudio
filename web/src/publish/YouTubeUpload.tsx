@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 
-interface Status { client: boolean; connected: boolean; channel: { id: string; title: string } | null; download_ready: boolean }
+interface Channel { id: string; title: string }
+interface Status { client: boolean; connected: boolean; channels: Channel[]; download_ready: boolean }
 interface Take { id: string; mp4: boolean; transcript: boolean }
-interface Job { status: string; progress: number; message: string; error?: string | null; result?: { url: string; studio: string } | null }
+interface Job { status: string; progress: number; message: string; error?: string | null; result?: { url: string; studio: string; channel: string } | null }
 
 const POLL_MS = 2000
 const PRIVACY = ['private', 'unlisted', 'public'] as const
@@ -19,6 +20,7 @@ export function YouTubeUpload({ title, description }: { title: string; descripti
   const [status, setStatus] = useState<Status | null>(null)
   const [takes, setTakes] = useState<Take[]>([])
   const [take, setTake] = useState('')
+  const [channel, setChannel] = useState('')
   const [privacy, setPrivacy] = useState<(typeof PRIVACY)[number]>('private')
   const [jobId, setJobId] = useState<string | null>(null)
   const [job, setJob] = useState<Job | null>(null)
@@ -31,6 +33,7 @@ export function YouTubeUpload({ title, description }: { title: string; descripti
       setStatus(st)
       setTakes(ready)
       setTake((cur) => cur || ready[0]?.id || '')
+      setChannel((cur) => (st.channels.some((c) => c.id === cur) ? cur : st.channels[0]?.id ?? ''))
     } catch (e) { setErr((e as Error).message) }
   }, [])
 
@@ -64,12 +67,16 @@ export function YouTubeUpload({ title, description }: { title: string; descripti
     try {
       const r = await json<{ job_id: string }>(`/api/recordings/${take}/youtube`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title, description, privacy }),
+        body: JSON.stringify({ title, description, privacy, channel }),
       })
       setJobId(r.job_id)
     } catch (e) { setErr((e as Error).message) }
   }
 
+  const target = status?.channels.find((c) => c.id === channel)
+  const connectLink = (label: string) => (
+    <a className="kit-btn" href="/api/youtube/connect" target="_blank" rel="noreferrer">{label}</a>
+  )
   let body
   if (!status) body = <p className="muted">Checking YouTube…</p>
   else if (!status.client) body = (
@@ -78,28 +85,32 @@ export function YouTubeUpload({ title, description }: { title: string; descripti
       {!status.download_ready && <span className="muted"> (none in Downloads yet)</span>}</p>
   )
   else if (!status.connected) body = (
-    <p><a className="kit-btn" href="/api/youtube/connect" target="_blank" rel="noreferrer">Connect YouTube</a>{' '}
-      <span className="muted">Sign in and click Allow, then come back here.</span></p>
+    <p>{connectLink('Connect YouTube')}{' '}
+      <span className="muted">Pick a channel, click Allow, then come back here.</span></p>
   )
-  else if (!takes.length) body = <p className="muted">Connected to {status.channel?.title ?? 'YouTube'}. Record a take first.</p>
+  else if (!takes.length) body = <p className="muted">Connected: {status.channels.map((c) => c.title).join(', ')}. Record a take first.</p>
   else body = (
     <div className="kit-yt-row">
+      <select aria-label="Channel" value={channel} onChange={(e) => setChannel(e.target.value)}>
+        {status.channels.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+      </select>
       <select aria-label="Take" value={take} onChange={(e) => setTake(e.target.value)}>
         {takes.map((t) => <option key={t.id} value={t.id}>{t.id.slice(4)}{t.transcript ? ' · captions' : ''}</option>)}
       </select>
       <select aria-label="Privacy" value={privacy} onChange={(e) => setPrivacy(e.target.value as typeof privacy)}>
         {PRIVACY.map((p) => <option key={p} value={p}>{p}</option>)}
       </select>
-      <button onClick={upload} disabled={!!jobId || !take}>Upload to {status.channel?.title ?? 'YouTube'}</button>
+      <button onClick={upload} disabled={!!jobId || !take || !channel}>Upload to {target?.title ?? 'YouTube'}</button>
     </div>
   )
 
   return (
     <div className="kit-field kit-yt">
-      <span>YouTube{status?.channel ? ` · ${status.channel.title}` : ''}</span>
+      <span>YouTube{status?.connected ? ` · ${status.channels.length} channel${status.channels.length > 1 ? 's' : ''}` : ''}</span>
       {body}
+      {status?.connected && <p className="muted">{connectLink('Connect another channel')} one Google sign-in per channel</p>}
       {job && job.status !== 'done' && job.status !== 'error' && <p className="muted">{job.message || 'Queued'} · {Math.round(job.progress * 100)}%</p>}
-      {job?.status === 'done' && job.result && <p>Uploaded ({privacy}): <a href={job.result.studio} target="_blank" rel="noreferrer">open in YouTube Studio</a></p>}
+      {job?.status === 'done' && job.result && <p>Uploaded ({privacy}) to {status?.channels.find((c) => c.id === job.result!.channel)?.title ?? 'YouTube'}: <a href={job.result.studio} target="_blank" rel="noreferrer">open in YouTube Studio</a></p>}
       {job?.status === 'error' && <p className="warn">{job.error?.split('\n')[0] ?? 'Upload failed.'}</p>}
       {err && <p className="warn">{err}</p>}
     </div>

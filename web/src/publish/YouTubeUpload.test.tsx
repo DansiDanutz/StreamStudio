@@ -20,31 +20,35 @@ afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('YouTubeUpload', () => {
   it('offers to import the client JSON when it is in Downloads', async () => {
-    const f = server({ client: false, connected: false, channel: null, download_ready: true }, { '/api/youtube/client': {} })
+    const f = server({ client: false, connected: false, channels: [], download_ready: true }, { '/api/youtube/client': {} })
     await act(async () => { render(<YouTubeUpload title="T" description="D" />) })
     await act(async () => { fireEvent.click(screen.getByText('Import it')) })
     expect(f).toHaveBeenCalledWith('/api/youtube/client', { method: 'POST' })
   })
 
   it('links to Connect when the client is there but the channel is not', async () => {
-    server({ client: true, connected: false, channel: null, download_ready: false })
+    server({ client: true, connected: false, channels: [], download_ready: false })
     await act(async () => { render(<YouTubeUpload title="T" description="D" />) })
     expect(screen.getByText('Connect YouTube').getAttribute('href')).toBe('/api/youtube/connect')
   })
 
-  it('uploads the newest finished take as private with the kit title', async () => {
+  it('uploads the newest finished take, private, to the chosen channel', async () => {
     vi.useFakeTimers()
-    const job = { status: 'done', progress: 1, message: '', result: { url: 'https://youtu.be/v', studio: 'https://studio.youtube.com/video/v/edit' } }
+    const job = { status: 'done', progress: 1, message: '', result: { url: 'https://youtu.be/v', studio: 'https://studio.youtube.com/video/v/edit', channel: 'UC2' } }
+    const channels = [{ id: 'UC1', title: 'DansLab' }, { id: 'UC2', title: 'Did You Know That?' }]
     const f = server(
-      { client: true, connected: true, channel: { id: 'UC1', title: 'DansLab' }, download_ready: false },
+      { client: true, connected: true, channels, download_ready: false },
       { '/api/recordings/rec_20261101-020000/youtube': { job_id: 'job_1' }, '/api/jobs/job_1': job },
     )
     await act(async () => { render(<YouTubeUpload title="My video" description="About it" />) })
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toContain('20261101-020000 · captions')
-    await act(async () => { fireEvent.click(screen.getByText('Upload to DansLab')) })
+    expect(screen.getByText('Connect another channel').getAttribute('href')).toBe('/api/youtube/connect')
+    fireEvent.change(screen.getByLabelText('Channel'), { target: { value: 'UC2' } })
+    await act(async () => { fireEvent.click(screen.getByText('Upload to Did You Know That?')) })
     const [, init] = f.mock.calls.find(([u]) => u.endsWith('/youtube') && u.startsWith('/api/recordings'))!
-    expect(JSON.parse(String(init?.body))).toEqual({ title: 'My video', description: 'About it', privacy: 'private' })
+    expect(JSON.parse(String(init?.body))).toEqual({ title: 'My video', description: 'About it', privacy: 'private', channel: 'UC2' })
     await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
     expect(screen.getByText('open in YouTube Studio').getAttribute('href')).toBe(job.result.studio)
+    expect(screen.getByText(/Uploaded \(private\) to Did You Know That\?/)).toBeTruthy()
   })
 })

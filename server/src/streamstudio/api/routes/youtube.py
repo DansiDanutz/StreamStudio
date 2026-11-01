@@ -1,5 +1,5 @@
-"""Connect the YouTube channel and upload takes. Uploads are private unless the request says
-otherwise; agents (MCP) can only upload private."""
+"""Connect YouTube channels (one sign-in each) and upload takes to any of them. Uploads are
+private unless the request says otherwise; agents (MCP) can only upload private."""
 
 from __future__ import annotations
 
@@ -66,16 +66,27 @@ def callback(
     if error or not code:
         return _page("YouTube not connected", error or "Google sent no code.", 400)
     try:
-        got = youtube.finish_auth(s.data_dir, state, code, expected_channel=s.youtube_channel)
+        got = youtube.finish_auth(s.data_dir, state, code)
     except youtube.YouTubeError as e:
         return _page("YouTube not connected", str(e), 400)
-    name = (got["channel"] or {}).get("title") or "your channel"
-    return _page("YouTube connected", f"StreamStudio can now upload to {name}. Close this tab.")
+    name = got["channel"]["title"]
+    return _page(
+        "YouTube connected",
+        f"StreamStudio can now upload to {name}. To add another channel, Connect again and pick "
+        "it. Close this tab.",
+    )
+
+
+class DisconnectIn(BaseModel):
+    channel: str
 
 
 @router.post("/api/youtube/disconnect")
-def disconnect(s: Settings = Depends(settings)) -> dict:
-    youtube.disconnect(s.data_dir)
+def disconnect(body: DisconnectIn, s: Settings = Depends(settings)) -> dict:
+    try:
+        youtube.disconnect(s.data_dir, body.channel)
+    except youtube.YouTubeError as e:
+        raise HTTPException(422, str(e)) from e
     return youtube.status(s.data_dir)
 
 
@@ -84,6 +95,7 @@ class UploadIn(BaseModel):
     description: str = Field(default="", max_length=20000)
     tags: list[str] = Field(default_factory=list, max_length=100)
     privacy: str = "private"
+    channel: str | None = None  # needed when more than one channel is connected
 
 
 @router.post("/api/recordings/{rid}/youtube", status_code=202)
@@ -94,14 +106,16 @@ def queue_upload(
     _check(rid)
     if not (s.recordings_dir / f"{rid}.mp4").exists():
         raise HTTPException(404, "no MP4 for this take yet")
-    if not youtube.status(s.data_dir)["connected"]:
-        raise HTTPException(409, "YouTube is not connected: Connect the channel first")
+    if not youtube.channels(s.data_dir):
+        raise HTTPException(409, "YouTube is not connected: Connect a channel first")
     try:
+        channel = youtube.pick_channel(s.data_dir, body.channel)
         meta = youtube.clean_meta(body.title, body.description, body.tags, body.privacy)
     except youtube.YouTubeError as e:
         raise HTTPException(422, str(e)) from e
+    key = f"{channel}/{rid}"
     with tx(c):
-        job = store.find_active_job(c, "youtube_upload", rid) or store.enqueue(
-            c, "youtube_upload", payload={"id": rid, "meta": meta}
+        job = store.find_active_job(c, "youtube_upload", key, field="key") or store.enqueue(
+            c, "youtube_upload", payload={"id": rid, "channel": channel, "key": key, "meta": meta}
         )
-    return {"id": rid, "job_id": job["id"], "privacy": meta["privacy"]}
+    return {"id": rid, "job_id": job["id"], "privacy": meta["privacy"], "channel": channel}

@@ -19,6 +19,10 @@ RID = "rec_20261101-020000"
 CLIENT = {"installed": {"client_id": "cid.apps.googleusercontent.com", "client_secret": "s3cret",
                         "project_id": "streamstudio-test"}}  # fmt: skip
 SESSION = "https://www.googleapis.com/upload/youtube/v3/videos?upload_id=abc"
+DANSLAB = {"id": "UCCPMUreEqO1x11YiAhzLusA", "title": "DansLab"}
+DYKT = {"id": "UC7j29XhArv5tlRqQj2qAb4Q", "title": "Did You Know That?"}
+#: sign-in code → (access token, refresh token, channel)
+GRANTS = {"the-code": ("at-1", "rt-1", DANSLAB), "code-2": ("at-2", "rt-2", DYKT)}
 
 
 class FakeGoogle:
@@ -32,6 +36,7 @@ class FakeGoogle:
         self.drop = drop_after_first_chunk
         self.captions: list[bytes] = []
         self.meta: dict = {}
+        self.tokens: list[str] = []
 
     def __call__(self, req):
         url, method, body = req.full_url, req.get_method(), req.data or b""
@@ -40,16 +45,20 @@ class FakeGoogle:
         if url == youtube.TOKEN_URL:
             form = dict(urllib.parse.parse_qsl(body.decode()))
             assert form["client_secret"] == "s3cret"
-            out = {"access_token": "at-1", "expires_in": 3600}
             if form["grant_type"] == "authorization_code":
-                assert form["code"] == "the-code" and form["code_verifier"]
-                out["refresh_token"] = "rt-1"
+                assert form["code_verifier"]
+                at, rt, _ = GRANTS[form["code"]]
+                out = {"access_token": at, "refresh_token": rt, "expires_in": 3600}
+            else:
+                at = next(a for a, r, _ in GRANTS.values() if r == form["refresh_token"])
+                out = {"access_token": at, "expires_in": 3600}
             return 200, {}, json.dumps(out).encode()
-        assert headers["authorization"] == "Bearer at-1"
+        token = headers["authorization"].removeprefix("Bearer ")
+        self.tokens.append(token)
         if "/youtube/v3/channels" in url:
-            return 200, {}, json.dumps(
-                {"items": [{"id": "UCCPMUreEqO1x11YiAhzLusA", "snippet": {"title": "DansLab"}}]}
-            ).encode()
+            ch = next(c for a, _, c in GRANTS.values() if a == token)
+            items = [{"id": ch["id"], "snippet": {"title": ch["title"]}}]
+            return 200, {}, json.dumps({"items": items}).encode()
         if "uploadType=resumable" in url:
             self.inits += 1
             self.meta = json.loads(body)
@@ -89,23 +98,25 @@ def env(tmp_path, monkeypatch):
     return client, s, downloads, google
 
 
-def _connect(client: TestClient, downloads: Path) -> None:
-    (downloads / "client_secret_web.json").write_text(json.dumps({"web": {"client_id": "w"}}))
-    (downloads / "client_secret_cid.json").write_text(json.dumps(CLIENT))
-    assert client.post("/api/youtube/client").json()["project_id"] == "streamstudio-test"
+def _connect(client: TestClient, downloads: Path, code: str = "the-code") -> None:
+    if not client.get("/api/youtube").json()["client"]:
+        (downloads / "client_secret_web.json").write_text(json.dumps({"web": {"client_id": "w"}}))
+        (downloads / "client_secret_cid.json").write_text(json.dumps(CLIENT))
+        assert client.post("/api/youtube/client").json()["project_id"] == "streamstudio-test"
     r = client.get("/api/youtube/connect", follow_redirects=False)
     assert r.status_code == 302
     q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.headers["location"]).query))
     assert q["code_challenge_method"] == "S256" and q["access_type"] == "offline"
+    assert q["prompt"] == "select_account consent"  # always offer the channel picker
     assert q["redirect_uri"].startswith("http://127.0.0.1:")
-    done = client.get(f"/api/youtube/callback?state={q['state']}&code=the-code")
-    assert done.status_code == 200 and "DansLab" in done.text
+    done = client.get(f"/api/youtube/callback?state={q['state']}&code={code}")
+    assert done.status_code == 200 and GRANTS[code][2]["title"] in done.text
 
 
 def test_import_moves_the_desktop_client_and_keeps_it_private(env):
     client, s, downloads, _ = env
     assert client.get("/api/youtube").json() == {
-        "client": False, "connected": False, "channel": None, "download_ready": False,
+        "client": False, "connected": False, "channels": [], "download_ready": False,
     }  # fmt: skip
     assert client.post("/api/youtube/client").status_code == 404
     (downloads / "client_secret_web.json").write_text(json.dumps({"web": {"client_id": "w"}}))
@@ -119,29 +130,19 @@ def test_import_moves_the_desktop_client_and_keeps_it_private(env):
     assert "s3cret" not in client.get("/api/youtube").text
 
 
-def test_connect_saves_a_refresh_token_and_the_channel(env):
+def test_each_sign_in_connects_one_more_channel(env):
     client, s, downloads, _ = env
     _connect(client, downloads)
+    _connect(client, downloads, "code-2")
     st = client.get("/api/youtube").json()
-    assert st["connected"]
-    assert st["channel"] == {"id": "UCCPMUreEqO1x11YiAhzLusA", "title": "DansLab"}
-    tok = youtube.folder(s.data_dir) / "token.json"
+    assert st["connected"] and st["channels"] == [DANSLAB, DYKT]
+    tok = youtube.folder(s.data_dir) / "channels" / f"{DANSLAB['id']}.json"
     assert oct(os.stat(tok).st_mode & 0o777) == "0o600"
     assert "rt-1" not in client.get("/api/youtube").text
-
-
-def test_connect_refuses_a_channel_other_than_the_configured_one(env, tmp_path):
-    _, _, downloads, _ = env
-    s = Settings(data_dir=tmp_path / "data", import_roots=[], youtube_channel="UCsomeoneelse")
-    client = TestClient(create_app(s))
-    (downloads / "client_secret_cid.json").write_text(json.dumps(CLIENT))
-    client.post("/api/youtube/client")
-    r = client.get("/api/youtube/connect", follow_redirects=False)
-    q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.headers["location"]).query))
-    assert q["prompt"] == "select_account consent"
-    done = client.get(f"/api/youtube/callback?state={q['state']}&code=the-code")
-    assert done.status_code == 400 and "DansLab" in done.text and "UCsomeoneelse" in done.text
-    assert client.get("/api/youtube").json()["connected"] is False
+    left = client.post("/api/youtube/disconnect", json={"channel": DYKT["id"]}).json()
+    assert left["channels"] == [DANSLAB]
+    bad = client.post("/api/youtube/disconnect", json={"channel": "../client"})
+    assert bad.status_code == 422
 
 
 def test_callback_rejects_a_forged_state(env):
@@ -190,6 +191,27 @@ def test_a_dropped_upload_resumes_without_a_second_video(env):
     assert client.get(f"/api/jobs/{jid}").json()["status"] == "done"
     assert google.inits == 1  # one video, resumed
     assert google.received == (s.recordings_dir / f"{RID}.mp4").read_bytes()
+
+
+def test_with_several_channels_the_upload_names_one(env):
+    client, s, downloads, google = env
+    _connect(client, downloads)
+    _connect(client, downloads, "code-2")
+    _take(s)
+    url = f"/api/recordings/{RID}/youtube"
+    assert client.post(url, json={"title": "T"}).status_code == 422  # which channel?
+    other = {"title": "T", "channel": "UCxxxxxxxxxxxxxxxxxxxxxx"}
+    assert client.post(url, json=other).status_code == 422  # not connected
+    r = client.post(url, json={"title": "T", "channel": DYKT["id"]})
+    assert r.status_code == 202 and r.json()["channel"] == DYKT["id"]
+    # the same take can go to the other channel too: a separate job, not a duplicate
+    r2 = client.post(url, json={"title": "T", "channel": DANSLAB["id"]})
+    assert r2.json()["job_id"] != r.json()["job_id"]
+    c = db.connect(s.db_path)
+    assert run_one(c, s, "w1")
+    done = client.get(f"/api/jobs/{r.json()['job_id']}").json()
+    assert done["status"] == "done" and done["result"]["channel"] == DYKT["id"]
+    assert "at-2" in google.tokens and "at-1" not in google.tokens[2:]
 
 
 def test_upload_needs_a_connection_an_mp4_and_a_known_privacy(env):

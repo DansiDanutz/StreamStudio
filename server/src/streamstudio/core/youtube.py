@@ -1,9 +1,10 @@
 """YouTube Data API v3: connect the channel (OAuth, installed-app flow) and upload takes.
 
-The OAuth client (Google Cloud → Desktop app JSON) and the refresh token live in
-<data_dir>/youtube/ (0600). They are sent only to Google and never logged or returned.
-Uploads are resumable: the session URL is saved before any bytes go out, so a retried job
-continues where it stopped and never creates a second video."""
+The OAuth client (Google Cloud → Desktop app JSON) and one refresh token per connected channel
+(<data_dir>/youtube/channels/<UC…>.json) live in <data_dir>/youtube/ (0600). A Google sign-in
+grants one channel, so each channel is connected on its own. Secrets are sent only to Google
+and never logged or returned. Uploads are resumable: the session URL is saved before any bytes
+go out, so a retried job continues where it stopped and never creates a second video."""
 
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import time
 import urllib.error
@@ -25,6 +27,7 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 API = "https://www.googleapis.com"
 SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"  # upload + captions + read channel
 PRIVACY = ("private", "unlisted", "public")
+CHANNEL_ID = re.compile(r"^UC[0-9A-Za-z_-]{22}$")
 CHUNK = 8 * 1024 * 1024  # resumable chunks must be multiples of 256 KiB
 TIMEOUT_S = 120
 REFRESH_MARGIN_S = 60
@@ -93,18 +96,47 @@ def import_client(data_dir: Path, src: Path) -> dict[str, str]:
     return {"project_id": app.get("project_id", ""), "client_id": app["client_id"]}
 
 
+def _channel_file(data_dir: Path, channel_id: str) -> Path:
+    if not CHANNEL_ID.match(channel_id):
+        raise YouTubeError("bad channel id")
+    return folder(data_dir) / "channels" / f"{channel_id}.json"
+
+
+def channels(data_dir: Path) -> list[dict[str, str]]:
+    """Connected channels, by title."""
+    found = []
+    for p in (folder(data_dir) / "channels").glob("UC*.json"):
+        tok = _read(p) or {}
+        if tok.get("refresh_token") and tok.get("channel"):
+            found.append(tok["channel"])
+    return sorted(found, key=lambda c: c["title"].lower())
+
+
 def status(data_dir: Path) -> dict[str, Any]:
-    d = folder(data_dir)
-    token = _read(d / "token.json") or {}
+    connected = channels(data_dir)
     return {
-        "client": (d / "client.json").exists(),
-        "connected": bool(token.get("refresh_token")),
-        "channel": token.get("channel"),
+        "client": (folder(data_dir) / "client.json").exists(),
+        "connected": bool(connected),
+        "channels": connected,
     }
 
 
-def disconnect(data_dir: Path) -> None:
-    (folder(data_dir) / "token.json").unlink(missing_ok=True)
+def disconnect(data_dir: Path, channel_id: str) -> None:
+    _channel_file(data_dir, channel_id).unlink(missing_ok=True)
+
+
+def pick_channel(data_dir: Path, channel_id: str | None) -> str:
+    """The channel to upload to: the one named, or the only one connected."""
+    connected = [c["id"] for c in channels(data_dir)]
+    if channel_id:
+        if channel_id not in connected:
+            raise YouTubeError(f"channel {channel_id} is not connected")
+        return channel_id
+    if len(connected) == 1:
+        return connected[0]
+    if not connected:
+        raise YouTubeError("YouTube is not connected: Connect a channel first")
+    raise YouTubeError("several channels are connected: say which one")
 
 
 def _client(data_dir: Path) -> dict[str, str]:
@@ -147,14 +179,9 @@ def _post_form(send: Transport, url: str, form: dict[str, str]) -> dict[str, Any
 
 
 def finish_auth(
-    data_dir: Path,
-    state: str,
-    code: str,
-    transport: Transport | None = None,
-    expected_channel: str = "",
+    data_dir: Path, state: str, code: str, transport: Transport | None = None
 ) -> dict[str, Any]:
-    """Exchange the code for tokens, save them, and look up the channel they belong to. With
-    `expected_channel` set, any other channel is refused and its token thrown away."""
+    """Exchange the code for tokens, look up the channel they grant, and save them under it."""
     d = folder(data_dir)
     pending = _read(d / "pending.json")
     if not pending or not secrets.compare_digest(pending["state"], state):
@@ -166,6 +193,7 @@ def finish_auth(
         "redirect_uri": pending["redirect_uri"], "grant_type": "authorization_code",
         "code_verifier": pending["verifier"],
     })  # fmt: skip
+    (d / "pending.json").unlink(missing_ok=True)
     if not tok.get("refresh_token"):
         raise YouTubeError("Google returned no refresh token: remove the app's access and retry")
     token = {
@@ -173,19 +201,12 @@ def finish_auth(
         "access_token": tok["access_token"],
         "expires_at": time.time() + int(tok.get("expires_in", 3600)),
     }
-    _write_private(d / "token.json", token)
-    (d / "pending.json").unlink(missing_ok=True)
-    api = Client(data_dir, transport)
-    items = api.json("GET", "/youtube/v3/channels?part=snippet&mine=true").get("items") or []
-    channel = {"id": items[0]["id"], "title": items[0]["snippet"]["title"]} if items else None
-    if expected_channel and (channel or {}).get("id") != expected_channel:
-        disconnect(data_dir)
-        got = (channel or {}).get("title") or "an account without a channel"
-        raise YouTubeError(
-            f"you picked {got}, but StreamStudio uploads only to channel {expected_channel}: "
-            "Connect again and choose that channel"
-        )
-    _write_private(d / "token.json", {**token, "channel": channel})
+    probe = Client(data_dir, None, transport, token=token)
+    items = probe.json("GET", "/youtube/v3/channels?part=snippet&mine=true").get("items") or []
+    if not items:
+        raise YouTubeError("that Google account has no YouTube channel: pick a channel")
+    channel = {"id": items[0]["id"], "title": items[0]["snippet"]["title"]}
+    _write_private(_channel_file(data_dir, channel["id"]), {**token, "channel": channel})
     return {"channel": channel}
 
 
@@ -193,15 +214,28 @@ def finish_auth(
 
 
 class Client:
-    def __init__(self, data_dir: Path, transport: Transport | None = None) -> None:
+    """Calls for one connected channel. `token` is only for the sign-in probe, before the
+    channel is known and saved."""
+
+    def __init__(
+        self,
+        data_dir: Path,
+        channel_id: str | None,
+        transport: Transport | None = None,
+        token: dict[str, Any] | None = None,
+    ) -> None:
         self.data_dir = data_dir
+        self.channel_id = channel_id
         self.send = transport or _urlopen
+        self.fixed = token
 
     def _token(self) -> str:
-        p = folder(self.data_dir) / "token.json"
+        if self.fixed:
+            return self.fixed["access_token"]
+        p = _channel_file(self.data_dir, self.channel_id or "")
         tok = _read(p)
         if not tok or not tok.get("refresh_token"):
-            raise YouTubeError("YouTube is not connected: Connect the channel first")
+            raise YouTubeError(f"channel {self.channel_id} is not connected")
         if tok.get("expires_at", 0) - REFRESH_MARGIN_S > time.time():
             return tok["access_token"]
         app = _client(self.data_dir)

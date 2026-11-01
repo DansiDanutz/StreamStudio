@@ -139,8 +139,8 @@ def youtube_upload(ctx: JobContext) -> dict[str, Any]:
     mp4 = d / f"{p['id']}.mp4"
     if not mp4.exists():
         raise ValueError("the take has no MP4 yet")
-    api = youtube.Client(ctx.settings.data_dir, YOUTUBE_TRANSPORT)
-    state = youtube.folder(ctx.settings.data_dir) / "uploads" / f"{p['id']}.json"
+    api = youtube.Client(ctx.settings.data_dir, p["channel"], YOUTUBE_TRANSPORT)
+    state = youtube.folder(ctx.settings.data_dir) / "uploads" / f"{p['channel']}-{p['id']}.json"
     ctx.progress(0.02, "uploading to YouTube")
     video_id = youtube.upload(
         api, mp4, p["meta"], state, lambda f: ctx.progress(0.02 + 0.9 * f, "uploading to YouTube")
@@ -158,6 +158,7 @@ def youtube_upload(ctx: JobContext) -> dict[str, Any]:
         "url": f"https://youtu.be/{video_id}",
         "studio": f"https://studio.youtube.com/video/{video_id}/edit",
         "privacy": p["meta"]["privacy"],
+        "channel": p["channel"],
         "captions": captions or done.get("captions"),
     }
 
