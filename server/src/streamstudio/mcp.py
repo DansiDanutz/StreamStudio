@@ -136,6 +136,27 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["items"],
         },
     },
+    {
+        "name": "recording_transcribe",
+        "description": (
+            "Transcribe a recorded take locally with whisper.cpp (free, offline). Queues a job and "
+            "returns its id; poll the job, then read recording_transcript."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "string", "description": "recording id (rec_...)"}},
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "recording_transcript",
+        "description": "A take's transcript: language, full text, segments and word timings (ms).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "string", "description": "recording id (rec_...)"}},
+            "required": ["id"],
+        },
+    },
 ]
 
 
@@ -154,6 +175,11 @@ def _http(method: str, path: str, body: Any = None) -> Any:
     except urllib.error.URLError as e:
         raise RuntimeError(f"StreamStudio is not running at {BASE} ({e.reason})") from e
     return json.loads(raw) if raw else None
+
+
+def _seg(value: str) -> str:
+    """One URL path segment: slashes and dots cannot climb out of it."""
+    return urllib.parse.quote(value, safe="")
 
 
 def call(name: str, args: dict[str, Any]) -> Any:
@@ -190,6 +216,10 @@ def call(name: str, args: dict[str, Any]) -> Any:
         )
     if name == "heygen_estimate":
         return _http("POST", "/api/heygen/render", {"items": args["items"], "confirm": False})
+    if name == "recording_transcribe":
+        return _http("POST", f"/api/recordings/{_seg(args['id'])}/transcribe")
+    if name == "recording_transcript":
+        return _http("GET", f"/api/recordings/{_seg(args['id'])}/transcript")
     raise ValueError(f"unknown tool {name}")
 
 

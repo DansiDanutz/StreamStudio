@@ -102,6 +102,26 @@ def finish_recording(ctx: JobContext) -> dict[str, Any]:
     return {"mp4": dst.name, "encoder": "videotoolbox" if hw else "x264"}
 
 
+@handler("transcribe")
+def transcribe_recording(ctx: JobContext) -> dict[str, Any]:
+    """Take MP4 → <id>.transcript.json + <id>.srt (whisper.cpp, local). Idempotent: a transcript
+    newer than the MP4 is kept."""
+    from ..core import transcribe
+
+    p = ctx.job.get("payload") or {}
+    d = ctx.settings.recordings_dir
+    mp4 = d / f"{p['id']}.mp4"
+    if not mp4.exists():
+        raise ValueError("the take has no MP4 yet")
+    out_json, out_srt = d / f"{p['id']}.transcript.json", d / f"{p['id']}.srt"
+    if out_json.exists() and out_srt.exists() and out_json.stat().st_mtime >= mp4.stat().st_mtime:
+        return {"transcript": out_json.name, "skipped": True}
+    ctx.progress(0.1, "transcribing")
+    t = transcribe.transcribe(mp4, out_json, out_srt, ctx.settings)
+    return {"transcript": out_json.name, "srt": out_srt.name, "language": t["language"],
+            "words": len(t["words"]), "model": t["model"]}  # fmt: skip
+
+
 # ---------------------------------------------------------------- HeyGen avatar clips
 
 #: Tests replace these: the HTTP transport, the poll interval, and the cut-out step.

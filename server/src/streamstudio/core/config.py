@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     ffmpeg_bin: str = "ffmpeg"
     ffprobe_bin: str = "ffprobe"
 
+    # Local transcripts (whisper.cpp). No model set: the best one in ~/.local/share/whisper-models.
+    whisper_bin: str = "whisper-cli"
+    whisper_model: Path | None = None
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "streamstudio.db"

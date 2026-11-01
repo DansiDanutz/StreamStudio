@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends
 
 from ... import __version__
-from ...core import media
+from ...core import media, transcribe
 from ...core.config import Settings
 from ...edl.model import EDL
 from ..deps import conn, settings
@@ -59,6 +59,7 @@ def health(s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn
             "ffprobe": media.tool_version(s.ffprobe_bin),
             "ollama": shutil.which("ollama"),
             "yt-dlp": shutil.which("yt-dlp"),
+            "whisper": transcribe.whisper_status(s),
         },
         "hw_encoders": media.hw_encoders(s.ffmpeg_bin),
         "jobs": {"queued": queued, "running": running},

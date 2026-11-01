@@ -4,6 +4,7 @@ import { useStage } from '../stage/store'
 import { startProgram } from './link'
 import { loadGestureManifest } from '../avatar/gestures'
 import { LiveLink, Recorder, uploadTake, type Take } from './recorder'
+import { TakeTranscript } from './TakeTranscript'
 
 const rec = new Recorder()
 const live = new LiveLink()
@@ -99,7 +100,7 @@ export function ProgramView() {
           <span className="take">
             Take {fmt(last.take.seconds)} ·{' '}
             <a href={last.url} download={`streamstudio-take.${last.take.mime.includes('mp4') ? 'mp4' : 'webm'}`}>download</a>
-            {last.id ? (last.mp4 ? <> · <a href={`/api/recordings/${last.id}.mp4`}>MP4 ready</a></> : ' · saved on Mac Studio, making the MP4…') : ' · no server: download it'}
+            {last.id ? (last.mp4 ? <> · <a href={`/api/recordings/${last.id}.mp4`}>MP4 ready</a><TakeTranscript id={last.id} /></> : ' · saved on Mac Studio, making the MP4…') : ' · no server: download it'}
           </span>
         )}
         <button onClick={() => document.documentElement.requestFullscreen?.()}>Fullscreen</button>

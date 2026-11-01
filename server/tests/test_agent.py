@@ -62,7 +62,7 @@ def test_mcp_speaks_json_rpc_and_never_renders(monkeypatch):
     assert names == [
         "library_list", "library_get", "library_name", "vault_status", "vault_backup",
         "vault_fetch", "studio_state", "studio_guide", "studio_timeline", "studio_do",
-        "heygen_estimate",
+        "heygen_estimate", "recording_transcribe", "recording_transcript",
     ]  # fmt: skip
     do = {"name": "studio_do", "arguments": {"action": "point.at", "args": {"target": "main"}}}
     out = mcp.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": do})
@@ -74,6 +74,12 @@ def test_mcp_speaks_json_rpc_and_never_renders(monkeypatch):
         "/api/heygen/render",
         {"items": [{"kind": "segment", "script": "Hi"}], "confirm": False},
     )
+    tr = {"name": "recording_transcribe", "arguments": {"id": "rec_1"}}
+    mcp.handle({"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": tr})
+    assert calls[-1] == ("POST", "/api/recordings/rec_1/transcribe", None)
+    mcp.handle({"jsonrpc": "2.0", "id": 7, "method": "tools/call",
+                "params": {"name": "recording_transcript", "arguments": {"id": "../x"}}})
+    assert calls[-1] == ("GET", "/api/recordings/..%2Fx/transcript", None)  # no path escape
     assert mcp.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
     bad = mcp.handle(
         {
