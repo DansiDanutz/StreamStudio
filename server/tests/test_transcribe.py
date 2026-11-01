@@ -59,7 +59,10 @@ def _fake_tools(tmp_path: Path) -> tuple[Path, Path, Path]:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     ffmpeg = bin_dir / "ffmpeg"
-    ffmpeg.write_text('#!/bin/sh\nfor a; do last="$a"; done\ncase "$last" in *.wav) : > "$last";; esac\n')
+    # only "writes" the WAV: probes like `ffmpeg -encoders` must not leave files behind
+    ffmpeg.write_text(
+        '#!/bin/sh\nfor a; do last="$a"; done\ncase "$last" in *.wav) : > "$last";; esac\n'
+    )
     whisper = bin_dir / "whisper-cli"
     whisper.write_text(
         "#!/bin/sh\n"
