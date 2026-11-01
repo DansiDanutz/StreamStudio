@@ -4,6 +4,22 @@ DansLab, episode 1: who Dan is, why the AI Business Network exists, and four que
 each answered with something already built. About 800 words ≈ 5:00 in HeyGen.
 Rules: studio shots for Dan; site cards with a neon rim; small cards stand on the magic table.
 
+**The question workflow.** Each of the four questions runs the same four beats, so viewers learn the rhythm and know what's coming:
+1. **Ask:** studio shot. The question card rises on the table, and its own live feature answers the question in miniature while Dan asks it.
+2. **Show:** the site card with the neon rim, with Dan in the small circle. One site per card, and the eye has one place to go.
+3. **Prove:** up to three fact chips rise under the card on the words that name them. Every chip is a fact from this script, with no extra numbers.
+4. **Land:** back to Dan in the studio, or straight into the next question card.
+
+**Each card's feature** (`feature` in the plan, drawn by `tools/compose/features.py`):
+| Card | Feature |
+|---|---|
+| 1 · Get paid | A coin goes from the customer's wallet straight into yours, and **Verified on-chain** ticks in. |
+| 2 · Play | Read · Listen · Watch light up, the Legend card flips, and the counter shows **Collected 1/121**. |
+| 3 · Trade | A position opens, the price climbs to the target line, **Target hit · closed** appears, and the next one opens. No amounts. |
+| 4 · Sell | The listing's fields fill in (what it does, price, contact), then **Your page is live** appears and a buyer arrives. |
+
+The lip-sync rule is unchanged: site cards keep Dan small, and his own lip-synced voice runs throughout.
+
 | # | On screen | Dan says |
 |---|---|---|
 | 1 | Studio. Title card rises on the table: **DansLab · Episode 1** | Somewhere right now, someone is building something brilliant with AI. An app, an agent, a game. And almost nobody will ever see it. I want to change that. |
