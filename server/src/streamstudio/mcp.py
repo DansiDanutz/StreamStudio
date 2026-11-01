@@ -114,9 +114,9 @@ TOOLS: list[dict[str, Any]] = [
         "name": "studio_do",
         "description": (
             "Run a stage action in the open editor. Use the 'actions' listed by library_list "
-            "(e.g. timeline.get, segment.update, segment.add, segment.preview, scene.activate, "
-            "cue.apply, point.at, table.event, media.add, workflow.insert, script.play). Needs the "
-            "editor open."
+            "(e.g. timeline.get, publish.kit, segment.update, segment.add, segment.preview, "
+            "scene.activate, cue.apply, point.at, table.event, media.add, workflow.insert, "
+            "script.play). Needs the editor open."
         ),
         "inputSchema": {
             "type": "object",

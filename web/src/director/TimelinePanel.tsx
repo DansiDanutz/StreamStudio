@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDirector } from './store'
 import { useStage } from '../stage/store'
 import { clipDurations, compileTimeline, type TimelineItem } from './timeline'
+import { buildPublishKit } from '../publish/kit'
+import { PublishKitPanel } from '../publish/PublishKitPanel'
 
 const TRACKS = ['Scene', 'Layout', 'Voice', 'Gesture', 'Table', 'Cards', 'Main'] as const
 const fmt = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`
@@ -18,6 +20,7 @@ export function Timeline() {
   const cards = useStage((s) => s.active().media?.[s.orientation])
   const [pps, setPps] = useState(24) // pixels per second
   const [sel, setSel] = useState<number | null>(null)
+  const [showKit, setShowKit] = useState(false)
   const [, bump] = useState(0)
   const startScene = useRef(activeId)
   const tl = useMemo(() => compileTimeline(script, scenes, startScene.current, cards ?? []), [script, scenes, cards]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -73,7 +76,9 @@ export function Timeline() {
         {tl.warnings > 0 && <span className="tl-warn">⚠ {tl.warnings} to check</span>}
         <label className="tl-zoom">zoom <input type="range" min={8} max={80} value={pps} onChange={(e) => setPps(Number(e.target.value))} /></label>
         {playing ? <button onClick={() => useDirector.getState().stop()}>■ Stop</button> : <button className="primary" onClick={() => play(sel ?? 0)}>▶ Play{sel ? ` from ${sel + 1}` : ''}</button>}
+        <button onClick={() => setShowKit((v) => !v)} title="Title, description with chapters, and captions for YouTube">Publish kit</button>
       </div>
+      {showKit && <PublishKitPanel kit={buildPublishKit(script, tl, clipDurations)} onClose={() => setShowKit(false)} />}
       <div className="tl-body">
         <div className="tl-labels">{TRACKS.map((t) => <div key={t}>{t}</div>)}</div>
         <div className="tl-scroll">
