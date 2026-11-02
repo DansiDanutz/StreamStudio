@@ -226,7 +226,8 @@ scene: { id: "s12", text: "...on screen...", voice: "...as HeyGen reads it...",
          kind: "avatar" | "card", site?: "https://...", question?: 1,
          sources?: [ { claim: "fourteen thousand subscribers", source: "Dan, 2026-11-02" } ],
          plan?: { title?, lower?, lowers?, chips?, chip_at?, zoom?, zoom_path?, frame?,
-                  glitch?, endcard?, whoosh_at? } }
+                  glitch?, endcard?, whoosh_at?,
+                  card_template?: "generic" | "feature-ring" | "compare" | "counter" } }
 ```
 
 `voice` is what HeyGen reads (names written for the voice); `text` is shown on screen and used
@@ -273,7 +274,9 @@ manual resume. Rules, in order:
 5. All composites present: enqueue `episode_assemble`, then `episode_publish_kit`, then
    `episode_register`, then `youtube_upload` (private, with the kit's title and description, and
    `publish_at` if Dan set one); set `uploaded_private`.
-6. `published` (seen by `episode_publish_status`, below): enqueue `episode_purge`.
+6. `published` (set by `episode_publish_status` only after YouTube has reported the video
+   `public`, below): enqueue `episode_purge`. A passed `publish_at` with the video still private
+   never advances this rule.
 
 Fan-in is implicit: a stage handler enqueues `episode_advance` when it finishes, the planner
 counts what exists, and only the last one of a stage finds everything present. Two planners running
@@ -284,16 +287,26 @@ at once are harmless because every handler is idempotent and the planner's own w
 
 The confirm screen is served by `GET /api/episodes/{id}/estimate`, which reuses the estimate
 logic of `routes/heygen.py:render` (moved into `core/heygen.py:estimate(items)` so the route,
-the episode API and MCP share it) and adds: wallet after (`heygen.Client.me`), month after (sum
-of `budget.spent.usd` over episodes created this month), the allowance, and the ceiling. The USD
-rate moves from `HeygenPanel.tsx` into `core/heygen.py:USD_PER_S`, served to the editor.
+the episode API and MCP share it) and adds: wallet after (`heygen.Client.me`), month after, the
+allowance, and the ceiling. "Month after" is computed from a ledger, not from episode creation
+dates: a `heygen_ledger` table (migration 4) holds one row per approval (a reservation for the
+estimate plus the allowance, dated when approved) and one row per completed render (the billed
+seconds and USD, dated when the render finished, which may fall in a later month than the
+approval). The month total is the sum of this calendar month's charges plus the unconsumed part of
+every open reservation, whatever month the episode was created in. The USD rate moves from
+`HeygenPanel.tsx` into `core/heygen.py:USD_PER_S`, served to the editor.
 
-`POST /api/episodes/{id}/approve-budget` records `budget.approved_at`, writes the allowance and
-enqueues the planner. It is refused with 409 when month-after would pass
-`Settings.heygen_month_ceiling_usd`. The MCP server has no tool for it. Worker retries of a
-`failed` HeyGen render (the existing behaviour in `heygen_clip`) and QA re-renders both charge the
-allowance; when it is spent the planner degrades instead of rendering. Defaults, all in
-`Settings`: `episode_rerender_scenes = max(2, ceil(0.1 * scenes))`, `episode_rerender_usd = 1.50`,
+`POST /api/episodes/{id}/approve-budget` runs under `BEGIN IMMEDIATE`: it recomputes the month
+total, refuses with 409 when total plus this episode's estimate and allowance would pass
+`Settings.heygen_month_ceiling_usd`, and otherwise writes the reservation row and
+`budget.approved_at` in the same transaction, so two approvals cannot both pass against the same
+remaining balance. Each completed `heygen_clip` consumes its seconds from the episode's
+reservation and writes a charge row; the planner releases whatever is left of a reservation when
+the episode reaches `uploaded_private`, is cancelled, or degrades its last failing scene. The MCP
+server has no tool for approval. Worker retries of a `failed` HeyGen render (the existing
+behaviour in `heygen_clip`) and QA re-renders both charge the allowance; when it is spent the
+planner degrades instead of rendering. Defaults, all in `Settings`:
+`episode_rerender_scenes = max(2, ceil(0.1 * scenes))`, `episode_rerender_usd = 1.50`,
 `heygen_month_ceiling_usd = 400`.
 
 The clip key gains `take`: `item_key(look, voice, script, motion, silent_s, take=0)`; `take=0`
@@ -342,10 +355,13 @@ for clips, cards, intro and final. The logic comes from `mix.py`, rewritten as
 A card covers a run of consecutive `kind: card` scenes with the same `site`. `site_capture` runs
 Playwright Chromium (already a dependency of `render/preview.py`) with a fresh profile, no
 cookies, a 1400 px viewport, and takes `page.screenshot(full_page=True)` into
-`episodes/<id>/caps/<host>.png`, plus the bounding boxes of the first heading and the main image
-(`document.querySelector`) into `caps/<host>.json`. It refuses any URL not matching
+`episodes/<id>/caps/<urlkey>.png`, plus the bounding boxes of the first heading and the main image
+(`document.querySelector`) into `caps/<urlkey>.json`. `urlkey` is derived from the whole
+normalised URL (host plus path and query, lower-cased, trailing slash dropped): the host followed
+by the first eight hex characters of the URL's sha1, so two pages on one site never share a file,
+and cards reference captures by the same key. It refuses any URL not matching
 `Settings.capture_allowlist` (a list of host patterns) and never logs in. A site that needs a
-login is captured once by hand into `assets/sites/<host>/` and reused.
+login is captured once by hand into `assets/sites/<urlkey>/` and reused.
 
 `card_render` builds a HyperFrames composition from a template and the capture: `generic`
 (address bar, slow scroll, one zoom to the hero, one callout taken from the scenes' `text`),
@@ -370,14 +386,20 @@ start in the final video. A scene whose transcript is missing falls back to spli
 duration by character count.
 `episode_register` copies `final.mp4` to `recordings/rec_<YYYYmmdd-HHMMSS>-ep.mp4`, `final.srt`
 to `rec_...-ep.srt`, and writes `rec_...-ep.episode.json` naming the episode. `finish_recording`
-is not run: the file is already H.264, AAC, normalised. The Recordings tab, the vault
-(`local_path` matches `recordings/rec_*`), `youtube_upload` and the MCP `youtube_upload` tool
-work unchanged. `youtube_upload`'s payload gains an optional `publish_at`, passed as
-`status.publishAt` with `privacyStatus: private`, which is how YouTube schedules a public
-release. `episode_publish_status` polls the video's privacy status every hour until it is
-`public` (or `publish_at` has passed), then sets `published`. `episode_purge` removes
-`caps/`, `cards/`, `scenes/`, `qa/` and the mix intermediates, keeps `episode.json`, `kit.json`,
-`final.srt` and the registered recording, and logs the freed bytes.
+is not run: the file is already H.264, AAC, normalised. Today `GET /api/recordings` discovers
+takes only through their `rec_*.source.*` upload files, which a registered episode does not have,
+so `list_recordings` is extended to also list `rec_*.episode.json` entries (with `source_bytes`
+null and an `episode` field), and a contract test asserts a registered episode appears in the
+listing and in the YouTube take picker. The vault (`local_path` matches `recordings/rec_*`),
+`youtube_upload` and the MCP `youtube_upload` tool work unchanged. `youtube_upload`'s payload
+gains an optional `publish_at`, passed as `status.publishAt` with `privacyStatus: private`, which
+is how YouTube schedules a public release. `episode_publish_status` polls the video's privacy
+status every hour and sets `published` only when YouTube reports `public`. A `publish_at` that
+has passed while the status is still private does not count: the poll keeps going and the status
+page shows a "scheduled release did not happen" warning, so a release cancelled in YouTube Studio
+never triggers a purge. `episode_purge` runs only from `published`; it removes `caps/`, `cards/`,
+`scenes/`, `qa/` and the mix intermediates, keeps `episode.json`, `kit.json`, `final.srt` and the
+registered recording, and logs the freed bytes.
 
 ### Status, observability, agents
 
@@ -723,7 +745,8 @@ touches them; later stages extend them. Paths are relative to the repository roo
 *   **Type / Scope**: SQLite migrations.
 *   **Proposed Changes**: Migration 4 creates `episodes` (id, project_id, status, title,
     created_at, updated_at, script_hash, budget_json, youtube_video_id, published_at) with an
-    index on `status`.
+    index on `status`, and `heygen_ledger` (id, episode_id, kind `reservation | charge |
+    release`, seconds, usd, at) with an index on `at`, the source of the monthly total.
 
 #### 13. `server/src/streamstudio/episode/__init__.py` (Create)
 
@@ -736,7 +759,8 @@ touches them; later stages extend them. Paths are relative to the repository roo
 *   **Type / Scope**: Pydantic models.
 *   **Proposed Changes**: `Scene` (id, text, voice, kind, site, question, reveal, sources,
     plan), `Plan` (title, lower, lowers, chips, chip_at, zoom, zoom_path, frame, glitch,
-    endcard, whoosh_at), `Script` (title, kicker, tagline, scenes), `extra="forbid"`; a
+    endcard, whoosh_at, card_template as a `Literal["generic", "feature-ring", "compare",
+    "counter"]`), `Script` (title, kicker, tagline, scenes), `extra="forbid"`; a
     `script_hash(script)`; `from_episode1_v2(script_json, plan_json, durations_json)` converter.
 
 #### 15. `server/src/streamstudio/episode/validate.py` (Create)
@@ -876,7 +900,10 @@ touches them; later stages extend them. Paths are relative to the repository roo
 *   **Proposed Changes**: Planner state machine on a three-scene fixture with the fake HeyGen
     transport: renders once per key, a FAIL re-renders with `take+1` within the allowance, the
     next FAIL degrades, retries charge the allowance, approval over the ceiling refused, two
-    planners running at once produce one set of jobs; QA on synthetic clips (ffmpeg `lavfi`
+    queued approvals cannot both pass against the same remaining balance, a render finishing in
+    the month after its approval is charged to the month it finished, a released reservation
+    frees the ceiling, two planners running at once produce one set of jobs; QA on synthetic
+    clips (ffmpeg `lavfi`
     frames with and without a face image, frozen frames, a glitch frame); the transcript check
     with a stubbed `transcribe`.
 
@@ -913,6 +940,13 @@ touches them; later stages extend them. Paths are relative to the repository roo
     and the plan; the loudness table (`-16`, `-36`, `-26`, final `-14/-1.5/11`) as one constant
     dict; writes `final.mp4` and `final.cues.json`.
 
+#### 37a. `server/src/streamstudio/api/routes/recordings.py` (Modify)
+
+*   **Type / Scope**: Recordings listing.
+*   **Proposed Changes**: `list_recordings` also lists `rec_*.episode.json` entries (id, `mp4`,
+    `mp4_bytes`, `transcript`, `source_bytes: null`, `episode: <id>`), so registered episodes
+    appear in the Recordings tab and the YouTube take picker without a `.source.*` file.
+
 #### 38. `server/src/streamstudio/episode/kit.py` (Create)
 
 *   **Type / Scope**: `episode_publish_kit` and `episode_register` handlers.
@@ -937,9 +971,11 @@ touches them; later stages extend them. Paths are relative to the repository roo
 #### 41. `server/src/streamstudio/episode/publish.py` (Create)
 
 *   **Type / Scope**: `episode_publish_status` and `episode_purge` handlers.
-*   **Proposed Changes**: Hourly poll of the video's privacy until public or past `publish_at`;
-    sets `published`; purge removes `caps/`, `cards/`, `scenes/`, `qa/`, mix intermediates, keeps
-    `episode.json`, `kit.json`, `final.srt`; logs bytes freed.
+*   **Proposed Changes**: Hourly poll of the video's privacy; `published` is set only on an
+    observed `public`; a passed `publish_at` with the video still private logs a "scheduled
+    release did not happen" warning and keeps polling; purge is enqueued only from `published`,
+    removes `caps/`, `cards/`, `scenes/`, `qa/`, mix intermediates, keeps `episode.json`,
+    `kit.json`, `final.srt`; logs bytes freed.
 
 #### 42. `web/src/publish/kit.ts` (Modify)
 
@@ -951,8 +987,10 @@ touches them; later stages extend them. Paths are relative to the repository roo
 
 *   **Type / Scope**: Tests.
 *   **Proposed Changes**: Kit chapters from question markers; SRT line splitting equals the
-    TypeScript fixtures from `web/src/publish/kit.test.ts`; registration names and sidecar;
-    upload with `publishAt` through the fake transport; purge keeps the right files.
+    TypeScript fixtures from `web/src/publish/kit.test.ts`; registration names and sidecar; a
+    registered episode appears in `GET /api/recordings`; upload with `publishAt` through the fake
+    transport; a passed `publish_at` with the video still private does not set `published` or
+    purge; purge keeps the right files.
 
 #### 44. `server/tests/test_youtube.py` (Modify)
 
@@ -965,9 +1003,10 @@ touches them; later stages extend them. Paths are relative to the repository roo
 
 *   **Type / Scope**: `site_capture` handler.
 *   **Proposed Changes**: Playwright Chromium, fresh context, 1400 px viewport,
-    `page.screenshot(full_page=True)` to `caps/<host>.png`, selector rectangles to
-    `caps/<host>.json`; allow-list check; `assets/sites/<host>/` used when present and the
-    allow-list says `manual`.
+    `page.screenshot(full_page=True)` to `caps/<urlkey>.png`, selector rectangles to
+    `caps/<urlkey>.json`, where `urlkey = <host>-<sha1(normalised url)[:8]>` so two pages on
+    one host never collide; allow-list check; `assets/sites/<urlkey>/` used when present and
+    the allow-list says `manual`.
 
 #### 46. `server/src/streamstudio/episode/hyperframes.py` (Move from `tools/compose/motion/build.py`)
 
@@ -989,7 +1028,8 @@ touches them; later stages extend them. Paths are relative to the repository roo
 
 *   **Type / Scope**: Tests.
 *   **Proposed Changes**: Template fill from a fixture capture; `cues.json` emitted; allow-list
-    refusal; the renderer stubbed through the `HYPERFRAMES_RENDER` hook.
+    refusal; two scenes on the same host with different paths produce two captures and each card
+    reads its own; the renderer stubbed through the `HYPERFRAMES_RENDER` hook.
 
 ### Stage 5: hardening, documentation, removal of the hand-run pipeline
 
