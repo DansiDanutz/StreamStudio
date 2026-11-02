@@ -213,3 +213,37 @@ that arrived while the gate was open).
 
 ### [Carried but declined]
 *   zoom-out M1 items that are style only, structural 17 and 25, style nits other than those in C32: DECLINE as above.
+
+---
+
+# Stage 9 resolution (Implementation Readiness)
+
+Status: resolved (2026-11-02, applied under Dan's prior "approve" for the batch)
+
+**Target:** `daily-episode-factory.md` (DetailedRange 834-1302, plus the specification passages
+the plan fixes depend on). Source: `implementation_readiness_report.md` (I1-I17, which absorb the
+Stage 8 findings Z1-Z10).
+
+Counts: 17 PROPOSE FIX, 0 CONTEST, 0 ESCALATE, 0 DECLINE (the style nits in I17 that change
+meaning are applied; pure wording nits are applied where the sentence was rewritten anyway and
+otherwise left, recorded as accepted).
+
+| Finding | Suggestion | Justification and edit |
+| --- | --- | --- |
+| I1 | PROPOSE FIX | Verified against `worker/main.py:53-57`, `handlers.py:214-247`. Planner rewritten as a condition table with Stage 1 and Stage 2 predicates; HeyGen `failed` recorded in the clip state file; `run_one` enqueues the planner on error for episode jobs; claim valid only while its job is live and transferred on recovery; `youtube_upload` enqueues the planner; render failure after the allowance → `needs_dan`, QA failure → `degraded`. |
+| I2 | PROPOSE FIX | Verified against `api/routes/jobs.py`, `heygen.py:68`, `ci.yml:10`, `pyproject.toml`. Package import rule; `episode/handlers.py` registration via `worker/main.py`; CI and Makefile install the extra in Stage 0; import test without the extra. |
+| I3 | PROPOSE FIX | Verified against `handlers.py:137-146`, `youtube.py:139`. `Script.channel`, resolution at approve-budget, payload spelled out. |
+| I4 | PROPOSE FIX | Verified against `episode-01-v2.plan.json`, `render.py`. Full `Plan` fields; converter rules; validation test. |
+| I5 | PROPOSE FIX | Ledger columns, uniqueness, unconsumed formula, seconds source. |
+| I6 | PROPOSE FIX | `cues.json` schema; generic card as a function; SFX table constant; bed in manifest; workspace ships `package.json` + lockfile. |
+| I7 | PROPOSE FIX | Decode path with `libvpx-vp9`, seat from the plate JSON, frame count, `inputs_hash`. |
+| I8 | PROPOSE FIX | `kit.json` keys, chapter rules ported from `kit.ts`, `Script.tags`, intro offset. |
+| I9 | PROPOSE FIX | `EpisodeOut` shape; `api.ts` exports. |
+| I10 | PROPOSE FIX | In-package WER and number-to-words; per-take transcript files. |
+| I11 | PROPOSE FIX | README lines per item; four READMEs added. |
+| I12 | PROPOSE FIX | One intro file, re-rendered at 25 fps; generator renders with `-f 25`. |
+| I13 | PROPOSE FIX | SRT path passed and purged; `TranscribeError` caught. |
+| I14 | PROPOSE FIX | Stage 1 trimmed to publish-now; `GET /{id}` pure with `POST /{id}/refresh`; purge button only; `PUT /script` edge; single release trigger; workspace bootstrap in Stage 3; per-stage preflight. |
+| I15 | PROPOSE FIX | Item 49 list; `qa/<scene>.jpg` everywhere. |
+| I16 | PROPOSE FIX | All listed decisions pinned in the relevant items. |
+| I17 | PROPOSE FIX (partial) | Meaning-changing style items applied; remaining wording nits accepted as is. |
