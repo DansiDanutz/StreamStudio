@@ -82,7 +82,9 @@ def cue(name, t, db=0.0, why=''):
 
 def comp_times(card, pattern):
     f = COMPS / card / 'index.html'
-    return [float(x) for x in re.findall(pattern, f.read_text())] if f.exists() else []
+    if not f.exists():
+        sys.exit(f'motion card comp not found: {f} (set CARD_COMPS) - its cues would be missing')
+    return [float(x) for x in re.findall(pattern, f.read_text())]
 
 
 seen_cards = set()
