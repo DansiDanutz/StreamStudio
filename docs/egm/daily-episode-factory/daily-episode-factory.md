@@ -304,9 +304,11 @@ rules:
 
 *   `PUT /{id}/script` from `draft`, `script_approved`, `budget_approved` or `in_progress` returns
     the episode to `draft`. In-flight clip jobs finish and are charged to the existing
-    reservation; nothing new is enqueued until the next budget approval, which reserves the
-    scenes that have no clip for their current key plus the estimated seconds of every live render
-    job, and only then releases the previous reservation, so submitted work never leaves the
+    reservation; nothing new is enqueued until the next budget approval, which reserves one line
+    per distinct (clip key, take): every live render job under its own key and take, plus every
+    scene that has no clip and no live job for its current key (an edited scene whose old render
+    is still running is therefore reserved twice, once per key, and an unchanged scene mid-render
+    once). Only then is the previous reservation released, so submitted work never leaves the
     ledger. An edit whose script hash changes makes every output downstream of the scenes stale:
     `final.mp4`, `final.srt` and `kit.json` are unlinked and `outputs.recording_id` is cleared
     (the registered recording stays in the library as an earlier take; the next registration is
@@ -1122,8 +1124,9 @@ it changes, so the READMEs never lag the code by a stage.
     `netguard.origin_allowed(origin, s.extra_hosts)`, since the middleware treats a missing
     header as a non-browser request; under the row lock resolves `youtube.pick_channel(s.data_dir, script.channel)`
     with 409 when it raises, recomputes the month's total, refuses with 409 over the ceiling,
-    reserves the scenes without a clip for their current key plus the estimated seconds of every
-    live `heygen_clip` job, then releases any previous reservation, writes `outputs.channel` and
+    reserves one line per distinct (clip key, take): every live `heygen_clip` job plus every
+    scene without a clip and without a live job for its current key, then releases any previous
+    reservation, writes `outputs.channel` and
     `budget.approved_at`), `POST /{id}/publish` (Stage 1: publish
     now only; `publish_at` accepted from Stage 2), `POST /{id}/advance`, `POST /{id}/purge`.
     Stage 2 adds `POST /{id}/refresh`, `POST /{id}/cancel`, `GET /{id}/qa/{scene}.jpg`. Ids
@@ -1273,8 +1276,9 @@ it changes, so the READMEs never lag the code by a stage.
         named;
     *   two queued approvals cannot both pass against the same remaining balance;
     *   a charge dated in the month after its approval counts in that month;
-    *   a second approval reserves only scenes without a clip plus the seconds of a live render
-        job, then releases the previous reservation, and the month's total never drops below the
+    *   a second approval reserves each (clip key, take) once: an unchanged scene mid-render is
+        reserved once, an edited scene with its old render running is reserved for both keys,
+        then the previous reservation is released and the month's total never drops below the
         live job's estimate in between;
     *   the planner never enqueues `scene_qa` for a scene whose state file says `failed` or whose
         clip is still rendering;

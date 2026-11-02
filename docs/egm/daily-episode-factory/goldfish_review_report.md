@@ -260,3 +260,4 @@ and applied to the final design and the mirror:
 | P3 | The fixture converter copied `kind` into `Plan`, which forbids extra keys | `kind` is consumed by the scene; a test validates the converted fixture |
 | P4 | Re-approval released the previous reservation while a render was still running | The new reservation includes every live render job's estimate before the previous one is released |
 | P5 | An episode's `projects` row was listed by `/api/projects` and its detail route would fail on `latest_edl` | `list_projects` excludes rows with an `episodes` row; `project_or_404` answers 404 for them (new plan item 13a) |
+| P6 | The P4 wording counted an unchanged scene twice while its render was running | The reservation has one line per distinct (clip key, take): live jobs under their own key, plus scenes with no clip and no live job for their current key |
