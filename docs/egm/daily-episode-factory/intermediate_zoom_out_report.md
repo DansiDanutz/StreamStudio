@@ -95,6 +95,18 @@ Glossary lets a fresh reader follow the Technical Plan without `docs/DESIGN.md` 
 - **Where**: "The paid step" ("when the episode reaches `uploaded_private`, or when it degrades its last failing scene").
 - **Recommendation**: Release at `uploaded_private` and `cancelled` only.
 
+### 9. The claim rule blocks recovery: an Advance after a network error cannot resume a submitted render [Greptile, PR review]
+- **Severity**: Major
+- **Where**: "The paid step" (claim rule); Risks table ("Advance button re-enqueues").
+- **Discrepancy**: `heygen_clip` writes its job id as a claim before `create_video` and exits as a no-op if another job's claim is present. After a network error or timeout the original job is finished (`max_attempts = 1`) but its claim and its saved `video_id` remain; the replacement job enqueued by Advance sees a foreign claim and returns, so the clip is never downloaded and repeated Advances stay blocked. Today's handler resumes from the saved `video_id` without paying again; the design must keep that.
+- **Recommendation**: A claim is valid only while its job is queued or running. The planner, before enqueueing a replacement for a scene whose job ended in `error`, transfers the claim to the new job id inside the row lock; the new job then resumes from the saved `video_id` exactly as the handler does today. State that a saved `video_id` is never discarded by recovery.
+
+### 10. Stage 0 installs a HyperFrames workspace that Stage 3 ships [Greptile, PR review]
+- **Severity**: Nit
+- **Where**: plan files 3, 4 (`npm ci` in `data_dir/cards/`), 46 (workspace files created in Stage 3).
+- **Discrepancy**: `npm ci` needs `package.json` and a matching lockfile; neither exists before Stage 3, so the Stage 0 launcher step fails on a fresh Mac.
+- **Recommendation**: Ship `package.json` and `package-lock.json` for the workspace in the server package (copied into `data_dir/cards/` before `npm ci`) in Stage 3, and move the `npm ci` launcher step and its preflight entry to Stage 3 with it.
+
 ---
 
 ## What passes
