@@ -36,3 +36,79 @@ kit (title, description with chapters, SRT), and agent control over HTTP and MCP
 Host and Origin, and the editor warns when the running server is older than the checkout.
 
 Next: YouTube upload (needs a Google OAuth client), per-agent permission scopes, a phone layout.
+
+## System Overview
+
+Three processes and one browser app, all local to the Mac Studio:
+
+```
+ Browser: web/ (React editor, Program window, render view)
+   │  HTTP + WebSocket /api, SSE /api/agent/stream
+   ▼
+ server/ FastAPI (streamstudio.api)  ──SQLite jobs table──▶  server/ worker (streamstudio.worker)
+   │  reads/writes DATA_DIR, assets/, recordings                │  ffmpeg, whisper-cli, rembg
+   │  ffmpeg RTMP push for live                                 │  HeyGen API (paid, confirmed first)
+   └── serves web/dist and assets/ in production                └── YouTube upload, vault push
+ server/ MCP server (streamstudio.mcp, stdio) ──▶ the API above, for agents
+ tools/compose: offline episode pipeline run by hand after a HeyGen render (not imported by the app)
+ mac/: launcher app that clones, builds, starts and opens the studio
+```
+
+The editor keeps the script as the master clock: the director store in `web/src/director` tweens the
+cards per cue and enforces the lip-sync guard; the same guard exists server-side in
+`server/src/streamstudio/render/lipsync.py` for offline renders. The API never does long work inline;
+it enqueues jobs that only the worker executes. Agents reach the editor through the server's agent bus
+(`/api/agent/*`) and the MCP server.
+
+## Subdirectories & System Boundaries
+
+- server: [./server/README.md](./server/README.md) - Python 3.12 backend: FastAPI API, SQLite, job worker,
+  EDL model, offline media tools, MCP server. Package contract in
+  [./server/src/streamstudio/README.md](./server/src/streamstudio/README.md).
+- web: [./web/README.md](./web/README.md) - React 19 + Vite + TypeScript editor, Program window and render
+  view; module contracts under [./web/src/README.md](./web/src/README.md).
+- tools: [./tools/README.md](./tools/README.md) - hand-run production tools; `tools/compose` turns a HeyGen
+  render into a DansLab episode (motion cards, mix, per-scene QA and re-render).
+- mac: [./mac/README.md](./mac/README.md) - the StreamStudio.app launcher and its icon script.
+- assets: studio plates, brand files, avatar and object clips served at the web root (`/studio`, `/avatar`,
+  `/objects`, `/brand`). No code.
+- docs: design reference (`DESIGN.md`), agent guides (`AGENTS.md`, `AGENT_GUIDE.md`), prompts, scripts, the
+  HTML mock, and [./docs/egm/README.md](./docs/egm/README.md) for EGM design briefs and reviews. No code.
+
+## Global Invariants
+
+- **Lip-sync guard.** The presenter's face may be large only while the voice is the clip's own lip-synced
+  audio. Editor: `web/src/director/types.ts:lipsMatch` / `guardCue` and `cueLayouts.ts:guardLayout`,
+  applied in `store.ts:play`; agents go through `web/src/agent/bridge.ts:'cue.apply'` with the guard on.
+  Offline: `server/src/streamstudio/render/lipsync.py:lips_match` / `guard_cue`, `MAX_UNSYNCED_AREA = 0.06`
+  in both copies.
+- **Card geometry is fractional.** Every card rect is a fraction of the Base card
+  (`web/src/stage/types.ts`); `Stage.tsx` sizes cards in `%` and sets `1em` to about 1% of the long edge.
+- **The Menu card is transparent in the output by default** (`Scene.menuShown` false in every preset but
+  `app-menu`; `Stage.tsx` renders it as a ghost in the editor).
+- **Network guard.** The API answers only loopback and, when `ALLOW_TAILNET`, the Tailscale ranges, and
+  checks `Host` and `Origin` (`server/src/streamstudio/core/netguard.py:NetGuardMiddleware`).
+- **Path safety.** User-supplied paths resolve through `core/paths.py` (`resolve_within`, `resolve_in_any`)
+  and the SPA handler only serves files inside `web/dist` or `assets/`.
+- **Jobs are idempotent and worker-only.** Routes enqueue; `worker/handlers.py` handlers check their own
+  output before working, and `store.find_active_job` prevents duplicate transcript and upload jobs.
+- **Paid APIs need an explicit confirm.** HeyGen renders run only with `confirm: true` after the estimate
+  (`api/routes/heygen.py:render`, `HeygenPanel.tsx`); the MCP server never sends `confirm` and always
+  uploads to YouTube as `private` (`streamstudio/mcp.py:call`).
+- **Secrets stay masked.** HeyGen, live and vault configs are written `0600` and returned masked.
+
+## Global Side Effects
+
+- SQLite database and `projects/`, `recordings/` under `DATA_DIR` (`core/config.py`, `core/db.py`).
+- Files written beside the repo: `assets/avatar/{clips,gestures}` (HeyGen downloads and cut-outs),
+  `<data_dir>/{heygen,live,vault,youtube}.json` and `youtube/` tokens, `library-web.json`, `catalog.json`.
+- Subprocesses: `ffmpeg`/`ffprobe` (API health, live push, worker, offline tools), `whisper-cli`, `git`
+  (health rev), Playwright Chromium (`render/preview.py`), `npx hyperframes` (`tools/compose/motion`).
+- External services: HeyGen (`api.heygen.com`, spends credits), Google OAuth and YouTube upload, an S3
+  endpoint or a synced folder for the vault, RTMP to YouTube Live. Browser-side: `getDisplayMedia`,
+  `getUserMedia`, `localStorage` keys `streamstudio.*`.
+
+## System Verification
+
+- Run: `make test` (server pytest + web vitest)
+- Lint: `make lint` (ruff, tsc, oxlint)
