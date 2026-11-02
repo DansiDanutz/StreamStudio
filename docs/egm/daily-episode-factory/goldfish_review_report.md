@@ -1,5 +1,7 @@
 # Goldfish Annotated Review Report
 
+Status: resolved (2026-11-02, auto accept: 37 fixes applied, 1 escalation kept its safe assumption, 6 nits declined)
+
 **Target:** `daily-episode-factory.md` (FeatureRange lines 1-659; where a fix must also touch the
 Detailed Implementation Plan to keep the document consistent, the plan item is named)
 
