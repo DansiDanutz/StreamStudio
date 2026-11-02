@@ -288,7 +288,7 @@ record
   scenes_state: { <scene_id>: { clip_key, take, job_id, video_id, duration_s,
                                 qa: ok|LOOK|FAIL|degraded|null, qa_issues: [], composed_hash, card_id } }
   cards: { <card_id>: { scenes: [ids], urlkey, durations_hash, cues } }
-  outputs: { channel, final_mp4, final_srt, kit, recording_id, youtube_video_id, publish_at }
+  outputs: { channel, final_mp4, final_srt, kit, recording_id, upload_job_id, youtube_video_id, publish_at }
   log: [ { at, stage, scene?, message } ]              # plain-words events for the status page
 ```
 
@@ -386,7 +386,7 @@ whose predicate holds for a scene or for the episode. "Live job" means a job id 
 | # | Predicate (record + files) | Action |
 | --- | --- | --- |
 | 1 | `budget_approved` or `in_progress`; a scene's clip state file says `failed` for its current take, or its recorded job ended in `error` (Stage 1) | Stage 1: set `needs_dan`, log the reason. Stage 2: see row 3. |
-| 2 | A scene has no clip (`<key>.mp4` and `.cutout.webm`) for its current take, no `failed` entry for that take, and no live job | Enqueue one `heygen_clip` (payload as today plus `take`, `episode_id`, one attempt); record the job id; set `in_progress`. If the scene's previous job ended in `error` with a saved `video_id`, transfer the claim to the new job id so it resumes that render. |
+| 2 | A scene has no clip (`<key>.mp4` and `.cutout.webm`) for its current take, no `failed` entry for that take, and no live job | Enqueue one `heygen_clip` (payload as today plus `take`, `episode_id`, `scene_id`, one attempt); record the job id; set `in_progress`. If the scene's previous job ended in `error` with a saved `video_id`, transfer the claim to the new job id so it resumes that render. |
 | 3 (Stage 2) | A scene's clip and cut-out exist for its current take, its QA result for that take is missing, and no `scene_qa` job for it is live | Enqueue `scene_qa`; after the first full pass store the medians in `reference`. (A `failed` state file means no clip exists, so rows 3a and 3c, not this row, handle a failed render.) |
 | 3a (Stage 2) | A scene is `FAIL`, or its clip state file says `failed`, and the allowance has attempts and USD left | Increment `take`, charge the allowance, go to row 2. |
 | 3b (Stage 2) | A scene is `FAIL` and the allowance is spent | Mark the scene `degraded` (its last clip is composed in the small rectangle); log it. |
@@ -397,7 +397,7 @@ whose predicate holds for a scene or for the episode. "Live job" means a job id 
 | 7 | Every `scenes/<id>.mp4` is up to date and neither `final.mp4` nor `outputs.recording_id` exists | Enqueue `episode_assemble`. |
 | 8 | `final.mp4` exists and `kit.json` does not | Enqueue `episode_publish_kit`. |
 | 9 | `kit.json` exists and `outputs.recording_id` is unset | Enqueue `episode_register`. |
-| 10 | `outputs.recording_id` is set and the upload state file has no `video_id` and no live upload job | Enqueue `youtube_upload` with `{id, channel, key: "<channel>/<rid>", meta: clean_meta(kit.title, kit.description, kit.tags, "private"), episode_id}`. |
+| 10 | `outputs.recording_id` is set, the upload state file has no `video_id`, and `outputs.upload_job_id` is unset or names a job that is neither queued nor running | Enqueue `youtube_upload` with `{id, channel, key: "<channel>/<rid>", meta: clean_meta(kit.title, kit.description, kit.tags, "private"), episode_id}` and record its id in `outputs.upload_job_id`. |
 | 11 | The upload state file names a `video_id` | Set `uploaded_private`; release what is left of the reservation. |
 
 No handler waits for another: each stage handler enqueues `episode_advance` when it finishes, the
@@ -612,9 +612,9 @@ all read that one shape.
 
 The editor gets an Episode page (`?episode=<id>`, usable at a 390 px wide viewport) with the
 scenes, warnings, the three buttons, and a "Needs you" panel that shows the last log line and the
-one action that unblocks it. The MCP server gains `episode_create`, `episode_list`,
-`episode_status`, `episode_estimate` and (Stage 2) `episode_refresh`, none of which can approve,
-publish, cancel or purge. Every job the planner enqueues carries `project_id` and
+one action that unblocks it. In Stage 2 the MCP server gains `episode_create`, `episode_list`,
+`episode_status`, `episode_estimate` and `episode_refresh`, none of which can approve, publish,
+cancel or purge. Every job the planner enqueues carries `project_id` and
 `payload.episode_id`; the worker log line includes it. `heygen_ledger` is the cost ledger;
 `budget.spent` is a cached projection of it. `/api/health` reports the toolchain (ffmpeg, whisper,
 rembg, OpenCV, Playwright Chromium, HyperFrames, fonts, intro, plate, music manifest) with cheap
@@ -942,8 +942,9 @@ it changes, so the READMEs never lag the code by a stage.
 
 *   **Type / Scope**: Developer entry points.
 *   **Proposed Changes**: `setup` becomes `uv sync -p 3.12 --extra episode` and runs
-    `server/.venv/bin/playwright install chromium`; `test` unchanged. (The HyperFrames workspace
-    install is added in Stage 3, file 46.)
+    `server/.venv/bin/playwright install chromium`; `test` and `setup-media` unchanged. (The
+    HyperFrames workspace install for the pipeline is added in Stage 3, file 46; Stage 0 uses the
+    workspace only by hand, file 8.)
 
 #### 4. `mac/StreamStudio.app/Contents/MacOS/StreamStudio` (Modify)
 
@@ -990,9 +991,13 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Type / Scope**: One-off brand generator.
 *   **Proposed Changes**: Reads fonts from `assets/brand/fonts/`, writes the composition under
     `data_dir/cards/intro/`, and runs `npx hyperframes render <dir> -o assets/brand/danslab-intro.mp4 -f 25 -q delivery`
-    from the HyperFrames workspace (Stage 3 installs it; until then the intro is rendered once by
-    hand). The `FPS = 30` constant only scales GSAP timings and stays. Documented as "run when
-    the branding changes", not part of the pipeline.
+    from the HyperFrames workspace. The workspace manifest and lockfile
+    (`server/src/streamstudio/episode/templates/package.json` and `package-lock.json`, pinning
+    `hyperframes` and `gsap` at the versions `tools/compose/motion/README.md` names today) are
+    created in this stage by this item, so the one-off Stage 0 render is `cp` of those two files
+    into `data_dir/cards/`, `npm ci` there, then the command above; file 46 later makes the
+    launcher and `make setup` do that copy. The `FPS = 30` constant only scales GSAP timings and
+    stays. Documented as "run when the branding changes", not part of the pipeline.
 
 #### 9. `server/src/streamstudio/episode/__init__.py`, `server/src/streamstudio/episode/preflight.py` (Create)
 
@@ -1001,7 +1006,8 @@ it changes, so the READMEs never lag the code by a stage.
     docstring and enforced by a test (file 36): no module under `episode/` imports `cv2`,
     `numpy`, `scipy`, `PIL`, `rembg` or `playwright` at module level; handlers import them inside
     the function body, as `handlers._cutout_clip` does today. `preflight.check(s, stage) -> {ok, missing}`
-    uses `shutil.which` and `Path.exists` only, and checks the tools of the shipped stage: Stage 1
+    uses `shutil.which`, `Path.exists` and `importlib.util.find_spec` (for the `rembg`, `cv2` and
+    `playwright` packages, never importing them), and checks the tools of the shipped stage: Stage 1
     ffmpeg, ffprobe, rembg, fonts, intro, plate, music manifest; Stage 2 adds whisper and the Haar
     cascade; Stage 3 adds Playwright Chromium and the HyperFrames workspace.
 
@@ -1034,9 +1040,12 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Type / Scope**: SQLite migrations and row decoding.
 *   **Proposed Changes**: Migration 4 creates `episodes` (id, project_id, status, title,
     created_at, updated_at, record_json) with an index on `status`, and `heygen_ledger` (id,
-    episode_id, scene_id, take, job_id, kind `reservation | charge | release`, seconds, usd, at)
-    with an index on `at` and `UNIQUE(episode_id, scene_id, take, kind)` so a charge is written
-    once. `row()` also decodes `record_json`. README: `core/README.md` `db.py` tables.
+    episode_id, approval_id, scene_id, take, job_id, kind `reservation | charge | release`,
+    seconds, usd, at) with an index on `at` and a partial unique index
+    `UNIQUE(episode_id, scene_id, take) WHERE kind = 'charge'` so a charge is written once;
+    reservation and release rows are one per estimate line and carry the approval that made them
+    (`approval_id`), so the same scene and take may be reserved again by a later approval. `row()`
+    also decodes `record_json`. README: `core/README.md` `db.py` tables.
 
 #### 13a. `server/src/streamstudio/core/store.py`, `server/src/streamstudio/api/deps.py` (Modify)
 
@@ -1071,7 +1080,8 @@ it changes, so the READMEs never lag the code by a stage.
 
 *   **Type / Scope**: Episode record storage.
 *   **Proposed Changes**: `create(conn, s, script) -> Episode` inserts the `projects` row
-    directly (no EDL version), the `episodes` row with `record_json`, and the episode directory;
+    directly (`name = script.title`, no EDL version), the `episodes` row with `record_json`
+    (`outputs.upload_job_id` starts unset), and the episode directory;
     ids from `ids.new_id("ep")` (`^ep_[a-z0-9]{8,40}$`). `load(conn, id)`, `save(conn, episode)`
     (inside the caller's `BEGIN IMMEDIATE`), `set_status`, `log(event)`, `list(conn)`,
     `export(s, episode)` (writes `episode.json` at purge). Helpers: `scene_key(scene, script, take)`
@@ -1084,11 +1094,16 @@ it changes, so the READMEs never lag the code by a stage.
 
 *   **Type / Scope**: Cost ledger.
 *   **Proposed Changes**: `month_total(conn, now)` (this month's charges plus the unconsumed part
-    of every open reservation, where an open reservation is the episode's latest reservation row
-    and unconsumed = its usd minus charges and releases since it, floored at zero);
-    `reserve(conn, episode, seconds, usd)`; `charge(conn, episode, scene, take, job_id, seconds, usd, at)`
-    (idempotent through the unique index); `release(conn, episode, seconds, usd)`;
-    `release_unsubmitted(conn, episode)`; `spent(conn, episode)` for `budget.spent`. All called
+    of every open reservation, where an open reservation is the episode's latest approval group
+    of reservation rows and unconsumed = the group's usd minus charges and releases since it,
+    floored at zero); `reserve(conn, episode, lines, allowance_usd) -> approval_id` where `lines`
+    is `[(scene_id, take, job_id | None, seconds, usd)]`, one row per line plus one allowance row
+    with `scene_id = NULL`; `charge(conn, episode, scene, take, job_id, seconds, usd, at)`
+    (idempotent through the partial unique index); `release(conn, episode, approval_id, lines)`
+    (one release row per released line, the allowance row included when the whole group is
+    released); `release_unsubmitted(conn, episode)` releases the latest group's lines whose
+    scene has no live job and no charge; `spent(conn, episode)` for `budget.spent`. This module
+    imports only `core`, so a worker handler may import it inside a function body. All called
     inside the caller's transaction.
 
 #### 18. `server/src/streamstudio/core/heygen.py` (Modify)
@@ -1117,8 +1132,9 @@ it changes, so the READMEs never lag the code by a stage.
     plus `progress: {clips, qa, composed, total}`, `validation: {errors, warnings}`,
     `next_action: str | None`, `last_log: str | None`), `PUT /{id}/script` (returns the episode
     to `draft`; when the script hash changes, unlinks `final.mp4`, `final.srt` and `kit.json` and
-    clears `outputs.recording_id`; 409 while a `youtube_upload` job is live and from
-    `uploaded_private` on), `POST /{id}/approve-script`,
+    clears `outputs.recording_id`; 409 while `outputs.upload_job_id` names a job whose
+    `jobs.status` is `queued` or `running`, and from `uploaded_private` on),
+    `POST /{id}/approve-script`,
     `GET /{id}/estimate` (issues `confirm_token`, ten-minute expiry), `POST /{id}/approve-budget`
     (requires the token, and an `Origin` header that is present and passes
     `netguard.origin_allowed(origin, s.extra_hosts)`, since the middleware treats a missing
@@ -1142,13 +1158,16 @@ it changes, so the READMEs never lag the code by a stage.
 #### 22. `server/src/streamstudio/worker/handlers.py` (Modify)
 
 *   **Type / Scope**: Existing job handlers.
-*   **Proposed Changes**: `heygen_clip` accepts `take` and `episode_id`; with an `episode_id` it:
+*   **Proposed Changes**: `heygen_clip` accepts `take`, `episode_id` and `scene_id`; with an
+    `episode_id` it:
     *   writes a claim (its job id) into `data_dir/heygen/<key>.json` before `create_video`, and
         returns as a no-op if the file holds another job's claim whose job is queued or running;
     *   never unlinks the state file; on HeyGen `failed` it writes `{failed: reason, at}` there
         and returns the same dict;
-    *   writes the ledger charge (measured duration for `completed`, estimated seconds for
-        `failed`);
+    *   writes the ledger charge for (`episode_id`, `scene_id`, `take`) (measured duration for
+        `completed`, estimated seconds for `failed`) through `streamstudio.episode.ledger`,
+        imported inside the function body (the ledger imports only `core`, so there is no cycle
+        and no heavy import);
     *   enqueues `episode_advance`.
     `youtube_upload` with `payload.episode_id` enqueues `episode_advance` on return.
     `store.enqueue` gains an optional `max_attempts` stored in the payload (honoured by
@@ -1171,7 +1190,8 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: `episode/handlers.py` decorates the episode handlers with
     `worker.handlers.handler(...)` and imports `planner`, `compose`, `mix`, `kit`, `publish`,
     `qa`, `capture`, `cards` lazily inside each function, so importing it pulls no heavy library
-    and `worker/handlers.py` never imports the episode package (no cycle). `planner.py`
+    and `worker/handlers.py` never imports the episode package at module level (its one
+    function-level import is `episode.ledger`, file 22, so there is no cycle). `planner.py`
     implements the condition table in the Technical Plan under the `episodes` row lock: Stage 1
     ships rows 1 (the `needs_dan` branch), 2 (with claim transfer for an errored job that saved a
     `video_id`), 6 (clip-and-cut-out predicate), 7, 8, 9, 10 and 11; Stage 2 replaces row 1 with
@@ -1190,7 +1210,9 @@ it changes, so the READMEs never lag the code by a stage.
     `assets/studio/plate-landscape-final.json["seat"]`; frame count `round(duration * 25)`;
     audio mapped from the clip with `-shortest`. `render/lipsync.py:guard_cue` is called per scene
     with the cue derived from the scene kind and the voice literal `"clip"`; degraded scenes use
-    `pip_rect`. Output `scenes/<scene>.mp4` via temp plus rename; `inputs_hash` recorded. Stage 1
+    `pip_rect`. `render.lipsync` imports PIL at module level, so it is imported inside the
+    handler and the compositing functions, never at the top of `compose.py` (file 36 checks).
+    Output `scenes/<scene>.mp4` via temp plus rename; `inputs_hash` recorded. Stage 1
     composes avatar scenes on the plate; card slices arrive in Stage 3. README:
     `render/README.md` names the compositor as a `lipsync.py` caller; `episode/README.md`.
 
@@ -1200,8 +1222,10 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: Concat demuxer over `scenes/*.mp4` with frame-count check; the intro
     from `assets/brand/danslab-intro.mp4`; the bed named by `manifest.json`; SFX from the cue
     table (`question` → riser at -1.3 s and pop at +0.3 s, `whoosh_at` → whoosh, card `navigate`
-    → page sound, `counter` → impact, `glitch` → glitch hit, `endcard` → warm shimmer, the offsets
-    carried over from `tools/compose/mix.py`) as a module constant; the levels table as one
+    → page sound, `counter` → sparkle at -0.1 s, `reveal` → deep impact at +0.3 s, `glitch` →
+    glitch hit, `endcard` → warm shimmer; the sounds and offsets are those of
+    `tools/compose/mix.py`, with the pop no longer tied to a lower-third's start) as a module
+    constant; the levels table as one
     constant dict; writes `final.mp4` and `final.cues.json`. Stage 1 ships intro, bed and the
     plan cues; card cues arrive in Stage 3.
 
@@ -1280,8 +1304,6 @@ it changes, so the READMEs never lag the code by a stage.
         reserved once, an edited scene with its old render running is reserved for both keys,
         then the previous reservation is released and the month's total never drops below the
         live job's estimate in between;
-    *   the planner never enqueues `scene_qa` for a scene whose state file says `failed` or whose
-        clip is still rendering;
     *   `PUT /script` returns an `in_progress` episode to `draft`, unlinks `final.mp4` and
         `kit.json` and clears `outputs.recording_id` when the hash changes, and is refused while
         an upload job is live and after `uploaded_private`;
@@ -1398,6 +1420,8 @@ it changes, so the READMEs never lag the code by a stage.
     *   the transcript check with a stubbed `transcribe`, including a name-heavy voice line that
         normalises to `ok` and a missing whisper recorded as "transcript unavailable";
     *   per-take transcript files survive a re-render;
+    *   the planner never enqueues `scene_qa` for a scene whose state file says `failed` or whose
+        clip is still rendering;
     *   a QA `FAIL` re-renders with `take+1` within the allowance; the next `FAIL` degrades;
     *   a render `failed` after the allowance parks in `needs_dan`;
     *   cancel releases only unsubmitted reservations;
@@ -1423,12 +1447,14 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: `Comp.__init__(cid, dur, pages_dir, workspace)`; `write` copies gsap
     from `workspace / "node_modules/gsap/dist/gsap.min.js"`, escapes every string, and emits
     `cues.json` (`[{kind, t}]`) from `navigate`, `counter`, `ring` and `call`;
-    `render(workspace, out_dir, mp4, browser, workers=4)` runs `npx hyperframes render` from the
-    workspace; a module attribute `RENDER = render` that tests replace (mirrors
-    `handlers.CUTOUT`). The workspace manifest and lockfile ship in `episode/templates/`
-    (hatchling includes them in the wheel); the launcher and `make setup` copy them to
-    `data_dir/cards/` and run `npm ci` there once per revision; preflight's Stage 3 set adds the
-    workspace and the Chromium path. README: `mac/README.md` gains the step.
+    `render(workspace, out_dir, mp4, browser, workers=4)` runs
+    `npx hyperframes render <out_dir> -o <mp4> -f 25 -q delivery --video-frame-format png -w <workers>`
+    from the workspace with `HYPERFRAMES_BROWSER_PATH=<browser>` in the subprocess environment
+    (as `build.py` does today); a module attribute `RENDER = render` that tests replace (mirrors
+    `handlers.CUTOUT`). The workspace manifest and lockfile, created by file 8 in Stage 0, ship
+    in `episode/templates/` (hatchling includes them in the wheel); the launcher and `make setup`
+    copy them to `data_dir/cards/` and run `npm ci` there once per revision; preflight's Stage 3
+    set adds the workspace and the Chromium path. README: `mac/README.md` gains the step.
 
 #### 47. `server/src/streamstudio/episode/cards.py` (Create)
 
@@ -1477,12 +1503,11 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: Removed; their purpose is covered by per-scene clips, cut-outs from
     `heygen_clip`, the planner and the status page's contact sheets.
 
-#### 52. Under `tools/compose/`: `render.py`, `qa_avatar.py`, `mix.py`, `motion/cards.py`, `motion/cards_v2.py` (Delete)
+#### 52. Under `tools/compose/`: `render.py`, `qa_avatar.py`, `mix.py`, `motion/build.py`, `motion/cards.py`, `motion/cards_v2.py`, `motion/intro/make_intro.py` (Delete)
 
-*   **Type / Scope**: Replaced by the server package or the fixture.
-*   **Proposed Changes**: Deleted after files 25, 26, 35, 37 and 47 land (the builder and the
-    intro generator were already ported by files 46 and 8, which remove their sources); the
-    Episode 1 v2 storyboards survive only as the JSON fixture (file 35).
+*   **Type / Scope**: Replaced by the server package, `tools/brand/` or the fixture.
+*   **Proposed Changes**: Deleted after files 8, 25, 26, 35, 37, 46 and 47 land; the Episode 1 v2
+    storyboards survive only as the JSON fixture (file 35).
 
 #### 53. `tools/compose/README.md`, `tools/README.md` (Modify); `tools/compose/motion/README.md`, `tools/compose/motion/intro/README.md` (Delete)
 

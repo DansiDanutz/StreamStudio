@@ -261,3 +261,10 @@ and applied to the final design and the mirror:
 | P4 | Re-approval released the previous reservation while a render was still running | The new reservation includes every live render job's estimate before the previous one is released |
 | P5 | An episode's `projects` row was listed by `/api/projects` and its detail route would fail on `latest_edl` | `list_projects` excludes rows with an `episodes` row; `project_or_404` answers 404 for them (new plan item 13a) |
 | P6 | The P4 wording counted an unchanged scene twice while its render was running | The reservation has one line per distinct (clip key, take): live jobs under their own key, plus scenes with no clip and no live job for their current key |
+
+### Stage 9 re-audit resolution (round 2)
+
+The confirming re-audit (`implementation_readiness_report.md`, round 2) returned five Majors and
+nine Nits, J1 to J13, all contradictions between plan items or against the source. Each was
+applied under the standing auto-accept decision; no finding was contested or escalated. The
+review then concluded and the design's status moved to Final.

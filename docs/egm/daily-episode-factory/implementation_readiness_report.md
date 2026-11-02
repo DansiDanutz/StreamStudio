@@ -127,3 +127,30 @@ reviewers: the plan does not yet pass the zero-decision rule.
 | S-M2 | I14 |
 | all C-N, R-N | I16 |
 | all S-N | I17 |
+
+---
+
+# Implementation Readiness Report (Stage 9, round 2: confirming re-audit)
+
+**Target:** `daily-episode-factory.md` after the Stage 9 resolution and the six PR corrections.
+Reviewers `egm-implementation-readiness` and `egm-codebase-details`, fresh contexts, dispatched
+directly. Both confirmed every I and P fix present and every Modify/Delete/Create and reuse claim
+true against the source. Round verdict before fixes: **not clean** (five Majors, nine Nits);
+all applied in the same session, after which the review concluded.
+
+## Majors
+- **J1 (R-M1, C-N4).** Ledger granularity contradicted itself across items 13, 17, 20 and 44 (aggregate `reserve`, per-line wording, a unique index that rejected re-reserving a scene). Fix: reservation and release rows are one per estimate line with an `approval_id`; the allowance is one line with `scene_id = NULL`; the unique index is partial on `charge`; `reserve(conn, episode, lines, allowance_usd)`, `release(conn, episode, approval_id, lines)`.
+- **J2 (R-M2).** Item 22 had `heygen_clip` write a charge while item 24 forbade importing the episode package, and the payload lacked `scene_id`. Fix: the ledger imports only `core` and is imported inside the function body; row 2 and item 22 carry `scene_id`.
+- **J3 (R-M3).** Row 10 and item 20 tested for a live upload job with no field holding its id. Fix: `outputs.upload_job_id`, recorded by row 10 and read by the 409 check.
+- **J4 (R-M4).** Stage 0 needed a HyperFrames workspace that Stage 3 created. Fix: item 8 creates the `episode/templates` manifest and lockfile in Stage 0 and states the one-off copy + `npm ci` + render; item 46 keeps the launcher step.
+- **J5 (C-M1).** `render/lipsync.py` imports PIL at module level, so item 25's natural import broke the package rule. Fix: imported inside the handler and compositing functions.
+
+## Nits
+- **J6 (R-N1).** The row 3 test moved from item 33 (Stage 1) to item 44 (Stage 2).
+- **J7 (R-N2).** `motion/build.py` and `motion/intro/make_intro.py` added to item 52's Delete list.
+- **J8 (R-N3, C-N2).** Item 26's cue table aligned with `mix.py`: `counter` → sparkle at -0.1 s, `reveal` → deep impact at +0.3 s.
+- **J9 (R-N4).** Preflight may use `importlib.util.find_spec` for Python packages.
+- **J10 (R-N5).** Item 46 names the full render command and `HYPERFRAMES_BROWSER_PATH`.
+- **J11 (R-N6).** The specification places all five MCP tools in Stage 2, matching item 41.
+- **J12 (C-N3).** Item 16: the project row's `name` is `script.title`.
+- **J13 (C-N5).** Item 3: `setup-media` unchanged.
