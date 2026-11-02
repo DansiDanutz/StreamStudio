@@ -1,0 +1,21 @@
+{
+  "extraKnownMarketplaces": {
+    "egm": {
+      "source": {
+        "source": "github",
+        "repo": "google/elephant-goldfish-model"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "egm@egm": true
+  },
+  "permissions": {
+    "allow": [
+      "Read(~/.claude/plugins/cache/egm/egm/*/agents/**)",
+      "Read(~/.claude/plugins/cache/egm/egm/*/docs/**)",
+      "Read(~/.claude/plugins/cache/egm/egm/*/resources/**)",
+      "Read(~/.claude/plugins/cache/egm/egm/*/skills/**)"
+    ]
+  }
+}
