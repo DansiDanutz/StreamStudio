@@ -14,7 +14,7 @@ The editor's side of the agent bus. `catalog.ts` builds the artifact library the
 - `segment.update`, `segment.add` and `script.set` mark segments `pinned: true` (`bridge.ts`).
 - `bridge.ts:segIndex` accepts a number, a numeric string or a segment id and throws when out of range.
 - Id prefixes are stripped before lookup (`scene:`, `template:`, `target:`, `gesture:`, `object:`/`media:`, `workflow:`) in the respective executors.
-- The catalog is published only after `loadGestureManifest()` resolves, so `clip_ready` is true only for clips that exist (`bridge.ts:startAgentBridge`).
+- The catalog is published only after `loadGestureManifest()` resolves. If the manifest fails to load, `hasClip` assumes every gesture is available, so `clip_ready` is optimistic rather than a confirmed file check (`bridge.ts:startAgentBridge`, `../avatar/gestures.ts:loadGestureManifest`, `hasClip`).
 - `buildCatalog` lists a `media:` artifact only for `LIBRARY` items that are not `OBJECTS` (`catalog.ts`).
 
 ## Side Effects

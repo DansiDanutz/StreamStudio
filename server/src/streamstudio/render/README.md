@@ -35,7 +35,7 @@ it with ffmpeg. `opener.py` and `preview.py` are command-line scripts;
 ## Invariants
 
 - `[lipsync.py:lips_match]` is true only when a clip is set and `voice != "narration"`. `[lipsync.py:guard_cue]` leaves the cue unchanged when lips match; otherwise `avatar` becomes `pip` and `duo` becomes `content`, so the face is never full-frame or the big card of `duo` with any other voice. `[lipsync.py:MAX_UNSYNCED_AREA]` is the largest share of the frame (0.06) the face may take when lips do not match.
-- `[lipsync.py:pip_rect]` The small card is 15 % of the width in landscape and 30 % in portrait, bottom-left, square for `circle` and 4:3 for `portrait`; `[lipsync.py:pip_card]` applies an elliptical or rounded-rectangle alpha mask.
+- `[lipsync.py:pip_rect]` The small card is 15 % of the width in landscape and 30 % in portrait, bottom-left, square for `circle` and 3:4 (width:height) for `portrait`; `[lipsync.py:pip_card]` applies an elliptical or rounded-rectangle alpha mask.
 - `[opener.py:dan_index]` Dan's real clip frames play only for `t < SPEECH_END`; afterwards a closed-mouth loop over frames 234–243 with a blink (243–247) every 5.2 s is used.
 - `[opener.py]` `F_TITLE`, `F_LINE`, `F_LABEL`, `F_FINAL` are loaded at import from `FONT_DIR` (`/usr/share/fonts/opentype/inter`); importing the module fails when those font files are absent.
 - `[opener.py:main]` Audio is normalised with `loudnorm=I=-14:TP=-1.5:LRA=11`; video is `libx264` crf 17 at `--fps`.

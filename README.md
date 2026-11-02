@@ -56,8 +56,11 @@ Three processes and one browser app, all local to the Mac Studio:
 
 The editor keeps the script as the master clock: the director store in `web/src/director` tweens the
 cards per cue and enforces the lip-sync guard; the same guard exists server-side in
-`server/src/streamstudio/render/lipsync.py` for offline renders. The API never does long work inline;
-it enqueues jobs that only the worker executes. Agents reach the editor through the server's agent bus
+`server/src/streamstudio/render/lipsync.py` for offline renders. Long jobs (recording finish, transcripts,
+HeyGen renders, YouTube uploads, vault pushes) are queued and only the worker executes them. Some work still
+runs inside an API request: a vault fetch (`POST /api/vault/fetch`, or a missing recording or avatar asset
+fetched on download) transfers the whole file before responding, and the live WebSocket feeds ffmpeg for
+the length of the broadcast. Agents reach the editor through the server's agent bus
 (`/api/agent/*`) and the MCP server.
 
 ## Subdirectories & System Boundaries
@@ -90,8 +93,9 @@ it enqueues jobs that only the worker executes. Agents reach the editor through 
   checks `Host` and `Origin` (`server/src/streamstudio/core/netguard.py:NetGuardMiddleware`).
 - **Path safety.** User-supplied paths resolve through `core/paths.py` (`resolve_within`, `resolve_in_any`)
   and the SPA handler only serves files inside `web/dist` or `assets/`.
-- **Jobs are idempotent and worker-only.** Routes enqueue; `worker/handlers.py` handlers check their own
-  output before working, and `store.find_active_job` prevents duplicate transcript and upload jobs.
+- **Jobs are idempotent and worker-only.** Queued jobs run only in the worker; `worker/handlers.py` handlers
+  check their own output before working, and `store.find_active_job` prevents duplicate transcript and
+  upload jobs. Vault fetches and the live ingest are the request-time exceptions named above.
 - **Paid APIs need an explicit confirm.** HeyGen renders run only with `confirm: true` after the estimate
   (`api/routes/heygen.py:render`, `HeygenPanel.tsx`); the MCP server never sends `confirm` and always
   uploads to YouTube as `private` (`streamstudio/mcp.py:call`).
