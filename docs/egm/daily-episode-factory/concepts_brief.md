@@ -187,8 +187,9 @@ Where all six agreed it says so; those are the decisions the design cannot avoid
     line-level warnings. The validator checks presence, not truth.
 
 19. **The 3 to 13 s rule is a wish today.** `autoDirect.ts:splitScript` splits by paragraph or
-    sentence pairs, not by duration. Episode 1 v2 breaks the rule in five of 36 scenes (13.12 s,
-    13.93 s; 3.2, 3.44, 3.64 s) even with hand splitting. A hard gate would make v2 unimportable;
+    sentence pairs, not by duration. Episode 1 v2 breaks the rule in two of 36 scenes (13.12 s and
+    13.93 s) even with hand splitting; three more sit just above the 3 s floor (3.2, 3.44, 3.64 s)
+    and are within the rule. A hard gate would make v2 unimportable;
     it must be a warning the splitter tries to satisfy.
 
 20. **Vocabulary collides.** "Scene" is a saved stage set in the editor (`/api/scenes`, Library tab
