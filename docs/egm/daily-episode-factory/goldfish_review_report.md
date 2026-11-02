@@ -8,7 +8,8 @@ Stage 6 comprehension findings that no Stage 7 reviewer raised (carried as Z- an
 Categories: PROPOSE FIX (valid, edit defined), CONTEST (inaccurate, evidence cited), ESCALATE
 (needs a fact only Dan has), DECLINE (nit recorded, not fixed).
 
-Counts: 36 PROPOSE FIX, 0 CONTEST, 1 ESCALATE, 6 DECLINE.
+Counts: 37 PROPOSE FIX, 0 CONTEST, 1 ESCALATE, 6 DECLINE (C33 added from a PR review finding
+that arrived while the gate was open).
 
 ## Escalated (needs Dan's knowledge, not only approval)
 
@@ -158,6 +159,12 @@ Counts: 36 PROPOSE FIX, 0 CONTEST, 1 ESCALATE, 6 DECLINE.
 
 ### [C32] Style nits [`egm-style`] - Severity: Nit
 *   ***AI Suggestion:*** PROPOSE FIX for the ones that change meaning: N3 (status names as code identifiers), N4 (digits), N5 (`data_dir`), N6 (QA status case: keep `qa_avatar.py`'s names and say so), N14 ("wallet balance after this render"), N37 ("roughly 45 %" gets its basis: the card-scene share of Episode 1 v2's seconds), N38 ("run at most two at a time"). DECLINE the rest (heading case, sentence splits, idiom swaps) as pure style; the style report holds the replacements for a later pass.
+
+### [C33] Cancelling an episode releases money already committed to HeyGen [Greptile, PR review] - Severity: Major
+*   **Affected Scope:** "The paid step" (reservation release rule); C6's new `cancelled` state.
+*   **Discrepancy:** Cancelling a local `heygen_clip` only stops polling and returns the saved `video_id` (`handlers.py:246-247`); HeyGen keeps rendering and bills. Releasing the whole reservation on cancel lets another episode pass the ceiling with that money.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "On `cancelled`, the planner releases only the part of the reservation for clips that were never submitted (no `video_id`). Clips already submitted stay reserved until their render completes or fails and a charge row is written, which the planner does on its next pass even for a cancelled episode." Test added to the ledger tests: cancel with two submitted clips keeps their seconds reserved.
 
 ## Carried from Stage 5 (zoom-out) and Stage 6 (comprehension)
 
