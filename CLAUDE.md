@@ -17,6 +17,11 @@ Read `PLAN.md` (milestones, decisions) and `docs/DESIGN.md` (visual grammar, mea
 - Agents use StreamStudio through the artifact library and the MCP server (`docs/AGENTS.md`). A new artifact kind or action goes in `web/src/agent/catalog.ts` + `bridge.ts` (editor) or `api/routes/agent.py` (server), with a test.
 - Run `make test` and `make lint` before committing. `make dev` runs api + worker + web.
 
+## Design specs (EGM)
+The Elephant-Goldfish Model plugin (`egm@egm`, declared in `.claude/settings.json`) is the spec-first workflow for any feature that needs design decisions before code: `/egm:egm-brainstorm` → `/egm:egm-draft` → `/egm:egm-review design_draft.md`. Small, clear fixes skip it. Briefs, drafts and review reports are kept with the other design docs:
+
+EGM artifact directory: docs/egm
+
 ## Episode production rules (Dan's, every video)
 Full text in `docs/DESIGN.md` → "Episode production rules". In short:
 - **Scenes of ~10 s.** Every script is split into ~10-second scenes; each scene is its own clip, checked on its own; a faulty scene is re-rendered alone and swapped in.
