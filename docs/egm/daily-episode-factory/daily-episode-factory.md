@@ -164,10 +164,12 @@ answered in the Technical Plan and the Verification Plan.
 *   **When**: Dan edits the words of scenes 6 and 12 (the episode returns to `draft`), clicks
     Approve script again, reads the cost screen (2 scenes, 19 s, about 0.75 USD) and clicks
     Approve budget.
-*   **Then**: The previous reservation is released and a new one covers only the two scenes
-    without a clip for their new key. Only those two clips are rendered; the two composites and
-    the concatenation are rebuilt; cards whose scene durations changed are rebuilt; the publish
-    kit's captions and chapters are regenerated; the upload proceeds as in CUJ 1. Editing an
+*   **Then**: A new reservation covers the two scenes without a clip for their new key (plus any
+    render still running), and the previous one is released. Only those two clips are rendered;
+    the stale `final.mp4` and `kit.json` were removed by the edit, so the two composites, the
+    concatenation, cards whose scene durations changed and the publish kit's captions and
+    chapters are rebuilt; the episode is registered as the next take; the upload proceeds as in
+    CUJ 1. Editing an
     episode that is already `uploaded_private` is refused; re-voicing after upload is out of scope
     for v1.
 
@@ -264,8 +266,11 @@ scene s12 (voice, plan) ──clip key (text, look, voice, motion, take)──�
 One episode is one row in a new `episodes` table whose `record_json` column holds the whole
 record, read and written under a write lock, as `edl_versions` stores EDL (edit decision list)
 JSON today. The episode is also a `projects` row (inserted directly, not through
-`create_project`, so no EDL version is created and the row is not listed as a project), so
-`jobs.project_id` correlates every job to its episode with no schema change to `jobs`. The
+`create_project`, so no EDL version is created), so `jobs.project_id` correlates every job to its
+episode with no schema change to `jobs`. The project API keeps its contract by excluding
+episode-owned rows: `store.list_projects` skips rows that have an `episodes` row, and
+`project_or_404` answers 404 for them, so no caller reaches `latest_edl` for a project without an
+EDL. The
 episode's files live under `data_dir/episodes/<episode_id>/`; `episode.json` there is an export
 written at purge for the archive, not a live store. Migration 4 adds two tables: `episodes` (id,
 project_id, status, title, created_at, updated_at, record_json) and `heygen_ledger` (see "The
@@ -299,9 +304,14 @@ rules:
 
 *   `PUT /{id}/script` from `draft`, `script_approved`, `budget_approved` or `in_progress` returns
     the episode to `draft`. In-flight clip jobs finish and are charged to the existing
-    reservation; nothing new is enqueued until the next budget approval, which releases what is
-    left of the previous reservation and reserves only the scenes that have no clip for their
-    current key. After `uploaded_private` the edit is refused with 409.
+    reservation; nothing new is enqueued until the next budget approval, which reserves the
+    scenes that have no clip for their current key plus the estimated seconds of every live render
+    job, and only then releases the previous reservation, so submitted work never leaves the
+    ledger. An edit whose script hash changes makes every output downstream of the scenes stale:
+    `final.mp4`, `final.srt` and `kit.json` are unlinked and `outputs.recording_id` is cleared
+    (the registered recording stays in the library as an earlier take; the next registration is
+    the next take), so rows 7 to 10 of the planner rebuild them. While a `youtube_upload` job is
+    live, and after `uploaded_private`, the edit is refused with 409.
 *   `needs_dan`: a stage job ends in `error` (network, tool crash, disk full, HeyGen cap), or a
     render fails after the allowance is spent; the reason is written to `log`.
     `POST /{id}/advance` after Dan acts returns the episode to `in_progress`.
@@ -375,7 +385,7 @@ whose predicate holds for a scene or for the episode. "Live job" means a job id 
 | --- | --- | --- |
 | 1 | `budget_approved` or `in_progress`; a scene's clip state file says `failed` for its current take, or its recorded job ended in `error` (Stage 1) | Stage 1: set `needs_dan`, log the reason. Stage 2: see row 3. |
 | 2 | A scene has no clip (`<key>.mp4` and `.cutout.webm`) for its current take, no `failed` entry for that take, and no live job | Enqueue one `heygen_clip` (payload as today plus `take`, `episode_id`, one attempt); record the job id; set `in_progress`. If the scene's previous job ended in `error` with a saved `video_id`, transfer the claim to the new job id so it resumes that render. |
-| 3 (Stage 2) | A clip's QA result is missing for its current take | Enqueue `scene_qa`; after the first full pass store the medians in `reference`. |
+| 3 (Stage 2) | A scene's clip and cut-out exist for its current take, its QA result for that take is missing, and no `scene_qa` job for it is live | Enqueue `scene_qa`; after the first full pass store the medians in `reference`. (A `failed` state file means no clip exists, so rows 3a and 3c, not this row, handle a failed render.) |
 | 3a (Stage 2) | A scene is `FAIL`, or its clip state file says `failed`, and the allowance has attempts and USD left | Increment `take`, charge the allowance, go to row 2. |
 | 3b (Stage 2) | A scene is `FAIL` and the allowance is spent | Mark the scene `degraded` (its last clip is composed in the small rectangle); log it. |
 | 3c (Stage 2) | A clip state file says `failed` and the allowance is spent | Set `needs_dan` ("Scene N could not be rendered after K attempts"). |
@@ -576,8 +586,8 @@ a `scheduled` episode after `publish_at`, and MCP may call it. A passed `publish
 video still private does not count: the page shows "scheduled release did not happen" and offers
 the refresh, so a release cancelled in YouTube Studio never leads to a purge.
 
-After `uploaded_private`, `PUT /{id}/script` is refused with 409: YouTube cannot replace a video
-file, and a second upload is a second video. Re-voicing an uploaded episode is out of scope for
+While an upload job is live and after `uploaded_private`, `PUT /{id}/script` is refused with
+409: YouTube cannot replace a video file, and a second upload is a second video. Re-voicing an uploaded episode is out of scope for
 v1 (Future Improvements); a new episode from the same script reuses every unchanged clip through
 the clip key.
 
@@ -1026,6 +1036,15 @@ it changes, so the READMEs never lag the code by a stage.
     with an index on `at` and `UNIQUE(episode_id, scene_id, take, kind)` so a charge is written
     once. `row()` also decodes `record_json`. README: `core/README.md` `db.py` tables.
 
+#### 13a. `server/src/streamstudio/core/store.py`, `server/src/streamstudio/api/deps.py` (Modify)
+
+*   **Type / Scope**: Project listing and lookup.
+*   **Proposed Changes**: `list_projects` adds `WHERE NOT EXISTS (SELECT 1 FROM episodes e WHERE
+    e.project_id = p.id)`; `project_or_404` raises 404 when the project id has an `episodes` row.
+    Episode-owned project rows are therefore invisible to `/api/projects`, whose `GET /{pid}`
+    unpacks `latest_edl` and would fail on a row without an EDL. README: `core/README.md`
+    `store.py` ("episode-owned rows are excluded"); `api/README.md` `deps.py`.
+
 #### 14. `server/src/streamstudio/episode/contract.py` (Create)
 
 *   **Type / Scope**: Pydantic models.
@@ -1095,14 +1114,17 @@ it changes, so the READMEs never lag the code by a stage.
     `GET /`, `GET /{id}` (pure; returns `EpisodeOut` = the record without `budget.confirm_token`
     plus `progress: {clips, qa, composed, total}`, `validation: {errors, warnings}`,
     `next_action: str | None`, `last_log: str | None`), `PUT /{id}/script` (returns the episode
-    to `draft`; 409 from `uploaded_private` on), `POST /{id}/approve-script`,
+    to `draft`; when the script hash changes, unlinks `final.mp4`, `final.srt` and `kit.json` and
+    clears `outputs.recording_id`; 409 while a `youtube_upload` job is live and from
+    `uploaded_private` on), `POST /{id}/approve-script`,
     `GET /{id}/estimate` (issues `confirm_token`, ten-minute expiry), `POST /{id}/approve-budget`
     (requires the token, and an `Origin` header that is present and passes
     `netguard.origin_allowed(origin, s.extra_hosts)`, since the middleware treats a missing
     header as a non-browser request; under the row lock resolves `youtube.pick_channel(s.data_dir, script.channel)`
     with 409 when it raises, recomputes the month's total, refuses with 409 over the ceiling,
-    releases any previous reservation, reserves only scenes without a clip for their current key,
-    writes `outputs.channel` and `budget.approved_at`), `POST /{id}/publish` (Stage 1: publish
+    reserves the scenes without a clip for their current key plus the estimated seconds of every
+    live `heygen_clip` job, then releases any previous reservation, writes `outputs.channel` and
+    `budget.approved_at`), `POST /{id}/publish` (Stage 1: publish
     now only; `publish_at` accepted from Stage 2), `POST /{id}/advance`, `POST /{id}/purge`.
     Stage 2 adds `POST /{id}/refresh`, `POST /{id}/cancel`, `GET /{id}/qa/{scene}.jpg`. Ids
     validated by the regexes in files 14 and 16. README: `api/routes/README.md` new section;
@@ -1251,10 +1273,16 @@ it changes, so the READMEs never lag the code by a stage.
         named;
     *   two queued approvals cannot both pass against the same remaining balance;
     *   a charge dated in the month after its approval counts in that month;
-    *   a second approval releases the previous reservation and reserves only scenes without a
-        clip;
-    *   `PUT /script` returns an `in_progress` episode to `draft` and is refused after
-        `uploaded_private`;
+    *   a second approval reserves only scenes without a clip plus the seconds of a live render
+        job, then releases the previous reservation, and the month's total never drops below the
+        live job's estimate in between;
+    *   the planner never enqueues `scene_qa` for a scene whose state file says `failed` or whose
+        clip is still rendering;
+    *   `PUT /script` returns an `in_progress` episode to `draft`, unlinks `final.mp4` and
+        `kit.json` and clears `outputs.recording_id` when the hash changes, and is refused while
+        an upload job is live and after `uploaded_private`;
+    *   an episode's project row is absent from `GET /api/projects` and `GET /api/projects/{pid}`
+        answers 404 for it;
     *   publish now through the fake YouTube transport sets `published`;
     *   `GET /{id}` has no side effects and returns the `EpisodeOut` shape;
     *   preflight 503 with missing names.
@@ -1286,7 +1314,9 @@ it changes, so the READMEs never lag the code by a stage.
     `script.json`. Converter rules: plan `question: true` → scene `question: n` (counted from 1);
     `kind: card` for entries with `still`/`tag`/`video`; `site` from a hand-written table of the
     storyboard groups in `cards_v2.py`; `video`, `video_at`, `cont`, `still`, `tag`, `intro_zoom`
-    dropped (cards are derived from `kind: card` + `site`); every other key copied into `plan`.
+    dropped (cards are derived from `kind: card` + `site`); the fixture's own `kind` key is
+    consumed by the scene, never copied; every other key copied into `plan`. A test asserts the
+    converted fixture validates against `Script` (`Plan` forbids extra keys).
 
 #### 36. `server/tests/test_episode_imports.py` (Create)
 

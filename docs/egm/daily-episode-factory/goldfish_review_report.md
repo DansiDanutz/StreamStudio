@@ -247,3 +247,16 @@ otherwise left, recorded as accepted).
 | I15 | PROPOSE FIX | Item 49 list; `qa/<scene>.jpg` everywhere. |
 | I16 | PROPOSE FIX | All listed decisions pinned in the relevant items. |
 | I17 | PROPOSE FIX (partial) | Meaning-changing style items applied; remaining wording nits accepted as is. |
+
+### PR review corrections after Stage 9
+
+Five findings from the automated PR review of the Stage 9 head, each verified against the source
+and applied to the final design and the mirror:
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| P1 | Planner row 3 queued `scene_qa` for a scene whose render failed or is still rendering | Row 3 requires the clip and cut-out to exist, the QA result to be missing and no live `scene_qa` job; rows 3a and 3c own failed renders |
+| P2 | `PUT /{id}/script` left `final.mp4`, `kit.json` and `outputs.recording_id` in place, so rows 7 to 9 kept the old video | An edit that changes the hash unlinks the final outputs and clears the recording id (the registered recording stays as an earlier take); 409 while an upload job is live |
+| P3 | The fixture converter copied `kind` into `Plan`, which forbids extra keys | `kind` is consumed by the scene; a test validates the converted fixture |
+| P4 | Re-approval released the previous reservation while a render was still running | The new reservation includes every live render job's estimate before the previous one is released |
+| P5 | An episode's `projects` row was listed by `/api/projects` and its detail route would fail on `latest_edl` | `list_projects` excludes rows with an `episodes` row; `project_or_404` answers 404 for them (new plan item 13a) |
