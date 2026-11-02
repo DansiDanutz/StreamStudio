@@ -286,9 +286,11 @@ record
             allowance: {attempts, usd}, spent: {renders, seconds, usd} }      # spent is a projection of the ledger
   reference: { face: [x,y,w,h], lip_ratio }           # QA medians from the first full pass (Stage 2)
   scenes_state: { <scene_id>: { clip_key, take, job_id, video_id, duration_s,
-                                qa: ok|LOOK|FAIL|degraded|null, qa_issues: [], composed_hash, card_id } }
+                                qa: ok|LOOK|FAIL|degraded|null, qa_issues: [], composed_hash, card_id,
+                                qa_job_id, capture_job_id, card_job_id, compose_job_id } }
   cards: { <card_id>: { scenes: [ids], urlkey, durations_hash, cues } }
-  outputs: { channel, final_mp4, final_srt, kit, recording_id, upload_job_id, youtube_video_id, publish_at }
+  outputs: { channel, final_mp4, final_srt, kit, recording_id, youtube_video_id, publish_at,
+             assemble_job_id, kit_job_id, register_job_id, upload_job_id }
   log: [ { at, stage, scene?, message } ]              # plain-words events for the status page
 ```
 
@@ -380,8 +382,13 @@ and returns. It is enqueued by the API after each approval, by every stage handl
 finishes (including a handler that ended in `error`, which the worker loop enqueues on the
 handler's behalf), and by `POST /api/episodes/{id}/advance` for a manual resume. It runs under
 the `episodes` row lock and evaluates the table below top to bottom, acting on the first row
-whose predicate holds for a scene or for the episode. "Live job" means a job id recorded in
-`scenes_state` whose `jobs.status` is `queued` or `running`.
+whose predicate holds for a scene or for the episode. "Live job" means a job id recorded in the
+record whose `jobs.status` is `queued` or `running`. Every row that enqueues a job records the
+job id in the record inside the lock (per scene: `job_id` for the clip, `qa_job_id`,
+`capture_job_id`, `card_job_id`, `compose_job_id`; per episode: `outputs.assemble_job_id`,
+`kit_job_id`, `register_job_id`, `upload_job_id`), and no row fires while the job it last recorded
+for that scene or episode is live, so a planner run during a capture, a card render, a composite
+or an assembly never enqueues the same work twice.
 
 | # | Predicate (record + files) | Action |
 | --- | --- | --- |
@@ -402,8 +409,9 @@ whose predicate holds for a scene or for the episode. "Live job" means a job id 
 
 No handler waits for another: each stage handler enqueues `episode_advance` when it finishes, the
 planner counts what exists, and only the last handler of a stage finds everything present. Two
-planners running at once are safe because row 2 records job ids inside the lock, every handler is
-idempotent, and the clip handler's claim stops a second payment (see "The paid step").
+planners running at once are safe because every row records its job id inside the lock and skips
+while that job is live, every handler is idempotent, and the clip handler's claim stops a second
+payment (see "The paid step").
 
 ### The paid step
 
@@ -417,7 +425,10 @@ table holds three kinds of row, each tied to an episode, a scene, a take and a j
 **reservation** when a budget is approved (the estimate plus the allowance, dated when approved);
 a **charge** when a render completes or fails (the billed seconds and USD, dated when the render
 finished, which may fall in a later month than the approval); a **release** when unconsumed
-reserved money is given back. A charge is written once per (episode, scene, take). The
+reserved money is given back. A charge is written once per (episode, clip key): the clip key
+already encodes the words and the take, so an edit that changes the words and a QA re-render that
+raises the take each get their own charge, and a render still running when its scene is edited is
+charged under its old key. The
 unconsumed part of an episode's reservation is its latest reservation's USD minus its charges and
 releases since, floored at zero. The month's total is the sum of this calendar month's charges
 plus the unconsumed part of every open reservation, whatever month the episode was created in.
@@ -1040,9 +1051,11 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Type / Scope**: SQLite migrations and row decoding.
 *   **Proposed Changes**: Migration 4 creates `episodes` (id, project_id, status, title,
     created_at, updated_at, record_json) with an index on `status`, and `heygen_ledger` (id,
-    episode_id, approval_id, scene_id, take, job_id, kind `reservation | charge | release`,
-    seconds, usd, at) with an index on `at` and a partial unique index
-    `UNIQUE(episode_id, scene_id, take) WHERE kind = 'charge'` so a charge is written once;
+    episode_id, approval_id, scene_id, clip_key, take, job_id, kind
+    `reservation | charge | release`, seconds, usd, at) with an index on `at` and a partial
+    unique index `UNIQUE(episode_id, clip_key) WHERE kind = 'charge'` so a charge is written once
+    per paid render (the key encodes words and take, so an edited scene's old and new renders
+    are distinct charges);
     reservation and release rows are one per estimate line and carry the approval that made them
     (`approval_id`), so the same scene and take may be reserved again by a later approval. `row()`
     also decodes `record_json`. README: `core/README.md` `db.py` tables.
@@ -1097,9 +1110,10 @@ it changes, so the READMEs never lag the code by a stage.
     of every open reservation, where an open reservation is the episode's latest approval group
     of reservation rows and unconsumed = the group's usd minus charges and releases since it,
     floored at zero); `reserve(conn, episode, lines, allowance_usd) -> approval_id` where `lines`
-    is `[(scene_id, take, job_id | None, seconds, usd)]`, one row per line plus one allowance row
-    with `scene_id = NULL`; `charge(conn, episode, scene, take, job_id, seconds, usd, at)`
-    (idempotent through the partial unique index); `release(conn, episode, approval_id, lines)`
+    is `[(scene_id, clip_key, take, job_id | None, seconds, usd)]`, one row per line plus one
+    allowance row with `scene_id = NULL`;
+    `charge(conn, episode, scene, clip_key, take, job_id, seconds, usd, at)` (idempotent through
+    the partial unique index on the clip key); `release(conn, episode, approval_id, lines)`
     (one release row per released line, the allowance row included when the whole group is
     released); `release_unsubmitted(conn, episode)` releases the latest group's lines whose
     scene has no live job and no charge; `spent(conn, episode)` for `budget.spent`. This module
@@ -1164,7 +1178,8 @@ it changes, so the READMEs never lag the code by a stage.
         returns as a no-op if the file holds another job's claim whose job is queued or running;
     *   never unlinks the state file; on HeyGen `failed` it writes `{failed: reason, at}` there
         and returns the same dict;
-    *   writes the ledger charge for (`episode_id`, `scene_id`, `take`) (measured duration for
+    *   writes the ledger charge for (`episode_id`, its clip key, with `scene_id` and `take` as
+        attributes) (measured duration for
         `completed`, estimated seconds for `failed`) through `streamstudio.episode.ledger`,
         imported inside the function body (the ledger imports only `core`, so there is no cycle
         and no heavy import);
