@@ -1003,11 +1003,14 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: Reads fonts from `assets/brand/fonts/`, writes the composition under
     `data_dir/cards/intro/`, and runs `npx hyperframes render <dir> -o assets/brand/danslab-intro.mp4 -f 25 -q delivery`
     from the HyperFrames workspace. The workspace manifest and lockfile
-    (`server/src/streamstudio/episode/templates/package.json` and `package-lock.json`, pinning
-    `hyperframes` and `gsap` at the versions `tools/compose/motion/README.md` names today) are
-    created in this stage by this item, so the one-off Stage 0 render is `cp` of those two files
-    into `data_dir/cards/`, `npm ci` there, then the command above; file 46 later makes the
-    launcher and `make setup` do that copy. The `FPS = 30` constant only scales GSAP timings and
+    (`server/src/streamstudio/episode/templates/package.json` and `package-lock.json`) are
+    created in this stage by this item. No recorded version pair exists
+    (`tools/compose/motion/README.md` says only `npm i hyperframes gsap`), so choosing one is a
+    Stage 0 task: run `npm i hyperframes@latest gsap@latest` in an empty `data_dir/cards/`,
+    render the intro with the command above, check it plays at 25 fps for its full length, and
+    commit the resulting `package.json` and `package-lock.json` as the templates. Those two
+    files are the tested pair from then on; file 46 later makes the launcher and `make setup`
+    copy them and run `npm ci`. The `FPS = 30` constant only scales GSAP timings and
     stays. Documented as "run when the branding changes", not part of the pipeline.
 
 #### 9. `server/src/streamstudio/episode/__init__.py`, `server/src/streamstudio/episode/preflight.py` (Create)

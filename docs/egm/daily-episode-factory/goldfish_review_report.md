@@ -275,3 +275,4 @@ review then concluded and the design's status moved to Final.
 | --- | --- | --- |
 | P7 | Planner rows 4 to 9 had no live-job exclusion, so a planner run during a capture, card render, composite or assembly enqueued the work twice | Every row records its job id in the record (`qa_job_id`, `capture_job_id`, `card_job_id`, `compose_job_id` per scene; `assemble_job_id`, `kit_job_id`, `register_job_id`, `upload_job_id` per episode) and skips while that job is live |
 | P8 | The charge index on (episode, scene, take) collided when an edit changed the clip key without a new take | Ledger rows carry `clip_key`; charges are unique per (episode, clip key) |
+| P9 | Item 8 pinned the HyperFrames workspace to versions the motion README does not name | Choosing and testing the pair is an explicit Stage 0 task; the committed lockfile is the record |
