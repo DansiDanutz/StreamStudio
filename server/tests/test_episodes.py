@@ -722,3 +722,22 @@ def test_channel_intro_job_keeps_concurrent_edits_and_rejects_a_changed_template
     assert run_one(c, s, "intro")
     assert store.get_job(c, job)["result"]["discarded"]
     assert client.get(url).json()["profile"]["sound"] is None
+
+
+def test_intro_font_upload_is_validated_and_pinned(env):
+    client, s, _, _ = env
+    font = (s.assets_dir / "brand/fonts/inter-latin-700-normal.woff2").read_bytes()
+    url = "/api/channels/files?name=intro.woff2&role=intro_font"
+    assert client.put(url, content=b"wOF2invalid", headers=ORIGIN).status_code == 422
+    upload = client.put(url, content=font, headers=ORIGIN)
+    assert upload.status_code == 200, upload.text
+    digest = upload.json()["sha256"]
+    original = client.get("/api/channels/danslab").json()
+    profile = {**original["profile"], "intro": {"fonts": {"serif": digest}}}
+    saved = client.put("/api/channels/danslab", headers=ORIGIN,
+                       json={"base_version": original["version"], "profile": profile})
+    assert saved.status_code == 200
+    eid = client.post("/api/episodes", json=small_script()).json()["id"]
+    pin = client.post(f"/api/episodes/{eid}/approve-script").json()["profile"]
+    assert pin["profile"]["intro"]["fonts"]["serif"] == digest
+    assert client.get(f"/api/channels/files/{digest}").headers["content-type"] == "font/woff2"

@@ -6,7 +6,7 @@ type Profile = {
   slug: string; name: string; language: string; youtube_channel: string | null
   presenter: { name: string; avatar_id: string; voice_id: string; motion?: string | null }
   publish: { description_footer: string; default_tags: string[] }
-  intro?: { kicker?: string; title?: string; title_em?: string; tagline?: string; logo_letter?: string; colours?: Record<string, string> }
+  intro?: { kicker?: string; title?: string; title_em?: string; tagline?: string; logo_letter?: string; fonts?: Record<string, string>; colours?: Record<string, string> }
   look?: Record<string, unknown> | null
   sound?: Record<string, unknown> | null
 }
@@ -119,6 +119,23 @@ export function ChannelsPage() {
         {(['kicker', 'title', 'title_em', 'tagline', 'logo_letter'] as const).map((key, i) =>
           <Field key={key} label={['Intro kicker', 'Intro title', 'Emphasized title', 'Intro tagline', 'Logo letter'][i]}
             value={draft.intro?.[key] ?? ''} change={v => edit({ intro: { ...draft.intro, [key]: v } })} />)}
+        {(['serif', 'serif_bold', 'serif_italic', 'mono'] as const).map(slot =>
+          <label key={slot}>Intro font · {slot}
+            <input type="file" accept=".ttf,.otf,.woff2" onChange={e => {
+              const file = e.target.files?.[0]; if (!file) return
+              void run(async () => {
+                const query = new URLSearchParams({name: file.name, role: 'intro_font'})
+                const response = await fetch('/api/channels/files?' + query, {method: 'PUT', body: file})
+                const result = await response.json()
+                if (!response.ok) throw new Error(result.detail)
+                edit({ intro: { ...draft.intro, fonts: { ...draft.intro?.fonts, [slot]: result.sha256 } } })
+              })
+            }} />
+            {draft.intro?.fonts?.[slot] && <button onClick={() => {
+              const fonts = { ...draft.intro?.fonts }; delete fonts[slot]
+              edit({ intro: { ...draft.intro, fonts } })
+            }}>Use default for {slot}</button>}
+          </label>)}
         {Object.entries(draft.intro?.colours ?? {}).map(([key, colour]) =>
           <Field key={key} label={`Intro color · ${key}`} value={colour}
             change={v => edit({ intro: { ...draft.intro, colours: { ...draft.intro?.colours, [key]: v } } })} />)}

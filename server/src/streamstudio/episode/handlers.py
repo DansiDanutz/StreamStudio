@@ -231,7 +231,7 @@ def episode_purge(ctx: JobContext) -> dict[str, Any]:
 def channel_intro(ctx: JobContext) -> dict[str, Any]:
     from ..core.db import tx
     from . import profiles
-    from .channel_intro import generate
+    from .channel_intro import generate, selected_fonts
 
     p = _payload(ctx)
     source = profiles.get(ctx.conn, p["slug"], p["version"])
@@ -247,6 +247,7 @@ def channel_intro(ctx: JobContext) -> dict[str, Any]:
         previous_sound = profile.sound or profiles.Sound()
         current_sound = current.sound or profiles.Sound()
         if (current.name != profile.name or current.intro != profile.intro
+                or selected_fonts(current) != selected_fonts(profile)
                 or current_sound.sfx != previous_sound.sfx
                 or current_sound.levels.intro != previous_sound.levels.intro
                 or current_sound.intro not in (previous_sound.intro, digest)):

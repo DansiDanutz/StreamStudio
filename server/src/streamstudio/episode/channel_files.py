@@ -21,16 +21,17 @@ AUDIO = {
 IMAGE = {".png": ("PNG", "image/png"), ".jpg": ("JPEG", "image/jpeg"),
          ".jpeg": ("JPEG", "image/jpeg"), ".webp": ("WEBP", "image/webp")}
 FONT = {".otf": (b"OTTO", "font/otf"), ".ttf": (b"\x00\x01\x00\x00", "font/ttf")}
+INTRO_FONT = {**FONT, ".woff2": (b"wOF2", "font/woff2")}
 VIDEO = {".mp4": ("mov", "video/mp4"), ".mov": ("mov", "video/quicktime")}
-KINDS = {"audio": AUDIO, "image": IMAGE, "font": FONT, "intro": VIDEO}
-FORMATS = {**AUDIO, **IMAGE, **FONT, **VIDEO}
+KINDS = {"audio": AUDIO, "image": IMAGE, "font": FONT, "intro_font": INTRO_FONT, "intro": VIDEO}
+FORMATS = {**AUDIO, **IMAGE, **INTRO_FONT, **VIDEO}
 
 
 def install_font(s: Settings, staged: Path, ext: str, digest: str) -> Path:
     from PIL import ImageFont
 
     with staged.open("rb") as stream:
-        if stream.read(4) != FONT[ext][0]:
+        if stream.read(4) != INTRO_FONT[ext][0]:
             raise ValueError("font does not match its extension")
     try:
         ImageFont.truetype(str(staged), 32).getmask("DansLab")

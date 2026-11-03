@@ -14,6 +14,14 @@ from . import channel_files, intro_template, profiles
 CUES = {"riser": 0, "pop": 567, "shimmer": 1300, "whoosh": 3350, "impact": 4000}
 
 
+def selected_fonts(profile: profiles.Profile) -> dict:
+    look = profile.look.fonts if profile.look else {}
+    fallback = next((look[slot] for slot in ("body", "display", "small") if slot in look), None)
+    return {slot: profile.intro.fonts.get(slot) or look.get(source) or fallback
+            for slot, source in (("serif", "display"), ("serif_bold", "display"),
+                                 ("serif_italic", "body"), ("mono", "small"))}
+
+
 def generate(s: Settings, profile: profiles.Profile) -> str:
     from playwright.sync_api import sync_playwright
 
@@ -31,15 +39,26 @@ def generate(s: Settings, profile: profiles.Profile) -> str:
         raise ValueError("run npm ci in the cards workspace before generating an intro")
     with TemporaryDirectory(dir=s.cards_dir) as tmp, sync_playwright() as pw:
         d = Path(tmp)
-        for font in intro_template.FONT_FILES:
-            shutil.copy2(s.assets_dir / "brand" / "fonts" / font, d / font)
+        fonts = selected_fonts(profile)
+        for slot, default_name in zip(fonts, intro_template.FONT_FILES, strict=True):
+            source = (channel_files.verify(s, fonts[slot], kind="intro_font") if fonts[slot]
+                      else s.assets_dir / "brand" / "fonts" / default_name)
+            name = slot + source.suffix
+            shutil.copy2(source, d / name)
+            markup = markup.replace(f"url({default_name})", f"url({name})", 1)
         shutil.copy2(gsap, d / gsap.name)
         page_file = d / "index.html"
         page_file.write_text(markup, encoding="utf8")
         browser = pw.chromium.launch(executable_path=s.hyperframes_browser)
         page = browser.new_page(viewport={"width": 1920, "height": 1080}, offline=True)
         page.goto(page_file.as_uri())
-        page.evaluate("document.fonts.ready")
+        loaded = page.evaluate("""async () => {
+            const faces = Array.from(document.fonts);
+            await Promise.all(faces.map(face => face.load()));
+            return faces.length === 4 && faces.every(face => face.status === 'loaded');
+        }""")
+        if not loaded:
+            raise ValueError("the intro could not load its four selected font faces")
         page.evaluate("""() => { for (const selector of ['.name','.tag','.kick']) {
             const el = document.querySelector(selector);
             el.style.maxWidth = '1760px';

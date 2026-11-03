@@ -101,7 +101,7 @@ async def upload_file(name: str, request: Request, role: str = "audio",
                         "bytes": normalized.stat().st_size, "media_type": "video/mp4"}
             if role == "audio":
                 channel_files.install_audio(s, staged, ext, digest.hexdigest())
-            elif role == "font":
+            elif role in ("font", "intro_font"):
                 channel_files.install_font(s, staged, ext, digest.hexdigest())
             else:
                 channel_files.install_image(s, staged, ext, digest.hexdigest())
@@ -162,6 +162,8 @@ def save(slug: str, body: Save, s: Settings = Depends(settings),
         try:
             profiles.verify_sound(s, body.profile.sound)
             profiles.verify_look(s, body.profile.look)
+            for digest in set(body.profile.intro.fonts.values()):
+                channel_files.verify(s, digest, kind="intro_font")
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
         target = body.profile.youtube_channel

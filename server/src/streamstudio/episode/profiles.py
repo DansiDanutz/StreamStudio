@@ -108,6 +108,7 @@ class IntroColours(Strict):
 
 
 class Intro(Strict):
+    fonts: dict[Literal["serif", "serif_bold", "serif_italic", "mono"], Digest] = {}
     kicker: str = Field(default="", max_length=40)
     title: str = Field(default="", max_length=64)
     title_em: str = Field(default="", max_length=40)
