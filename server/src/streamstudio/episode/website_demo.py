@@ -25,11 +25,19 @@ CATALOG = {
     "callout": "Without an explicit label, show the page address and scene text at the reveal.",
     "manual": "For a manual host, upload a screenshot and supply its sha256 and focal point.",
     "capture": "Playwright Chromium viewport and a camera move to the labeled feature",
-    "editable_without_capture": ["side", "reveal_at", "focus_cues"],
+    "editable_without_capture": ["side", "reveal_at", "focus_cues", "page_switch.at_s"],
     "reveal_at": "Fraction of the first scene duration when the camera starts moving.",
     "focus_cues": "Timed outlines on the held opening viewport, in normalized coordinates. "
                   "Times are seconds from the start of this scene.",
     "page_switch": "Switch to another allowed automatic page at scene-local at_s seconds.",
+    "direction_rules": [
+        "For one feature, use focus_label and reveal_at to zoom toward it.",
+        "When narration names several items already visible together, use focus_cues. "
+        "Measure cue times against the actual voice take and rectangles against the opening frame.",
+        "When narration moves to another page, use page_switch. Prepare both pages once. "
+        "Preview a timing edit from those cached cards. The second site requires automatic capture.",
+        "Use separate scenes if a page switch and timed outlines are both needed.",
+    ],
     "continuity": "Adjacent scenes with the same site and direction share one camera move.",
 }
 
