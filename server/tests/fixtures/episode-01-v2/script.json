@@ -178,6 +178,12 @@
    "kind": "card",
    "site": "https://www.fake-real.live",
    "plan": {
+    "website_demo": {
+     "page_switch": {
+      "at_s": 1.05,
+      "site": "https://nervix.space"
+     }
+    },
     "card_template": "generic"
    }
   },

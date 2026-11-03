@@ -143,7 +143,13 @@
   "video": "g06.mp4",
   "video_at": 0,
   "cont": false,
-  "tag": "Nervix Space \u00b7 nervix.space"
+  "tag": "Nervix Space \u00b7 nervix.space",
+  "website_demo": {
+   "page_switch": {
+    "at_s": 1.05,
+    "site": "https://nervix.space"
+   }
+  }
  },
  {
   "kind": "avatar",
