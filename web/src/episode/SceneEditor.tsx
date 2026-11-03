@@ -7,6 +7,7 @@ export function SceneEditor({ episode, scene, saved }: Props) {
   const [original] = useState(episode.script)
   const [text, setText] = useState(scene.text ?? '')
   const [voice, setVoice] = useState(scene.voice ?? '')
+  const [site, setSite] = useState(scene.site ?? '')
   const [sources, setSources] = useState(JSON.stringify(scene.sources ?? [], null, 2))
   const [direction, setDirection] = useState(JSON.stringify(scene.plan ?? null, null, 2))
   const [error, setError] = useState('')
@@ -15,7 +16,7 @@ export function SceneEditor({ episode, scene, saved }: Props) {
   async function save() {
     setBusy(true); setError('')
     try {
-      const updated = { ...scene, text, voice, sources: JSON.parse(sources), plan: JSON.parse(direction) }
+      const updated = { ...scene, text, voice, site: site.trim() || undefined, sources: JSON.parse(sources), plan: JSON.parse(direction) }
       const result = await putScript(episode.id, {
         ...original, scenes: original.scenes.map(s => s.id === scene.id ? updated : s),
       })
@@ -27,6 +28,8 @@ export function SceneEditor({ episode, scene, saved }: Props) {
     <legend>Edit {scene.id}</legend>
     <label>On-screen text<textarea value={text} onChange={e => setText(e.target.value)} /></label>
     <label>Dan’s spoken line<textarea value={voice} onChange={e => setVoice(e.target.value)} /></label>
+    {scene.kind === 'card' && <label>Website URL<input type="url" value={site}
+      onChange={e => setSite(e.target.value)} /></label>}
     <label>Sources (JSON)<textarea value={sources} onChange={e => setSources(e.target.value)} /></label>
     <label>Scene direction (JSON)<textarea rows={6} value={direction} onChange={e => setDirection(e.target.value)} /></label>
     <p>Saving returns the episode to draft for review.</p>
