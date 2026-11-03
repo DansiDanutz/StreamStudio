@@ -58,7 +58,7 @@ def scene_qa(ctx: JobContext) -> dict[str, Any]:
 @handler("scene_compose")
 def scene_compose(ctx: JobContext) -> dict[str, Any]:
     """One scene's clip and cut-out → `scenes/<scene>.mp4`, with its inputs hash beside it."""
-    from . import compose, record, website_demo
+    from . import compose, connected_cards, record, website_demo
 
     p = _payload(ctx)
     s = ctx.settings
@@ -86,11 +86,15 @@ def scene_compose(ctx: JobContext) -> dict[str, Any]:
         result = {"scene": scene.id, "skipped": True}
     else:
         ctx.progress(0.05, f"composing {scene.id}")
-        result = compose.compose_scene(
-            s, scene, mp4, webm, out, card_mp4=card, degraded=st.get("qa") == "degraded",
-            compositor=compose.Compositor(s, ep.channel_settings.get("look")),
-            progress=lambda f, m: ctx.progress(0.05 + 0.9 * f, m),
-        )  # fmt: skip
+        if scene.plan and scene.plan.connected_cards:
+            result = connected_cards.render(s, scene.plan.connected_cards,
+                                            ep.channel_settings.get("name", "DansLab"), mp4, out)
+        else:
+            result = compose.compose_scene(
+                s, scene, mp4, webm, out, card_mp4=card, degraded=st.get("qa") == "degraded",
+                compositor=compose.Compositor(s, ep.channel_settings.get("look")),
+                progress=lambda f, m: ctx.progress(0.05 + 0.9 * f, m),
+            )  # fmt: skip
         hash_file.write_text(current)
         result["scene"] = scene.id
     _enqueue_planner(ctx, ep.id)

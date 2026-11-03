@@ -33,6 +33,18 @@ class WebsiteDemo(Strict):
     reveal_at: float = Field(default=0.30, ge=0, lt=1)
 
 
+class ConnectedCard(Strict):
+    title: str = Field(min_length=1, max_length=32)
+    body: str = Field(min_length=1, max_length=90)
+
+
+class ConnectedCards(Strict):
+    workflow: Literal["connected-cards/v1"] = "connected-cards/v1"
+    title: str = Field(min_length=1, max_length=42)
+    caption: str = Field(default="", max_length=64)
+    cards: list[ConnectedCard] = Field(min_length=3, max_length=3)
+
+
 class Plan(Strict):
     """Per-scene creative data: table overlays, framing, cues."""
 
@@ -51,6 +63,7 @@ class Plan(Strict):
     end_at: Fraction | None = None
     end_until: Fraction | None = None
     whoosh_at: Fraction | None = None
+    connected_cards: ConnectedCards | None = None
     website_demo: WebsiteDemo | None = None
     card_template: Literal["generic"] | None = None
 

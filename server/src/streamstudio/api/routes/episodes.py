@@ -22,7 +22,7 @@ from ...core.config import Settings
 from ...core.db import tx
 from ...core.ids import now_iso
 from ...episode import ledger, preflight, profiles, record, validate
-from ...episode.contract import EPISODE_ID, SCENE_ID, Script, WebsiteDemo
+from ...episode.contract import EPISODE_ID, SCENE_ID, ConnectedCards, Script, WebsiteDemo
 from ...episode.website_demo import CATALOG
 from ..deps import conn, settings
 
@@ -106,7 +106,10 @@ def list_episodes(c: sqlite3.Connection = Depends(conn)) -> list[dict]:
 
 @router.get("/workflows")
 def workflows():
-    return [{**CATALOG, "schema": WebsiteDemo.model_json_schema()}]
+    return [{**CATALOG, "schema": WebsiteDemo.model_json_schema()},
+            {"id": "connected-cards/v1", "choose_when": "Explain three linked steps or components.",
+             "requires": ["approved narration", "three cards with titles and explanations"],
+             "schema": ConnectedCards.model_json_schema()}]
 
 
 @router.get("/{eid}")

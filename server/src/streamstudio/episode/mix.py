@@ -232,7 +232,7 @@ def assemble(
 def _frame_count(s: Settings, path: Path) -> int:
     out = subprocess.run(
         [s.ffprobe_bin, "-v", "error", "-select_streams", "v:0", "-count_frames",
-         "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", str(path)],
+         "-show_entries", "stream=nb_read_frames", "-of", "json", str(path)],
         capture_output=True, text=True, check=True,
     )  # fmt: skip
-    return int(out.stdout.strip() or 0)
+    return int(json.loads(out.stdout)["streams"][0]["nb_read_frames"])

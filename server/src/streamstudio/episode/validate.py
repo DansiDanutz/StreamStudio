@@ -74,7 +74,10 @@ def validate(script: Script, s: Settings) -> dict[str, dict[str, list[str]]]:
         if sc.id in seen:
             err(sc.id, "duplicate scene id")
         seen.add(sc.id)
-        if sc.kind == "card" and not (sc.site or "").strip():
+        connected = sc.plan and sc.plan.connected_cards
+        if connected and (sc.kind != "card" or sc.plan.website_demo):
+            err(sc.id, "connected cards need a card scene with one visual workflow")
+        if sc.kind == "card" and not connected and not (sc.site or "").strip():
             err(sc.id, "a card scene needs a site")
         if (sc.plan and sc.plan.website_demo
                 and (sc.kind != "card" or not auto_site(s, sc.site or ""))):

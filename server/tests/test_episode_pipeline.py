@@ -609,3 +609,38 @@ def test_partial_library_registration_keeps_source_and_recovers(env, tmp_path, m
     assert Path(saved["mp4"]).read_bytes() == b"encoded scene"
     assert Path(saved["srt"]).read_text() == "captions"
     assert kit.registered_recording(s, "ep_test1234") == saved["recording_id"]
+
+
+def test_connected_card_workflow_renders_motion_and_preserves_the_approved_audio(env):
+    client, s, _, _ = env
+    chrome = shutil.which("google-chrome") or shutil.which("chromium")
+    if not chrome:
+        candidate = Path("C:/Program Files/Google/Chrome/Application/chrome.exe")
+        chrome = str(candidate) if candidate.exists() else None
+    if chrome:
+        s.hyperframes_browser = Path(chrome)
+    rules = client.get("/api/episodes/workflows").json()
+    assert any(rule["id"] == "connected-cards/v1" for rule in rules)
+    scene = {"id": "s1", "kind": "card", "text": "We capture, direct and review each scene.",
+             "plan": {"connected_cards": {"title": "How a scene is made", "cards": [
+                 {"title": "Capture", "body": "Record the source."},
+                 {"title": "Direct", "body": "Set the reveal."},
+                 {"title": "Review", "body": "Play the result."},
+             ]}}}
+    eid = client.post("/api/episodes", json=small_script(scenes=[scene])).json()["id"]
+    approve(client, eid)
+    jobs = drain(s)
+    assert all(j["status"] == "done" for j in jobs), [(j["kind"], j["error"]) for j in jobs]
+    ep = client.get(f"/api/episodes/{eid}").json()
+    assert ep["status"] == "ready"
+    movie = record.episode_dir(s, eid) / "scenes" / "s1.mp4"
+    clip, _ = record.clip_paths(s, ep["scenes_state"]["s1"]["clip_key"])
+
+    def audio_hash(path):
+        return subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(path), "-map", "0:a",
+                                        "-c", "copy", "-f", "hash", "-hash", "sha256", "-"])
+
+    assert audio_hash(movie) == audio_hash(clip)
+    frames = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(movie), "-vf",
+                                      "fps=5,scale=160:90", "-an", "-f", "framemd5", "-"])
+    assert len({line.split(b",")[-1] for line in frames.splitlines() if line.startswith(b"0,")}) > 2

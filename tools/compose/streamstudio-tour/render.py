@@ -39,7 +39,7 @@ def main():
         d = Path(tmp)
         browser = pw.chromium.launch(executable_path=args.browser)
         page = browser.new_page(viewport={"width": 1280, "height": 720})
-        page.goto((here/"index.html").as_uri())
+        page.goto((root/"server/src/streamstudio/episode/templates/connected-cards.html").as_uri())
         encode("-i", root/"assets/avatar/dan-landscape-test.mp4", "-t", "9.6",
                "-map", "0:v:0", "-map", "0:a:0", "-vf", "scale=1280:720,setsar=1",
                *video, *audio, d/"0.mp4")
