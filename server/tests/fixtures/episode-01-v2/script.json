@@ -63,7 +63,7 @@
       0.02,
       0.42,
       "Dan",
-      "Romanian entrepreneur Â· AI"
+      "Romanian entrepreneur · AI"
      ]
     ],
     "zoom_path": [
@@ -228,7 +228,7 @@
      [
       0,
       null,
-      "1 Â· Get paid",
+      "1 · Get paid",
       "without a third party"
      ]
     ]
@@ -285,7 +285,7 @@
      [
       0,
       null,
-      "2 Â· Play",
+      "2 · Play",
       "How do you make a game?"
      ]
     ],
@@ -384,7 +384,7 @@
      [
       0.212,
       null,
-      "3 Â· Trade",
+      "3 · Trade",
       "Can AI really trade?"
      ]
     ],
@@ -462,7 +462,7 @@
      [
       0,
       null,
-      "4 Â· Sell",
+      "4 · Sell",
       "How do you sell what you built?"
      ]
     ],
@@ -500,6 +500,45 @@
    "kind": "card",
    "site": "https://nervix.space/#directory",
    "plan": {
+    "website_demo": {
+     "workflow": "website-demo/v1",
+     "side": "right",
+     "reveal_at": 0.3,
+     "focus_cues": [
+      {
+       "start_s": 2.52,
+       "end_s": 4.34,
+       "x": 0.05,
+       "y": 0.25405405405405407,
+       "width": 0.2916666666666667,
+       "height": 0.2418918918918919
+      },
+      {
+       "start_s": 4.34,
+       "end_s": 5.54,
+       "x": 0.35333333333333333,
+       "y": 0.25405405405405407,
+       "width": 0.2916666666666667,
+       "height": 0.2418918918918919
+      },
+      {
+       "start_s": 5.54,
+       "end_s": 8.18,
+       "x": 0.6566666666666666,
+       "y": 0.25405405405405407,
+       "width": 0.2916666666666667,
+       "height": 0.2418918918918919
+      },
+      {
+       "start_s": 8.18,
+       "end_s": 10.56,
+       "x": 0.05,
+       "y": 0.5135135135135135,
+       "width": 0.2916666666666667,
+       "height": 0.2689189189189189
+      }
+     ]
+    },
     "card_template": "generic"
    }
   },
@@ -598,7 +637,7 @@
     "endcard": [
      "nervix.space",
      "The first 200 projects are listed free",
-     "then 10 USD a month Â· USDT or USDC via NervixPay"
+     "then 10 USD a month · USDT or USDC via NervixPay"
     ],
     "end_at": 0.02,
     "end_until": 0.568,
@@ -692,7 +731,7 @@
      [
       0.882,
       1.0,
-      "Dan Â· AI avatar",
+      "Dan · AI avatar",
       "the real Dan is busy building"
      ]
     ],
@@ -728,7 +767,7 @@
    "plan": {
     "endcard": [
      "Keep up with technology",
-     "Subscribe Â· DansLab",
+     "Subscribe · DansLab",
      "new episodes: we build it together"
     ],
     "end_at": 0.388,

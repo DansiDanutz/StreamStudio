@@ -380,7 +380,46 @@
   "video": "g27.mp4",
   "video_at": 18.926,
   "cont": true,
-  "tag": "Nervix Space \u00b7 our founding projects"
+  "tag": "Nervix Space \u00b7 our founding projects",
+  "website_demo": {
+   "workflow": "website-demo/v1",
+   "side": "right",
+   "reveal_at": 0.3,
+   "focus_cues": [
+    {
+     "start_s": 2.52,
+     "end_s": 4.34,
+     "x": 0.05,
+     "y": 0.25405405405405407,
+     "width": 0.2916666666666667,
+     "height": 0.2418918918918919
+    },
+    {
+     "start_s": 4.34,
+     "end_s": 5.54,
+     "x": 0.35333333333333333,
+     "y": 0.25405405405405407,
+     "width": 0.2916666666666667,
+     "height": 0.2418918918918919
+    },
+    {
+     "start_s": 5.54,
+     "end_s": 8.18,
+     "x": 0.6566666666666666,
+     "y": 0.25405405405405407,
+     "width": 0.2916666666666667,
+     "height": 0.2418918918918919
+    },
+    {
+     "start_s": 8.18,
+     "end_s": 10.56,
+     "x": 0.05,
+     "y": 0.5135135135135135,
+     "width": 0.2916666666666667,
+     "height": 0.2689189189189189
+    }
+   ]
+  }
  },
  {
   "kind": "avatar",

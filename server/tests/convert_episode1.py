@@ -20,7 +20,7 @@ FIX = Path(__file__).resolve().parent / "fixtures" / "episode-01-v2"
 
 #: The storyboard groups of cards_v2.py: the scenes each card covers and its site.
 SITES = {
-    (6,): "https://fake-real.live",
+    (6,): "https://www.fake-real.live",
     (10, 11, 12, 13): "https://nervixpay.live",
     (15, 16, 17, 18): "https://worldcup26.world",
     (21, 22, 23, 24): "https://danslab-jev.vercel.app",
@@ -39,8 +39,8 @@ def site_for(n: int) -> str:
 
 
 def convert() -> dict:
-    src = json.loads((FIX / "episode-01-v2.json").read_text())
-    plans = json.loads((FIX / "episode-01-v2.plan.json").read_text())
+    src = json.loads((FIX / "episode-01-v2.json").read_text(encoding="utf8"))
+    plans = json.loads((FIX / "episode-01-v2.plan.json").read_text(encoding="utf8"))
     scenes = []
     question = 0
     for row, plan in zip(src["scenes"], plans, strict=True):
@@ -56,6 +56,8 @@ def convert() -> dict:
         if any("AI avatar" in (lw[2] or "") for lw in plan.get("lowers", [])):
             sc["reveal"] = True
         rest = {k: v for k, v in plan.items() if k not in DROP}
+        if kind == "card":
+            rest.setdefault("card_template", "generic")
         if rest:
             sc["plan"] = rest
         scenes.append(sc)
