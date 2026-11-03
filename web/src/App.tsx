@@ -14,9 +14,11 @@ import { fileToItem } from './stage/Library'
 import { useDirector } from './director/store'
 import { staleServerWarning } from './health'
 import { guardCue, lipsMatch, type Cue } from './director/types'
+import { EpisodePage } from './episode/EpisodePage'
 
 const RENDER = new URLSearchParams(location.search).get('render') === '1'
 const AUTOPLAY = new URLSearchParams(location.search).get('autoplay') === '1'
+const EPISODE = new URLSearchParams(location.search).get('episode')
 
 /** Output-clean view used by the headless renderer and (later) the live compositor. */
 function RenderView() {
@@ -36,6 +38,7 @@ function RenderView() {
 }
 
 export default function App() {
+  if (EPISODE) return <EpisodePage id={EPISODE} />
   if (RENDER) return <RenderView />
   if (IS_PROGRAM) return <ProgramView />
   return <Editor />
