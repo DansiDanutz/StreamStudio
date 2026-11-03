@@ -212,6 +212,18 @@ def _estimate(s: Settings, c: sqlite3.Connection, ep: record.Episode) -> dict[st
     }
 
 
+@router.get("/{eid}/cost")
+def projected_cost(
+    eid: str, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)
+):
+    """Agent estimate. Never rotates Dan's browser token or contacts a provider."""
+    with tx(c):
+        ep = _episode(c, eid)
+        estimate = _estimate(s, c, ep)
+        estimate.pop("_lines")
+        return estimate
+
+
 @router.get("/{eid}/estimate")
 def estimate(eid: str, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)):
     """The confirm screen: cost of what still has to render, the month after, the allowance, the

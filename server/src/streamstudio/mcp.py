@@ -22,8 +22,13 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from .episode.contract import EPISODE_ID, Script
+
 BASE = os.environ.get("STREAMSTUDIO_URL", "http://127.0.0.1:8787").rstrip("/")
 PROTOCOL = "2025-06-18"
+
+SCRIPT_SCHEMA = Script.model_json_schema()
+SCRIPT_DEFINITIONS = SCRIPT_SCHEMA.pop("$defs", {})
 
 TOOLS: list[dict[str, Any]] = [
     {
@@ -163,6 +168,35 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {"type": "object", "properties": {}},
     },
 
+    {
+        "name": "episode_create",
+        "description": "Create a draft script. Dan reviews and approves it on the Episode page.",
+        "inputSchema": {"type": "object", "$defs": SCRIPT_DEFINITIONS,
+                        "properties": {"script": SCRIPT_SCHEMA},
+                        "required": ["script"]},
+    },
+    {
+        "name": "episode_list",
+        "description": "List episodes and their production status.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "episode_workflows",
+        "description": "Discover supported episode workflows, selection rules and parameters.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    *[
+        {
+            "name": name, "description": description,
+            "inputSchema": {"type": "object", "properties": {
+                "id": {"type": "string", "pattern": EPISODE_ID.pattern}}, "required": ["id"]},
+        }
+        for name, description in (
+            ("episode_status", "Read a saved episode, scene progress, warnings and next action."),
+            ("episode_estimate", "Read projected costs without starting or approving a render."),
+            ("episode_refresh", "Check an uploaded video's status once per five minutes."),
+        )
+    ],
 ]
 
 
@@ -228,6 +262,22 @@ def call(name: str, args: dict[str, Any]) -> Any:
         return _http("GET", f"/api/recordings/{_seg(args['id'])}/transcript")
     if name == "youtube_status":
         return _http("GET", "/api/youtube")
+    if name == "episode_create":
+        return _http("POST", "/api/episodes", args["script"])
+    if name == "episode_list":
+        return _http("GET", "/api/episodes")
+    if name == "episode_workflows":
+        return _http("GET", "/api/episodes/workflows")
+    if name in ("episode_status", "episode_estimate", "episode_refresh"):
+        eid = args["id"]
+        if not EPISODE_ID.fullmatch(eid):
+            raise ValueError("invalid episode id")
+        path = f"/api/episodes/{eid}"
+        if name == "episode_estimate":
+            return _http("GET", path + "/cost")
+        if name == "episode_refresh":
+            return _http("POST", path + "/refresh")
+        return _http("GET", path)
     raise ValueError(f"unknown tool {name}")
 
 

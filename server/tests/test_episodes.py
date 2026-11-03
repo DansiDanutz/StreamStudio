@@ -495,3 +495,27 @@ def test_scheduled_release_requires_observed_public_status_before_purge(env, mon
         ep.record["last_checked_at"] = "2000-01-01T00:00:00Z"
         record.save(c, ep)
     assert client.post(f"/api/episodes/{eid}/refresh").json()["status"] == "published"
+
+def test_agent_episode_workflow_preserves_browser_approval(env, monkeypatch):
+    from streamstudio import mcp
+
+    client, _, _, _ = env
+
+    def local_call(method, path, body=None):
+        response = client.request(method, path, json=body)
+        response.raise_for_status()
+        return response.json()
+
+    monkeypatch.setattr(mcp, "_http", local_call)
+    assert mcp.call("episode_workflows", {})[0]["id"] == "website-demo/v1"
+    ep = mcp.call("episode_create", {"script": small_script()})
+    args = {"id": ep["id"]}
+    assert mcp.call("episode_status", args)["status"] == "draft"
+    assert mcp.call("episode_list", {})[0]["id"] == ep["id"]
+    assert "confirm_token" not in mcp.call("episode_estimate", args)
+    base = f"/api/episodes/{ep['id']}"
+    client.post(base + "/approve-script")
+    token = client.get(base + "/estimate").json()["confirm_token"]
+    assert "confirm_token" not in mcp.call("episode_estimate", args)
+    response = client.post(base + "/approve-budget", json={"confirm_token": token}, headers=ORIGIN)
+    assert response.status_code == 200, response.text

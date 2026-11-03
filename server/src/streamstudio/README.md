@@ -14,7 +14,7 @@ in `server/pyproject.toml`: `streamstudio-api`, `streamstudio-worker`,
 
 - `__init__.__version__ = "0.1.0"`
 - `mcp.BASE` (from `STREAMSTUDIO_URL`, default `http://127.0.0.1:8787`), `mcp.PROTOCOL = "2025-06-18"`
-- `mcp.TOOLS` — tool list served to agents: `library_list`, `library_get`, `library_name`, `vault_status`, `vault_backup`, `vault_fetch`, `studio_state`, `studio_guide`, `studio_timeline`, `studio_do`, `heygen_estimate`, `recording_transcribe`, `recording_transcript`, `youtube_status`, `youtube_upload`
+- `mcp.TOOLS` — tool list served to agents: `library_list`, `library_get`, `library_name`, `vault_status`, `vault_backup`, `vault_fetch`, `studio_state`, `studio_guide`, `studio_timeline`, `studio_do`, `heygen_estimate`, `recording_transcribe`, `recording_transcript`, `youtube_status`, `episode_create`, `episode_list`, `episode_workflows`, `episode_status`, `episode_estimate`, `episode_refresh`
 - `mcp.call(name, args)` — maps a tool to one HTTP call on the API; `mcp.handle(msg)` — JSON-RPC dispatch (`initialize`, `tools/list`, `tools/call`, `ping`); `mcp.main()` — stdio loop
 - `mcp._http(method, path, body=None)`, `mcp._seg(value)`
 - Subdirectories:
@@ -29,7 +29,7 @@ in `server/pyproject.toml`: `streamstudio-api`, `streamstudio-worker`,
 
 ## Invariants
 
-- `[mcp.py:call]` `youtube_upload` always sends `privacy: "private"` regardless of the arguments; `heygen_estimate` always sends `confirm: False`, so no MCP tool starts a paid render or publishes a video.
+- Episode agents create drafts, discover workflows, inspect progress, estimate costs, and refresh release status. Approval, upload, publication and purge are Episode page actions.
 - `[mcp.py:call]` Recording ids are URL-quoted with `safe=""` (`_seg`), and library ids with `safe=":"`, so an id cannot change the request path.
 - `[mcp.py:handle]` Messages without an `id` (notifications) get no reply; unknown methods return JSON-RPC error `-32601`; tool failures are returned as a result with `isError: true`, not as protocol errors.
 - `[mcp.py:_http]` Non-2xx API responses become `RuntimeError("StreamStudio <code>: <detail>")`; a connection failure names `BASE`.
