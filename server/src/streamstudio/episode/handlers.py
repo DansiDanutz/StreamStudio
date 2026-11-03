@@ -48,7 +48,9 @@ def scene_qa(ctx: JobContext) -> dict[str, Any]:
     scene = next(sc for sc in ep.script.scenes if sc.id == p["scene_id"])
     key = p["key"]
     clip, _ = record.clip_paths(s, key)
-    report = qa.inspect(record.episode_dir(s, ep.id) / "qa" / scene.id, key, clip, s)
+    first_key = record.scene_key(s, scene, ep.script, 0)
+    report = qa.inspect(record.episode_dir(s, ep.id) / "qa" / scene.id, key, clip, s,
+                        scene.spoken, first_key)
     _enqueue_planner(ctx, ep.id)
     return report
 
@@ -139,10 +141,14 @@ def episode_publish_kit(ctx: JobContext) -> dict[str, Any]:
     starts = [t - timing["intro_s"] for t in timing["starts"]]
     words: dict[str, list[dict]] = {}
     for sc in ep.script.scenes:
-        wf = d / "qa" / f"{sc.id}.words.json"
+        key = ep.scene_state(sc.id).get("qa_key")
+        wf = d / "qa" / sc.id / f"{key}.words.json"
         if wf.exists():
             with contextlib.suppress(json.JSONDecodeError):
-                words[sc.id] = json.loads(wf.read_text()).get("words") or []
+                words[sc.id] = [
+                    {"start": w["start_ms"]/1000, "end": w["end_ms"]/1000, "word": w["word"]}
+                    for w in json.loads(wf.read_text()).get("words", [])
+                ]
     k, srt = kit.build_kit(ep.script, starts, timing["durations"], timing["intro_s"], words)
     (d / "final.srt").write_text(srt)
     kit_json.write_text(json.dumps(k, indent=1, ensure_ascii=False))

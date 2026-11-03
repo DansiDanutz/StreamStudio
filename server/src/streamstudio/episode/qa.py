@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from statistics import median
 from tempfile import TemporaryDirectory
 
+from ..core import transcribe
 from ..core.config import Settings
 from .preflight import HAAR_CASCADE
 
@@ -124,14 +126,71 @@ def compare(report: dict, reference: dict) -> tuple[str, list[str]]:
     return verdict, issues
 
 
-def inspect(folder: Path, key: str, clip: Path, s: Settings) -> dict:
+def spoken_tokens(text: str, names: list[dict]) -> list[str]:
+    from num2words import num2words
+
+    for name in names:
+        text = re.sub(r"(?<!\w)" + re.escape(name["screen"]) + r"(?!\w)",
+                      lambda _, voice=name["voice"]: voice, text, flags=re.I)
+    text = text.replace("’", "'").replace("'", "").replace("%", " percent ")
+    def number(match):
+        raw = match.group().replace(",", "")
+        if len(raw) > 24:
+            return raw
+        return " " + num2words(raw).replace("-", " ") + " "
+    text = re.sub(r"\d+(?:,\d{3})*(?:\.\d+)?", number, text)
+    return re.findall(r"[^\W_]+", text.casefold(), re.UNICODE)
+
+
+def word_error(expected: list[str], actual: list[str]) -> float:
+    row = list(range(len(actual) + 1))
+    for i, token in enumerate(expected, 1):
+        previous, row = row, [i]
+        for j, other in enumerate(actual, 1):
+            row.append(min(previous[j] + 1, row[-1] + 1, previous[j-1] + (token != other)))
+    return row[-1] / max(1, len(expected))
+
+
+def review_speech(report: dict, expected: str, heard: str, first: str | None, names: list) -> None:
+    tokens = spoken_tokens(heard, names)
+    error = word_error(spoken_tokens(expected, names), tokens)
+    report["word_error_rate"] = error
+    if error <= .25:
+        return
+    report["issues"].append(f"transcript differs from script ({error:.0%} word error)")
+    if first is not None and word_error(spoken_tokens(first, names), tokens) > .25:
+        report["status"] = "FAIL"
+    elif report["status"] == "ok":
+        report["status"] = "LOOK"
+
+
+def inspect(folder: Path, key: str, clip: Path, s: Settings, expected: str, first_key: str) -> dict:
+    from .validate import voice_names
+
     folder.mkdir(parents=True, exist_ok=True)
     result = folder / f"{key}.json"
     if result.exists():
-        return json.loads(result.read_text())
+        cached = json.loads(result.read_text())
+        if "transcript_available" in cached:
+            return cached
     with TemporaryDirectory(dir=folder) as tmp:
         sheet = Path(tmp) / "sheet.jpg"
         report = check_clip(clip, s, sheet)
+        words = Path(tmp) / "words.json"
+        srt = Path(tmp) / "captions.srt"
+        try:
+            transcript = transcribe.transcribe(clip, words, srt, s)
+        except (transcribe.TranscribeError, subprocess.SubprocessError, OSError) as exc:
+            report["transcript_available"] = False
+            report["issues"].append(f"transcript unavailable: {exc}")
+        else:
+            first = folder / f"{first_key}.words.json"
+            first_text = (json.loads(first.read_text())["text"]
+                          if first_key != key and first.exists() else None)
+            review_speech(report, expected, transcript["text"], first_text, voice_names(s))
+            report["transcript_available"] = True
+            words.replace(folder / f"{key}.words.json")
+            srt.replace(folder / f"{key}.srt")
         data = Path(tmp) / "result.json"
         data.write_text(json.dumps(report))
         sheet.replace(folder / f"{key}.jpg")

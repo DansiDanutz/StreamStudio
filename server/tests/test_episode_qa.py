@@ -13,3 +13,13 @@ def test_first_pass_reference_identifies_framing_and_lip_outliers():
     assert qa.compare(normal, ref) == ("ok", [])
     assert qa.compare({**normal, "face": [100, 20, 95, 95]}, ref)[0] == "FAIL"
     assert qa.cohort_reference([{"face": None}]) == {"face": None, "lip_ratio": None}
+
+def test_transcript_review_normalizes_names_and_scopes_repeat_failures():
+    names = [{"screen": "StreamStudio", "voice": "Stream Studio"}]
+    expected = "StreamStudio grew 3.5%."
+    heard = "Stream Studio grew three point five percent."
+    assert qa.word_error(qa.spoken_tokens(expected, names), qa.spoken_tokens(heard, names)) == 0
+    for first, verdict in ((None, "LOOK"), ("different line", "LOOK"), (heard, "FAIL")):
+        report = {"status": "ok", "issues": []}
+        qa.review_speech(report, expected, "different line", first, names)
+        assert report["status"] == verdict and report["word_error_rate"] > .25

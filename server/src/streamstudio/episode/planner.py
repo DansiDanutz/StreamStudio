@@ -169,8 +169,10 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
         key = st["clip_key"]
         report_path = d / "qa" / sc.id / f"{key}.json"
         if report_path.exists():
-            reports[sc.id] = json.loads(report_path.read_text())
-            continue
+            report = json.loads(report_path.read_text())
+            if "transcript_available" in report:
+                reports[sc.id] = report
+                continue
         st.pop("qa", None)
         st.pop("qa_issues", None)
         if not _live(conn, st.get("qa_job_id")):

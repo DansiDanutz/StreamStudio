@@ -96,16 +96,30 @@ def captions(
         chunks = caption_chunks(text)
         total = sum(len(c) for c in chunks) or 1
         timed = words.get(sc.id)
-        if timed:
-            span = max(timed[-1]["end"] - timed[0]["start"], 0.5)
-            v0 = t0 + timed[0]["start"]
-        else:
-            span, v0 = d, t0
-        at = v0
-        for k, chunk in enumerate(chunks):
-            end = v0 + span if k == len(chunks) - 1 else at + span * len(chunk) / total
-            cues.append(f"{len(cues) + 1}\n{srt_time(at)} --> {srt_time(end)}\n{chunk}\n")
-            at = end
+        timed = [w for w in (timed or []) if 0 <= w["start"] < w["end"] and w["start"] < d]
+        bounds = []
+        consumed = 0
+        count = len(text.split())
+        for chunk in chunks:
+            if not timed:
+                break
+            first = min(len(timed)-1, consumed * len(timed) // count)
+            consumed += len(chunk.split())
+            last = min(len(timed)-1, max(first, (consumed * len(timed)-1) // count))
+            start = max(bounds[-1][1] if bounds else 0, timed[first]["start"])
+            end = min(d, timed[last]["end"])
+            if end <= start:
+                break
+            bounds.append((start, end))
+        if len(bounds) != len(chunks):
+            bounds = []
+            at = 0.0
+            for chunk in chunks:
+                end = at + d * len(chunk) / total
+                bounds.append((at, end))
+                at = end
+        for chunk, (start, end) in zip(chunks, bounds, strict=True):
+            cues.append(f"{len(cues) + 1}\n{srt_time(t0+start)} --> {srt_time(t0+end)}\n{chunk}\n")
     return "\n".join(cues)
 
 
