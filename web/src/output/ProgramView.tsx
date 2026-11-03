@@ -31,9 +31,17 @@ export function ProgramView() {
     const off = startProgram(() => ({ recording: rec.recording, seconds: rec.seconds, live: live.on }))
     fetch('/api/live/config').then((r) => (r.ok ? r.json() : null)).then(setLiveCfg).catch(() => setLiveCfg(null))
     live.onEnd = (reason) => { setOnAir(false); rec.setTap(null); if (reason) setErr(reason) }
+    rec.onTake = async (take) => {
+      if (live.on) { rec.setTap(null); await live.close(); setOnAir(false) }
+      setRecording(false)
+      const url = URL.createObjectURL(take.blob)
+      setLast({ take, url, id: null, mp4: false })
+      const id = await uploadTake(take)
+      setLast({ take, url, id, mp4: false })
+    }
     const unsub = useStage.subscribe(() => setLinked(true))
     const t = setInterval(() => setSecs(rec.seconds), 500)
-    return () => { off(); unsub(); clearInterval(t) }
+    return () => { rec.onTake = null; off(); unsub(); clearInterval(t) }
   }, [])
 
   // Poll the server until the MP4 is ready.
@@ -75,12 +83,8 @@ export function ProgramView() {
   }
   const stop = async () => {
     if (live.on) await endLive()
-    const take = await rec.stop()
-    setRecording(false)
-    const url = URL.createObjectURL(take.blob)
-    setLast({ take, url, id: null, mp4: false })
-    const id = await uploadTake(take)
-    setLast({ take, url, id, mp4: false })
+    await rec.stop()
+
   }
 
   return (

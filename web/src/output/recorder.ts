@@ -19,6 +19,8 @@ export class Recorder {
   private rec: MediaRecorder | null = null
   private stream: MediaStream | null = null
   private chunks: Blob[] = []
+  private completed: Promise<Take> | null = null
+  onTake: ((take: Take) => void) | null = null
   private t0 = 0
   private header: Blob | null = null
   cropped = false
@@ -55,24 +57,30 @@ export class Recorder {
       this.chunks.push(e.data)
       this.tap?.(e.data)
     }
-    track.addEventListener('ended', () => { if (this.recording) this.rec!.stop() })
-    this.rec.start(timeslice)
+    const rec = this.rec
+    const stream = this.stream
+    this.completed = new Promise((resolve) => {
+      rec.onstop = () => {
+        const seconds = Math.floor((performance.now() - this.t0) / 1000)
+        stream.getTracks().forEach((t) => t.stop())
+        const mime = (rec.mimeType || 'video/webm').split(';')[0]
+        const take = { blob: new Blob(this.chunks, { type: mime }), mime, seconds }
+        this.rec = null
+        this.completed = null
+        resolve(take)
+        this.onTake?.(take)
+      }
+    })
+    track.addEventListener('ended', () => { if (rec.state === 'recording') rec.stop() })
+    rec.start(timeslice)
     this.t0 = performance.now()
   }
 
   stop(): Promise<Take> {
-    const rec = this.rec
-    if (!rec) return Promise.reject(new Error('not recording'))
-    const seconds = this.seconds
-    return new Promise((resolve) => {
-      rec.onstop = () => {
-        this.stream?.getTracks().forEach((t) => t.stop())
-        const mime = (rec.mimeType || 'video/webm').split(';')[0]
-        resolve({ blob: new Blob(this.chunks, { type: mime }), mime, seconds })
-        this.rec = null
-      }
-      if (rec.state !== 'inactive') rec.stop(); else rec.onstop?.(new Event('stop'))
-    })
+    const completed = this.completed
+    if (!completed) return Promise.reject(new Error('not recording'))
+    if (this.rec?.state === 'recording') this.rec.stop()
+    return completed
   }
 }
 

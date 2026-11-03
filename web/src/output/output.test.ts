@@ -24,6 +24,38 @@ describe('recording output', () => {
       vi.unstubAllGlobals()
     }
   })
+  it('delivers the final chunk once when the browser ends sharing', async () => {
+    const track = Object.assign(new EventTarget(), { stop: vi.fn() })
+    const stream = { getVideoTracks: () => [track], getTracks: () => [track] }
+    class Capture {
+      static isTypeSupported() { return true }
+      state = 'inactive'
+      mimeType = 'video/webm'
+      ondataavailable?: (event: { data: Blob }) => void
+      onstop?: () => void
+      start() { this.state = 'recording' }
+      stop() {
+        this.state = 'inactive'
+        this.ondataavailable?.({ data: new Blob(['final']) })
+        this.onstop?.()
+      }
+    }
+    vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia: async () => stream } })
+    vi.stubGlobal('MediaRecorder', Capture)
+    try {
+      const recorder = new Recorder()
+      const saved = vi.fn()
+      recorder.onTake = saved
+      await recorder.start(document.body)
+      track.dispatchEvent(new Event('ended'))
+      track.dispatchEvent(new Event('ended'))
+      expect(saved).toHaveBeenCalledTimes(1)
+      expect(saved.mock.calls[0][0].blob.size).toBe(5)
+      expect(track.stop).toHaveBeenCalledOnce()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('knows which Main-card sources are live streams', () => {
     expect(liveKindOf('tab:')).toBe('tab')
     expect(liveKindOf('cam:')).toBe('cam')
