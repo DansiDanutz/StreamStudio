@@ -977,8 +977,10 @@ the preceding scenes' measured durations.
 today discovers takes only through their `rec_*.source.*` upload files, which a registered
 episode does not have, so the listing is extended to include `rec_*.episode.json` entries, merged
 and sorted by id with the takes; a contract test asserts a registered episode appears in the
-listing and in the YouTube take picker. The vault, `youtube_upload` and the MCP `youtube_upload`
-tool work unchanged. The planner sets `ready` once the recording is registered and stops. The
+listing and in the YouTube take picker. The vault and the `youtube_upload` job work unchanged.
+The MCP `youtube_upload` tool is removed in Stage 1, and `POST /api/recordings/{rid}/youtube`
+requires a present and allowed `Origin` (item 28a), so every upload, of an episode or of any
+other take, starts from Dan's click in the browser. The planner sets `ready` once the recording is registered and stops. The
 episode uploads only after Dan clicks **Upload private** (`POST /{id}/upload`, see "The episode
 record"), and the upload is always private.
 
@@ -1283,7 +1285,7 @@ rejected and why. After each, the option chosen in this design is stated.
 | YouTube upload fails or quota exceeded (only after Upload private) | upload job `error` | `needs_dan` | "Upload failed: reason" | resumable upload continues from its state file on Advance |
 | YouTube OAuth refresh fails | upload, publish or refresh call `error` | `needs_dan` | "Reconnect YouTube" | Dan reconnects the channel; Advance |
 | No YouTube channel connected, profile names none and several are connected, or its channel is not connected | profile save 422 (a changed, unconnected channel); Upload private 409 | `ready` (building is never blocked) | "Upload channel: not connected (connect before uploading)" / "Connect channel Y" | Dan connects the channel, or edits the profile and repins, then clicks Upload private again |
-| An episode uploads without Dan asking | none needed: no code path sets `outputs.upload_requested_at` except `POST /{id}/upload`, which needs a browser `Origin`, and MCP has no tool for it | `ready` | | a test asserts the planner never enqueues `youtube_upload` without `upload_requested_at` |
+| An episode uploads without Dan asking | none needed: no code path sets `outputs.upload_requested_at` except `POST /{id}/upload`, which needs a browser `Origin`; MCP has no upload tool of any kind and the take upload route also needs a browser `Origin` (item 28a) | `ready` | | tests assert the planner never enqueues `youtube_upload` without `upload_requested_at`, that `mcp.TOOLS` has no upload tool, and that the take upload route refuses a request with no `Origin` |
 | Profile edited after approval | `profile_latest_version` above the pinned version | unchanged | "Profile changed since approval" | repin (back to `draft`), or do nothing: the episode keeps its pinned version, and script edits keep it too |
 | Profile file missing on disk (deleted by hand) | create 409; approve-script and approve-budget 409 before any reservation; handler `error` | refused / `draft` / `needs_dan` | "Profile X is missing its plate" | upload the same file again (the same sha256 restores the pinned version), then approve again or Advance; or save a new file and repin |
 | Mistyped `avatar_id` or `voice_id` | avatar id checked against HeyGen's looks on save (422); the estimate screen shows the presenter's name and ids; QA (Stage 2) finds a face that does not match `reference` | `draft` / `script_approved` | "Avatar X is not in your HeyGen account" | fix the profile and repin before approving the budget |
@@ -1326,7 +1328,9 @@ rejected and why. After each, the option chosen in this design is stated.
     check stops cross-site browser requests, not a client on the tailnet; for those, pinning, the
     budget screen (which shows the presenter), the stop at `ready` and the private upload are the
     backstop. `POST /{id}/upload` needs the same present-and-allowed `Origin` and is the only
-    way an episode reaches YouTube; MCP has no tool for it.
+    way an episode reaches YouTube; MCP has no upload tool of any kind, and the take upload
+    route (`POST /api/recordings/{rid}/youtube`) needs the same `Origin`, so no agent can
+    upload anything.
 *   **Cost.** One confirm per episode; retries and QA re-renders charge a visible allowance; a
     monthly ceiling refuses approval; reservations are atomic; one charge per (scene, take);
     cancelled episodes keep submitted work reserved until it is charged. No MCP tool approves.
@@ -1995,6 +1999,19 @@ it changes, so the READMEs never lag the code by a stage.
     sorted by id descending, so the existing ordering test and the YouTube take picker keep
     working. README: `api/routes/README.md` `recordings.py` entry.
 
+#### 28a. `server/src/streamstudio/mcp.py`, `server/src/streamstudio/api/routes/youtube.py`, `server/tests/test_agent.py`, `server/tests/test_youtube.py`, `docs/AGENTS.md` (Modify)
+
+*   **Type / Scope**: No upload without Dan's click (owner decision, 2026-11-03).
+*   **Proposed Changes**: Remove the `youtube_upload` tool from `mcp.TOOLS` and its handler;
+    `youtube_status` stays (read-only). `POST /api/recordings/{rid}/youtube` refuses with 403
+    a request whose `Origin` is missing or not allowed (`netguard.origin_allowed` plus an
+    explicit presence check, since it returns `True` for `None`); the editor's YouTube panel
+    sends one already. Tests: `test_agent.py` asserts no tool name contains `upload`;
+    `test_youtube.py` sends `Origin: http://testclient` on its upload calls and adds a 403 case
+    with no `Origin`. `docs/AGENTS.md` drops the `youtube_upload` row and says uploads are the
+    owner's click. README: `server/src/streamstudio/README.md` `mcp.TOOLS`;
+    `api/routes/README.md` `youtube.py`.
+
 #### 29. `server/src/streamstudio/core/youtube.py` (Modify)
 
 *   **Type / Scope**: YouTube client.
@@ -2241,8 +2258,8 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: Tools `episode_create(script)`, `episode_list()`,
     `episode_status(id)`, `episode_estimate(id)`, `episode_refresh(id)`, `channel_list()`,
     `channel_get(slug)`; `channel_get` builds its path with `_seg(slug)` (`mcp.py:208-210`);
-    `youtube_upload` unchanged. No approve, episode upload, publish, cancel, purge or
-    profile-write tool; the descriptions say so. README: `server/src/streamstudio/README.md` `mcp.TOOLS`.
+    no upload tool (`youtube_upload` was removed in Stage 1, item 28a). No approve, upload,
+    publish, cancel, purge or profile-write tool; the descriptions say so. README: `server/src/streamstudio/README.md` `mcp.TOOLS`.
 
 #### 41a. `web/src/channels/ChannelsPage.tsx`, `web/src/channels/api.ts`, `web/src/channels/README.md` (Create); `web/src/App.tsx`, `web/src/index.css`, `server/src/streamstudio/api/routes/channels.py`, `server/src/streamstudio/episode/compose.py`, `server/src/streamstudio/episode/profiles.py` (Modify)
 
