@@ -208,9 +208,14 @@ def prepare(s: Settings, scene: Scene, folder: Path, *, cached_only: bool = Fals
                     page.evaluate("document.fonts.ready")
                     label = scene.plan.website_demo.focus_label
                     if label:
-                        target = page.get_by_label(label, exact=True)
+                        scope = page
+                        if urlsplit(scene.site).fragment:
+                            anchor = page.locator(":target")
+                            if anchor.count() == 1:
+                                scope = anchor
+                        target = scope.get_by_label(label, exact=True)
                         if not target.count():
-                            target = page.get_by_text(label, exact=True)
+                            target = scope.get_by_text(label, exact=True)
                             target = target.and_(page.locator(":visible"))
                         if target.count() != 1:
                             raise ValueError(f"capture target must match exactly once: {label}")

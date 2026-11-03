@@ -259,7 +259,14 @@
   "video": "g15.mp4",
   "video_at": 17.92,
   "cont": true,
-  "tag": "worldcup26.world \u00b7 a free collecting game"
+  "tag": "worldcup26.world \u00b7 a free collecting game",
+  "website_demo": {
+   "page_switch": {
+    "at_s": 4.08,
+    "site": "https://worldcup26.world/#legend-card-ep106-spain-argentina",
+    "focus_label": "Watch to unlock"
+   }
+  }
  },
  {
   "kind": "card",
