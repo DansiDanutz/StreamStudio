@@ -19,6 +19,7 @@ describe('primaryAction', () => {
     expect(primaryAction('script_approved')).toBe('approve-budget')
     expect(primaryAction('in_progress')).toBeNull()
     expect(primaryAction('needs_dan')).toBe('advance')
+    expect(primaryAction('ready')).toBe('upload')
     expect(primaryAction('uploaded_private')).toBe('publish')
     expect(primaryAction('published')).toBe('purge')
     expect(primaryAction('purged')).toBeNull()

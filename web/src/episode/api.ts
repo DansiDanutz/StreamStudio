@@ -4,7 +4,7 @@
 
 export type EpisodeStatus =
   | 'draft' | 'script_approved' | 'budget_approved' | 'in_progress' | 'needs_dan'
-  | 'uploaded_private' | 'scheduled' | 'published' | 'purged' | 'cancelled'
+  | 'ready' | 'uploaded_private' | 'scheduled' | 'published' | 'purged' | 'cancelled'
 
 export interface SceneIn {
   id: string
@@ -74,6 +74,7 @@ export const putScript = (id: string, script: Episode['script']) => call<Episode
 export const approveScript = (id: string) => call<Episode>('POST', `/${id}/approve-script`)
 export const estimate = (id: string) => call<Estimate>('GET', `/${id}/estimate`)
 export const approveBudget = (id: string, token: string) => call<Episode & { job_id: string }>('POST', `/${id}/approve-budget`, { confirm_token: token })
+export const uploadPrivate = (id: string) => call<Episode>('POST', `/${id}/upload`, {})
 export const publish = (id: string, publishAt?: string) => call<Episode>('POST', `/${id}/publish`, publishAt ? { publish_at: publishAt } : {})
 export const advance = (id: string) => call<Episode & { job_id: string }>('POST', `/${id}/advance`)
 export const purge = (id: string) => call<Episode & { job_id: string }>('POST', `/${id}/purge`)
@@ -90,6 +91,7 @@ export function progressLabel(ep: Pick<Episode, 'status' | 'progress' | 'outputs
       if (p.composed < p.total) return `Composing ${p.composed}/${p.total}`
       return ep.outputs.recording_id ? 'Uploading' : 'Assembling'
     case 'needs_dan': return 'Needs you'
+    case 'ready': return 'Ready in the Library'
     case 'uploaded_private': return 'Uploaded privately: publish when ready'
     case 'scheduled': return `Scheduled for ${ep.outputs.publish_at ?? '…'}`
     case 'published': return 'Published'
@@ -99,11 +101,12 @@ export function progressLabel(ep: Pick<Episode, 'status' | 'progress' | 'outputs
 }
 
 /** Which of the three buttons is live for a status (the fourth is Advance for `needs_dan`). */
-export function primaryAction(status: EpisodeStatus): 'approve-script' | 'approve-budget' | 'publish' | 'advance' | 'purge' | null {
+export function primaryAction(status: EpisodeStatus): 'approve-script' | 'approve-budget' | 'upload' | 'publish' | 'advance' | 'purge' | null {
   switch (status) {
     case 'draft': return 'approve-script'
     case 'script_approved': return 'approve-budget'
     case 'needs_dan': return 'advance'
+    case 'ready': return 'upload'
     case 'uploaded_private': return 'publish'
     case 'published': case 'cancelled': return 'purge'
     default: return null

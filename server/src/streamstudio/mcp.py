@@ -162,29 +162,7 @@ TOOLS: list[dict[str, Any]] = [
         "description": "Which YouTube channels are connected (id and title).",
         "inputSchema": {"type": "object", "properties": {}},
     },
-    {
-        "name": "youtube_upload",
-        "description": (
-            "Upload a finished take to the connected YouTube channel as a PRIVATE video (captions "
-            "are added if the take was transcribed). Agents cannot publish: Dan makes it public "
-            "in YouTube Studio. Returns a job id; the job result has the video and Studio links."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "id": {"type": "string", "description": "recording id (rec_...)"},
-                "title": {"type": "string"},
-                "description": {"type": "string"},
-                "tags": {"type": "array", "items": {"type": "string"}},
-                "channel": {
-                    "type": "string",
-                    "description": "channel id (UC...) from youtube_status; needed when several "
-                    "are connected",
-                },
-            },
-            "required": ["id", "title"],
-        },
-    },
+
 ]
 
 
@@ -250,16 +228,6 @@ def call(name: str, args: dict[str, Any]) -> Any:
         return _http("GET", f"/api/recordings/{_seg(args['id'])}/transcript")
     if name == "youtube_status":
         return _http("GET", "/api/youtube")
-    if name == "youtube_upload":
-        body = {
-            "title": args["title"],
-            "description": args.get("description", ""),
-            "tags": args.get("tags") or [],
-            "privacy": "private",  # agents never publish
-        }
-        if args.get("channel"):
-            body["channel"] = args["channel"]
-        return _http("POST", f"/api/recordings/{_seg(args['id'])}/youtube", body)
     raise ValueError(f"unknown tool {name}")
 
 

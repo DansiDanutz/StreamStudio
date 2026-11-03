@@ -102,7 +102,12 @@ def put_script(
     v = validate.validate(body, s)
     with tx(c):
         ep = _episode(c, eid)
-        if ep.status not in record.EDITABLE or _live(c, ep.record["outputs"].get("upload_job_id")):
+        outputs = ep.record["outputs"]
+        if (
+            ep.status not in record.EDITABLE
+            or outputs.get("upload_requested")
+            or _live(c, outputs.get("upload_job_id"))
+        ):
             raise HTTPException(409, f"the script cannot change while the episode is {ep.status}")
         old_hash = ep.record["script"].get("hash")
         new_hash = record.script_hash(body)
@@ -254,11 +259,6 @@ def approve_budget(
             or (b.get("token_expires_at") or 0) < time.time()
         ):
             raise HTTPException(409, "the estimate expired: open the cost screen again")
-        script = ep.script
-        try:
-            channel = youtube.pick_channel(s.data_dir, script.channel)
-        except youtube.YouTubeError as e:
-            raise HTTPException(409, str(e)) from e
         est = _estimate(s, c, ep)
         if est["over_ceiling"]:
             raise HTTPException(
@@ -281,7 +281,6 @@ def approve_budget(
              "approval_id": approval_id, "clips": est["clips"], "seconds": est["seconds"],
              "usd": est["usd"], "allowance": est["allowance"], "spent": ledger.spent(c, ep.id)}
         )  # fmt: skip
-        ep.record["outputs"]["channel"] = channel
         record.set_status(
             ep, "budget_approved", f"budget approved: {est['usd']} USD for {est['clips']} clips"
         )
@@ -291,6 +290,30 @@ def approve_budget(
 
 
 # ---------------------------------------------------------------- publish, advance, purge
+
+
+@router.post("/{eid}/upload", status_code=202)
+def upload_private(
+    eid: str,
+    origin: str | None = Header(default=None),
+    s: Settings = Depends(settings),
+    c: sqlite3.Connection = Depends(conn),
+):
+    if origin is None or not netguard.origin_allowed(origin, s.extra_hosts):
+        raise HTTPException(403, "upload from the Episode page")
+    with tx(c):
+        ep = _episode(c, eid)
+        if ep.status != "ready":
+            raise HTTPException(409, f"the episode is {ep.status}")
+        try:
+            channel = youtube.pick_channel(s.data_dir, ep.script.channel)
+        except youtube.YouTubeError as e:
+            raise HTTPException(409, str(e)) from e
+        ep.record["outputs"].update(channel=channel, upload_requested=True)
+        record.set_status(ep, "in_progress", "private upload requested")
+        record.save(c, ep)
+        _enqueue_planner(c, ep)
+    return _out(s, ep)
 
 
 @router.post("/{eid}/publish")

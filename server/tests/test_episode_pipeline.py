@@ -214,8 +214,19 @@ def two_scenes() -> dict:
 def test_the_thin_slice_runs_from_approval_to_a_private_upload(env):
     client, s, fake, tube = env
     eid = client.post("/api/episodes", json=two_scenes()).json()["id"]
+    youtube._channel_file(s.data_dir, CH1).unlink()
     approve(client, eid)
     ran = drain(s)
+    assert client.get(f"/api/episodes/{eid}").json()["status"] == "ready"
+    assert all(j["kind"] != "youtube_upload" for j in ran)
+    assert client.post(f"/api/episodes/{eid}/advance").status_code == 409
+    assert client.post(f"/api/episodes/{eid}/upload").status_code == 403
+    assert client.post(f"/api/episodes/{eid}/upload", headers=ORIGIN).status_code == 409
+    assert tube.inits == 0
+    connect_channel(s, CH1, "DansLab")
+    assert client.post(f"/api/episodes/{eid}/upload", headers=ORIGIN).status_code == 202
+    assert client.post(f"/api/episodes/{eid}/upload", headers=ORIGIN).status_code == 409
+    ran += drain(s)
     kinds = [j["kind"] for j in ran]
     assert kinds.count("heygen_clip") == 2 and kinds.count("scene_compose") == 2
     for k in ("episode_assemble", "episode_publish_kit", "episode_register", "youtube_upload"):
@@ -284,7 +295,7 @@ def test_two_planners_at_once_pay_once_per_key(env):
     assert len(jobs_of(s, "heygen_clip")) == 2
     drain(s)
     assert [x for x in fake.calls if x == ("POST", "/v3/videos")] == [("POST", "/v3/videos")] * 2
-    assert client.get(f"/api/episodes/{eid}").json()["status"] == "uploaded_private"
+    assert client.get(f"/api/episodes/{eid}").json()["status"] == "ready"
 
 
 def test_a_failed_render_is_recorded_charged_once_and_parks_the_episode(env):
@@ -342,7 +353,7 @@ def test_a_worker_error_parks_the_episode_and_advance_resumes_the_render(env):
     ] == creates  # resumed, not paid again
     replacement = [j for j in jobs_of(s, "heygen_clip") if j["id"] != first["id"]]
     assert all(j["status"] == "done" for j in replacement)
-    assert client.get(f"/api/episodes/{eid}").json()["status"] == "uploaded_private"
+    assert client.get(f"/api/episodes/{eid}").json()["status"] == "ready"
 
 
 def test_a_stale_requeue_keeps_the_job_id_and_claim(env):
@@ -357,7 +368,7 @@ def test_a_stale_requeue_keeps_the_job_id_and_claim(env):
     again = store.get_job(c, job["id"])
     assert again["status"] == "queued" and again["payload"]["max_attempts"] == 1
     drain(s)
-    assert client.get(f"/api/episodes/{eid}").json()["status"] == "uploaded_private"
+    assert client.get(f"/api/episodes/{eid}").json()["status"] == "ready"
 
 
 # ---------------------------------------------------------------- the pieces

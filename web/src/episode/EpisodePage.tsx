@@ -55,6 +55,9 @@ export function EpisodePage({ id }: { id: string }) {
           {action === 'approve-budget' && !est && (
             <button disabled={busy} onClick={() => run(async () => setEst(await api.estimate(ep.id)))}>Approve budget…</button>
           )}
+          {action === 'upload' && (
+            <button disabled={busy} onClick={() => run(() => api.uploadPrivate(ep.id))}>Upload private</button>
+          )}
           {action === 'publish' && (
             <button disabled={busy} onClick={() => run(() => api.publish(ep.id))}>Publish now</button>
           )}

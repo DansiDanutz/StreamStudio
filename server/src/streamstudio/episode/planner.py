@@ -212,6 +212,13 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
         return done
 
     # ---- rows 10 and 11: upload, then uploaded_private
+    if not out.get("upload_requested") and not out.get("upload_job_id"):
+        record.set_status(ep, "ready", "ready in the Library")
+        approval = ep.record["budget"].get("approval_id")
+        if approval:
+            ledger.release(conn, ep.id, approval)
+            ep.record["budget"]["spent"] = ledger.spent(conn, ep.id)
+        return done
     channel = out.get("channel")
     state_file = youtube.folder(s.data_dir) / "uploads" / f"{channel}-{rid}.json"
     state = {}
