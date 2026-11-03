@@ -809,3 +809,30 @@ def test_cached_mp4_with_missing_cutout_needs_no_render_budget(env):
     assert ep["status"] == "ready" and cutout.exists()
     assert ep["budget"]["spent"] == {"renders": 0, "seconds": 0, "usd": 0}
     assert ("POST", "/v3/videos") not in fake.calls
+
+
+def test_assembly_keeps_a_voice_marker_on_time_across_aac_scene_boundaries(env, tmp_path):
+    import numpy as np
+
+    _, settings, _, _ = env
+    clip = tmp_path / "marker.mp4"
+    subprocess.run([
+        "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=s=320x180:r=25:d=0.8",
+        "-f", "lavfi", "-i", "sine=frequency=850:sample_rate=48000:duration=0.8",
+        "-af", "volume=0:enable='lt(t,0.25)+gt(t,0.5)'", "-c:a", "aac",
+        "-c:v", "libx264", str(clip),
+    ], check=True)
+    scenes = [Scene(id=f"s{i}", text="Tone") for i in range(6)]
+    final = tmp_path / "assembled.mp4"
+    timing = mix.assemble(settings, scenes, [clip] * len(scenes), None, final)
+    source = mix._load(settings, clip, None)[:, 0]
+    output = mix._load(settings, final, None)[:, 0]
+
+    def onset(samples):
+        return np.flatnonzero(np.abs(samples) > np.max(np.abs(samples)) * .15)[0]
+
+    expected = onset(source)
+    for start in timing["starts"]:
+        begin = round(start * mix.SR)
+        actual = onset(output[begin:begin + round(.7 * mix.SR)])
+        assert abs(actual - expected) < .02 * mix.SR
