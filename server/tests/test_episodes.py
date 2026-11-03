@@ -637,3 +637,19 @@ def test_channel_preview_renders_unsaved_profile_without_jobs_or_saving(env):
     draft["presenter"]["avatar_id"] = "different-look"
     other = client.post("/api/channels/preview", json=draft, headers=ORIGIN)
     assert other.headers["x-presenter-preview"] == "silhouette"
+
+
+def test_channel_removal_protects_drafts_and_default_and_does_not_reseed(env):
+    client, _, _, _ = env
+    url = "/api/channels"
+    assert client.delete(url + "/danslab", headers=ORIGIN).status_code == 409
+    client.post(url, json={"slug": "engineering", "name": "Engineering"}, headers=ORIGIN)
+    eid = client.post("/api/episodes", json=small_script(profile="engineering")).json()["id"]
+    used = client.delete(url + "/engineering", headers=ORIGIN)
+    assert used.status_code == 409 and used.json()["detail"]["episodes"] == [eid]
+    client.put(url + "/default", json={"slug": "engineering"}, headers=ORIGIN)
+    assert client.delete(url + "/danslab").status_code == 403
+    assert client.delete(url + "/danslab?base_version=2", headers=ORIGIN).status_code == 409
+    assert client.delete(url + "/danslab?base_version=1", headers=ORIGIN).status_code == 200
+    assert client.get(url + "/danslab").status_code == 404
+    assert [r["slug"] for r in client.get(url).json()] == ["engineering"]

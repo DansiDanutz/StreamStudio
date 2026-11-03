@@ -136,6 +136,18 @@ export function ChannelsPage() {
         <figcaption>{preview.cached ? 'Cached presenter frame' : 'Silhouette · no matching presenter frame available'}</figcaption></figure>}
       <button disabled={!dirty} onClick={() => void run(save)}>Save new version</button>
       <button onClick={() => void run(async () => display(await request<Version>('/' + draft.slug)))}>Discard edits and reload</button>
+      {!rows.find(r => r.slug === draft.slug)?.default && <button disabled={dirty}
+        onClick={() => {
+          if (!window.confirm(`Remove all versions of ${draft.name}? Uploaded files will be kept.`)) return
+          void run(async () => {
+            await request('/' + draft.slug + '?base_version=' + version.version, 'DELETE')
+            const list = await request<Summary[]>()
+            setRows(list)
+            const selected = list.find(r => r.default)!
+            display(await request<Version>('/' + selected.slug))
+            setMessage('Channel removed.')
+          })
+        }}>Remove channel</button>}
     </fieldset>}
     <fieldset disabled={busy || dirty || !draft}>
       <legend>Create from selected channel</legend>

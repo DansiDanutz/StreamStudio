@@ -113,6 +113,8 @@ def save(c, profile: Profile, version: int):
 
 def seed(c, s):
     current = get(c, "danslab")
+    if not current and c.execute("SELECT 1 FROM channel_seeds WHERE slug='danslab'").fetchone():
+        return
     if current:
         identity = current["profile"]["presenter"]
         if current["version"] != 1 or (identity["avatar_id"] and identity["voice_id"]):
@@ -122,7 +124,7 @@ def seed(c, s):
         return
     save(c, Profile(slug="danslab", name="DansLab", presenter=Presenter(
         name="Dan", avatar_id=cfg["avatar_id"], voice_id=cfg["voice_id"])), 2 if current else 1)
-
+    c.execute("INSERT OR IGNORE INTO channel_seeds VALUES ('danslab')")
 
 
 def default(c):

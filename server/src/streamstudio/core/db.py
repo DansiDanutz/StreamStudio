@@ -124,6 +124,10 @@ MIGRATIONS: list[str] = [
     CREATE TABLE channel_default (singleton INTEGER PRIMARY KEY CHECK(singleton=1), slug TEXT);
     INSERT INTO channel_default(singleton, slug) VALUES(1, 'danslab');
     """,
+    """
+    CREATE TABLE channel_seeds (slug TEXT PRIMARY KEY);
+    INSERT INTO channel_seeds SELECT DISTINCT slug FROM channel_profiles WHERE slug='danslab';
+    """,
 ]
 
 

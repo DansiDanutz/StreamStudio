@@ -163,3 +163,29 @@ def save(slug: str, body: Save, s: Settings = Depends(settings),
         if target and target not in {ch["id"] for ch in youtube.channels(s.data_dir)}:
             raise HTTPException(422, "choose a connected YouTube channel")
         return profiles.save(c, body.profile, body.base_version + 1)
+
+
+@router.delete("/{slug}", dependencies=[Depends(owner)])
+def remove(slug: str, base_version: int | None = None, s: Settings = Depends(settings),
+           c: sqlite3.Connection = Depends(conn)):
+    with tx(c):
+        profiles.seed(c, s)
+        current = profiles.get(c, slug)
+        if not current:
+            raise HTTPException(404, "channel not found")
+        if base_version is not None and base_version != current["version"]:
+            raise HTTPException(409, "profile changed; reload")
+        if slug == profiles.default(c):
+            raise HTTPException(409, "choose another default before removing this channel")
+        used = c.execute(
+            "SELECT id FROM episodes WHERE COALESCE(json_extract(record_json,'$.profile_slug'),"
+            "json_extract(record_json,'$.script.profile'),'danslab')=?"
+            " OR json_extract(record_json,'$.script.profile')=?"
+            " OR json_extract(record_json,'$.profile.slug')=? ORDER BY id",
+            (slug, slug, slug),
+        ).fetchall()
+        if used:
+            raise HTTPException(409, {"message": "channel is used by episodes",
+                                      "episodes": [r["id"] for r in used]})
+        c.execute("DELETE FROM channel_profiles WHERE slug=?", (slug,))
+    return {"removed": slug}
