@@ -20,7 +20,22 @@ AUDIO = {
 
 IMAGE = {".png": ("PNG", "image/png"), ".jpg": ("JPEG", "image/jpeg"),
          ".jpeg": ("JPEG", "image/jpeg"), ".webp": ("WEBP", "image/webp")}
-FORMATS = {**AUDIO, **IMAGE}
+FONT = {".otf": (b"OTTO", "font/otf"), ".ttf": (b"\x00\x01\x00\x00", "font/ttf")}
+KINDS = {"audio": AUDIO, "image": IMAGE, "font": FONT}
+FORMATS = {**AUDIO, **IMAGE, **FONT}
+
+
+def install_font(s: Settings, staged: Path, ext: str, digest: str) -> Path:
+    from PIL import ImageFont
+
+    with staged.open("rb") as stream:
+        if stream.read(4) != FONT[ext][0]:
+            raise ValueError("font does not match its extension")
+    try:
+        ImageFont.truetype(str(staged), 32).getmask("DansLab")
+    except OSError as e:
+        raise ValueError("unreadable channel font") from e
+    return _store(s, staged, ext, digest)
 
 
 def install_image(s: Settings, staged: Path, ext: str, digest: str) -> Path:
@@ -72,7 +87,7 @@ def _store(s: Settings, staged: Path, ext: str, digest: str) -> Path:
 
 def verify(s: Settings, digest: str, *, kind: str = "audio") -> Path:
     path = resolve(s, digest)
-    if path is None or path.suffix not in (IMAGE if kind == "image" else AUDIO):
+    if path is None or path.suffix not in KINDS[kind]:
         raise ValueError(f"missing channel {kind}: {digest}")
     with path.open("rb") as source:
         if hashlib.file_digest(source, "sha256").hexdigest() != digest:

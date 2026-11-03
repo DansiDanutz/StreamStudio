@@ -61,7 +61,7 @@ class Compositor:
     def __init__(self, s: Settings, look: dict | None = None) -> None:
         import cv2
         import numpy as np
-        from PIL import Image
+        from PIL import Image, ImageColor
 
         self.s = s
         self.np, self.cv2 = np, cv2
@@ -89,6 +89,15 @@ class Compositor:
             cv2.GaussianBlur(self.plate, (0, 0), 18) * 0.38
             + np.array([6, 6, 12], np.float32) * 0.62
         )
+        self.colors = {
+            "text": (*WHITE, 255), "accent_a": (*TEAL, 255), "muted": (*MUTED, 255),
+            "accent_b": (140, 100, 255, 255), "glow": (60, 200, 190, 255),
+            "panel_2": (8, 10, 18, 205), "outline": (171, 191, 198, 255),
+        }
+        for name, value in ((look or {}).get("palette") or {}).items():
+            self.colors[name] = ImageColor.getcolor(value, "RGBA")
+        self.font_paths = {slot: channel_files.verify(s, digest, kind="font")
+                           for slot, digest in (look or {}).get("fonts", {}).items()}
         self._fonts: dict[tuple[int, str], Any] = {}
         self._cards: dict[str, Any] = {}
 
@@ -107,6 +116,11 @@ class Compositor:
         key = (size, weight)
         if key not in self._fonts:
             path = self.s.assets_dir / "brand" / "fonts" / FONT_FILES[weight]
+            if self.font_paths:
+                slot = {"Bold": "display", "SemiBold": "body", "Medium": "small"}[weight]
+                path = self.font_paths.get(slot) or next(
+                    self.font_paths[k] for k in ("body", "display", "small") if k in self.font_paths
+                )
             self._fonts[key] = ImageFont.truetype(str(path), size)
         return self._fonts[key]
 
@@ -153,7 +167,7 @@ class Compositor:
         w2, h2 = w + pad * 2, h + pad * 2
         im = Image.new("RGBA", (w2, h2), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
-        d.rounded_rectangle((pad, pad, pad + w, pad + h), 18, fill=(8, 10, 18, 205))
+        d.rounded_rectangle((pad, pad, pad + w, pad + h), 18, fill=self.colors["panel_2"])
         rim = Image.new("L", (w2, h2), 0)
         ImageDraw.Draw(rim).rounded_rectangle(
             (pad, pad, pad + w, pad + h), 18, outline=255, width=3
@@ -164,14 +178,16 @@ class Compositor:
         for text, sz, wt, rgb in lines:
             f = self.font(sz, wt)
             tw = d.textlength(text, font=f)
-            d.text((pad + (w - tw) / 2, y), text, font=f, fill=(*rgb, 255))
+            d.text((pad + (w - tw) / 2, y), text, font=f, fill=rgb)
             y += sz + 14
         base = np.asarray(im).astype(np.float32)
         grad = np.linspace(0, 1, w2, dtype=np.float32)[None, :, None]
         col = (
-            np.array([45, 226, 196], np.float32) * (1 - grad)
-            + np.array([140, 100, 255], np.float32) * grad
+            np.array(self.colors["accent_a"][:3], np.float32) * (1 - grad)
+            + np.array(self.colors["accent_b"][:3], np.float32) * grad
         )
+        opacity = (self.colors["accent_a"][3] * (1-grad) + self.colors["accent_b"][3] * grad) / 255
+        rim_a = rim_a * opacity[0, :, 0]
         glow = np.clip(cv2.GaussianBlur(rim_a, (0, 0), 10) * 2.4, 0, 1)[..., None]
         rgb = base[..., :3] * (base[..., 3:4] / 255.0)
         a = base[..., 3:4] / 255.0
@@ -215,7 +231,8 @@ class Compositor:
         g = np.zeros((H, W), np.float32)
         cv2.ellipse(g, (int(cx), TABLE_BOTTOM), (int(w * 0.62), 26), 0, 0, 360, 1.0, -1)
         g = cv2.GaussianBlur(g, (0, 0), 22)[..., None] * 0.5 * alpha
-        return out + np.array([60, 200, 190], np.float32) * g
+        color = self.colors["glow"]
+        return out + np.array(color[:3], np.float32) * g * (color[3] / 255)
 
     def glitch(self, img, u: float, f: int):
         np = self.np
@@ -261,7 +278,9 @@ class Compositor:
             al = ease(tl / 0.5) * (1 - ease((tl - 2.6) / 0.6))
             out = self.table_glow(out, W / 2, 820, al)
             w = max(820, int(self.font(64, "Bold").getlength(t1)) + 140)
-            lines = [(t1, 64, "Bold", WHITE)] + ([(t2, 30, "Medium", TEAL)] if t2 else [])
+            lines = [(t1, 64, "Bold", self.colors["text"])]
+            if t2:
+                lines.append((t2, 30, "Medium", self.colors["accent_a"]))
             out = self.place_table_card(
                 out, "title:" + t1, lines, w, 170, W / 2, al, ease(tl / 0.6)
             )
@@ -271,7 +290,9 @@ class Compositor:
             t_in = 0.3 + fa * dur
             t_out = fb * dur - 0.5 if fb is not None else min(dur - 0.6, 7.0 + t_in)
             al = ease((tl - t_in) / 0.4) * (1 - ease((tl - t_out) / 0.5))
-            lines = [(name, 44, "Bold", WHITE)] + ([(sub, 26, "Medium", TEAL)] if sub else [])
+            lines = [(name, 44, "Bold", self.colors["text"])]
+            if sub:
+                lines.append((sub, 26, "Medium", self.colors["accent_a"]))
             w = max(460, int(self.font(44, "Bold").getlength(name)) + 120)
             cx = W * 0.47 if not zoomed else W * (p.card_x if p.card_x is not None else 0.30)
             out = self.table_glow(out, cx, w, al)
@@ -298,7 +319,7 @@ class Compositor:
                 out = self.place_table_card(
                     out,
                     "chip:" + name,
-                    [(name, 36, "Bold", WHITE)],
+                    [(name, 36, "Bold", self.colors["text"])],
                     cw[k],
                     96,
                     xs[k],
@@ -316,9 +337,9 @@ class Compositor:
                 out = self.table_glow(out, W / 2, 1100, al)
                 e = (list(p.endcard) + ["", ""])[:3]
                 lines = (
-                    [(e[0], 56, "Bold", WHITE)]
-                    + ([(e[1], 36, "SemiBold", TEAL)] if e[1] else [])
-                    + ([(e[2], 24, "Medium", MUTED)] if e[2] else [])
+                    [(e[0], 56, "Bold", self.colors["text"])]
+                    + ([(e[1], 36, "SemiBold", self.colors["accent_a"])] if e[1] else [])
+                    + ([(e[2], 24, "Medium", self.colors["muted"])] if e[2] else [])
                 )
                 out = self.place_table_card(
                     out, "end:" + e[0], lines, 1100, 230, W / 2, al, ease((tl - e_in) / 0.7)
@@ -452,7 +473,7 @@ def compose_scene(
         try:
             if not card_mp4:
                 raise ValueError("website demo capture missing")
-            overlay(s, tmp, card_mp4, plan.website_demo, out_mp4)
+            overlay(s, tmp, card_mp4, plan.website_demo, out_mp4, outline=comp.colors["outline"])
         finally:
             tmp.unlink(missing_ok=True)
     else:

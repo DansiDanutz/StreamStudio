@@ -78,8 +78,7 @@ def set_default(body: Selection, s: Settings = Depends(settings),
 async def upload_file(name: str, request: Request, role: str = "audio",
                       s: Settings = Depends(settings)):
     ext = Path(name).suffix.lower()
-    formats = {"audio": channel_files.AUDIO, "image": channel_files.IMAGE}
-    if ext not in formats.get(role, {}):
+    if ext not in channel_files.KINDS.get(role, {}):
         raise HTTPException(415, "unsupported channel file role or extension")
     root = s.data_dir / "channels" / "tmp"
     root.mkdir(parents=True, exist_ok=True)
@@ -97,6 +96,8 @@ async def upload_file(name: str, request: Request, role: str = "audio",
         try:
             if role == "audio":
                 channel_files.install_audio(s, staged, ext, digest.hexdigest())
+            elif role == "font":
+                channel_files.install_font(s, staged, ext, digest.hexdigest())
             else:
                 channel_files.install_image(s, staged, ext, digest.hexdigest())
         except (ValueError, subprocess.TimeoutExpired) as e:

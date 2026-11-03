@@ -571,3 +571,37 @@ def test_channel_versions_and_approval_pin(env):
                       headers=ORIGIN).status_code == 200
     assert client.put(base + "/script", json=small_script(title="Edited")).status_code == 200
     assert client.post(base + "/approve-script").json()["profile"] == v2
+
+
+def test_pinned_font_and_palette_draw_the_card(env, tmp_path):
+    from PIL import Image, ImageFont
+
+    from streamstudio.episode import compose
+
+    client, s, _, _ = env
+    font_url = "/api/channels/files?name=body.ttf&role=font"
+    assert client.put(font_url, content=b"not a font", headers=ORIGIN).status_code == 422
+    try:
+        font_file = ImageFont.truetype("DejaVuSans.ttf", 24).path
+    except OSError:
+        font_file = ImageFont.truetype("arial.ttf", 24).path
+    font = client.put(font_url, content=Path(font_file).read_bytes(), headers=ORIGIN).json()
+    pic = tmp_path / "plate.png"
+    Image.new("RGB", (16, 9)).save(pic)
+    plate = client.put("/api/channels/files?name=plate.png&role=image", content=pic.read_bytes(),
+                       headers=ORIGIN).json()
+    look = {"plate": {"image": plate["sha256"], "seat": {"scale": .6, "hands_y": .7, "x": .47}},
+            "fonts": {"body": font["sha256"]},
+            "palette": {"panel_2": "#FF0000FF", "text": "#00FF00"}}
+    existing = client.get("/api/channels/danslab").json()
+    existing["profile"]["look"] = look
+    body = {"base_version": existing["version"], "profile": existing["profile"]}
+    assert client.put("/api/channels/danslab", json=body, headers=ORIGIN).status_code == 200
+    eid = client.post("/api/episodes", json=small_script()).json()["id"]
+    pinned = client.post(f"/api/episodes/{eid}/approve-script").json()["profile"]["profile"]["look"]
+    renderer = compose.Compositor(s, pinned)
+    assert Path(renderer.font(36, "Bold").path).stem == font["sha256"]
+    lines = [("Dan", 36, "Bold", renderer.colors["text"])]
+    rgb, _, pad = renderer.table_card("test", lines, 400, 120)
+    assert tuple(rgb[pad+20, pad+20]) == (255, 0, 0)
+    assert (rgb[pad:pad+120, :, 1] == 255).any()

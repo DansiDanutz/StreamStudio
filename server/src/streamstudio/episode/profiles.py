@@ -63,13 +63,32 @@ class Plate(Strict):
     seat: Seat
 
 
+Color = Annotated[str, Field(pattern=r"^#[A-Fa-f0-9]{6}([A-Fa-f0-9]{2})?$")]
+
+
+class Palette(Strict):
+    accent_a: Color = "#FFFFFF"
+    accent_b: Color = "#FFFFFF"
+    glow: Color = "#FFFFFF"
+    panel: Color = "#000000DC"
+    panel_2: Color = "#000000CD"
+    outline: Color = "#FFFFFFAA"
+    text: Color = "#FFFFFF"
+    tag_text: Color = "#FFFFFF"
+    muted: Color = "#AAAAAA"
+
+
 class Look(Strict):
     plate: Plate
+    palette: Palette | None = None
+    fonts: dict[Literal["display", "body", "small"], Digest] = {}
 
 
 def verify_look(s, look: Look | None):
     if look:
         channel_files.verify(s, look.plate.image, kind="image")
+        for digest in set(look.fonts.values()):
+            channel_files.verify(s, digest, kind="font")
         if look.plate.desk:
             channel_files.verify(s, look.plate.desk, kind="image")
 

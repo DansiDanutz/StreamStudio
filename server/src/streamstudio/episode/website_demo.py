@@ -91,14 +91,16 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
     return dst
 
 
-def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path) -> None:
+def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path,
+            *, outline: tuple = (171, 191, 198, 255)) -> None:
     """Render a 1920x1080 scene. Preserve the base soundtrack and hold the capture after reveal."""
     from .compose import probe_duration
 
     duration = probe_duration(s.ffprobe_bin, base)
     start = round(duration * spec.reveal_at * 25) / 25
     x = "60" if spec.side == "left" else "W-w-60"
-    filters = (f"[1:v]scale=1180:-2,pad=iw+8:ih+8:4:4:color=0xabbfc6,"
+    color = bytes(outline).hex()
+    filters = (f"[1:v]scale=1180:-2,format=yuva420p,pad=iw+8:ih+8:4:4:color=0x{color},"
                f"tpad=start_duration={start}:start_mode=clone[c];"
                f"[0:v][c]overlay=x={x}:y=(H-h)/2:eof_action=repeat[v]")
     out.parent.mkdir(parents=True, exist_ok=True)
