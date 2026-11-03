@@ -105,6 +105,7 @@ def automatic_hero(page):
 
 
 def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
+    from playwright.sync_api import Error as BrowserError
     from playwright.sync_api import sync_playwright
 
     dst = asset_path(folder, scene)
@@ -143,17 +144,27 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
                                                   offline=True)
                     context.route_web_socket("**/*", lambda ws: ws.close())
 
+                    navigation_errors = []
+
                     def same_site(route):
                         req = route.request
                         try:
                             response = origin.fetch(req.url, req.method, req.headers)
-                        except (ValueError, OSError, http.client.HTTPException):
+                        except (ValueError, OSError, http.client.HTTPException) as exc:
+                            if (req.is_navigation_request()
+                                    and urlsplit(req.url).hostname == origin.host):
+                                navigation_errors.append(str(exc))
                             return route.abort()
                         return route.fulfill(**response)
 
                     context.route("**/*", same_site)
                     page = context.new_page()
-                    response = page.goto(scene.site, wait_until="load")
+                    try:
+                        response = page.goto(scene.site, wait_until="load")
+                    except BrowserError:
+                        if navigation_errors:
+                            raise ValueError(navigation_errors[0]) from None
+                        raise
                     if not response or not response.ok:
                         raise ValueError("website capture failed")
                     page.evaluate("document.fonts.ready")

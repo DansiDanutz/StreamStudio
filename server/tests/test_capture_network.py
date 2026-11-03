@@ -45,6 +45,8 @@ def test_capture_pins_address_and_tls_name_across_rebinding(monkeypatch):
         with pytest.raises(ValueError):
             origin.fetch(url, "GET", {})
     res.status = 302
-    with pytest.raises(ValueError, match="redirect"):
+    res.getheader.return_value = "https://login.example/authorize?token=private-token"
+    with pytest.raises(ValueError, match="destination host login.example") as error:
         origin.fetch("https://example.test/go", "GET", {})
+    assert "private-token" not in str(error.value)
     assert dns.call_count == 1

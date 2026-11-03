@@ -5,7 +5,7 @@ import http.client
 import ipaddress
 import socket
 import ssl
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 LIMIT = 16 * 1024 * 1024
 
@@ -59,7 +59,10 @@ class CaptureOrigin:
                         conn.request(method, path, headers=safe)
                         res = conn.getresponse()
                         if 300 <= res.status < 400:
-                            raise ValueError("capture redirects are disabled")
+                            location = urlsplit(urljoin(url, res.getheader("Location") or url))
+                            host = location.hostname or self.host
+                            raise ValueError(f"capture redirects are disabled (HTTP {res.status}, "
+                                             f"destination host {host})")
                         cap = min(LIMIT, self.remaining)
                         body = res.read(cap+1)
                         if len(body) > cap:
