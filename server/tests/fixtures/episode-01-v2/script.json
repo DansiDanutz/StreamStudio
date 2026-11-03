@@ -309,6 +309,10 @@
    "kind": "card",
    "site": "https://worldcup26.world",
    "plan": {
+    "website_demo": {
+     "focus_label": "121 live now",
+     "reveal_at": 0.43
+    },
     "card_template": "generic"
    }
   },

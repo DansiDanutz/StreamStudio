@@ -239,7 +239,11 @@
   "video": "g15.mp4",
   "video_at": 0,
   "cont": false,
-  "tag": "worldcup26.world \u00b7 a free collecting game"
+  "tag": "worldcup26.world \u00b7 a free collecting game",
+  "website_demo": {
+   "focus_label": "121 live now",
+   "reveal_at": 0.43
+  }
  },
  {
   "kind": "card",
