@@ -100,7 +100,8 @@ class UploadIn(BaseModel):
 
 @router.post("/api/recordings/{rid}/youtube", status_code=202)
 def queue_upload(
-    rid: str, body: UploadIn, origin: str | None = Header(default=None), s: Settings = Depends(settings),
+    rid: str, body: UploadIn, origin: str | None = Header(default=None),
+    s: Settings = Depends(settings),
     c: sqlite3.Connection = Depends(conn),
 ) -> dict:  # fmt: skip
     if origin is None or not netguard.origin_allowed(origin, s.extra_hosts):
