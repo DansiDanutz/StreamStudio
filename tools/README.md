@@ -1,21 +1,8 @@
-# tools
+# Production utilities
 
-## Overview
+New episodes run through the API and worker. The worker creates the per-scene media, review
+sheets, publishing materials, and final Library recording. [Episode package](../server/src/streamstudio/episode/README.md)
 
-Command-line production tools that sit outside the StreamStudio server and web app. They take a finished HeyGen
-avatar render and turn it into a DansLab episode offline: segment cutting, person masks, the studio compositor,
-HyperFrames motion cards and the logo intro, per-scene QA and re-render, and the final mix with intro, music and
-SFX. Everything here is run by hand with Python 3 and ffmpeg; nothing in `tools/` is imported by `server/` or `web/`.
-
-## Subdirectories & Boundaries
-
-- brand: [./brand/README.md](./brand/README.md) - the one-off brand generators: the DansLab logo-reveal intro
-  rendered at 25 fps into `assets/brand/` (`make_intro.py`) and the brand asset manifest refresh
-  (`update_manifest.py`). The server's episode factory reads `assets/brand/`; nothing here is imported by it.
-- compose: [./compose/README.md](./compose/README.md) - the offline episode pipeline (`cuts.py`, `masks.py`,
-  `render.py`, `mix.py`, `scenecut.py`, `qa_avatar.py`, `splice.py`, `peek.py`) with its per-episode plan files (the
-  OpenCV face model it loads lives in `assets/models/`), and two code subdirectories:
-  - compose/motion: [./compose/motion/README.md](./compose/motion/README.md) - HyperFrames motion-card builder
-    (`build.py` `Comp`), the Episode 1 storyboards (`cards.py`, `cards_v2.py`) and capture stitching (`stitch.py`).
-  - compose/motion/intro: [./compose/motion/intro/README.md](./compose/motion/intro/README.md) - generator for the
-    DansLab logo-reveal intro composition (`make_intro.py`).
+- [Brand utilities](./brand/README.md) maintain the bundled DansLab intro and asset manifest.
+- [Composition utilities](./compose/README.md) include an independent website-card harness,
+  the DansLab explainer renderer, and reference material for earlier productions.

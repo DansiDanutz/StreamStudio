@@ -135,7 +135,9 @@ def test_the_episode_1_fixture_validates_under_extra_forbid():
     script = Script.model_validate_json(FIXTURE.read_text())
     assert len(script.scenes) == 36
     assert [s.id for s in script.scenes if s.question] == ["s9", "s14", "s20", "s26"]
-    assert all(s.site for s in script.scenes if s.kind == "card")
+    cards = [s for s in script.scenes if s.kind == "card"]
+    assert len(cards) == 16
+    assert all(s.site and s.plan and s.plan.website_demo for s in cards)
     assert script.scenes[33].reveal is True
 
 

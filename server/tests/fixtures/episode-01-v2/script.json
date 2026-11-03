@@ -176,7 +176,10 @@
    "text": "So that's what we're building. Nervix Space: the home of our AI Business Network. Builders show their work, and people find it, use it, or buy it.",
    "voice": "So that's what we're building. Nervix Space: the home of our AI Business Network. Builders show their work, and people find it, use it, or buy it.",
    "kind": "card",
-   "site": "https://fake-real.live"
+   "site": "https://fake-real.live",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s7",
@@ -236,28 +239,40 @@
    "text": "Our answer is NervixPay. If you have a shop, you set up your own product QR code, and the money lands straight in your wallet, right away. Fast and simple.",
    "voice": "Our answer is NervixPay. If you have a shop, you set up your own product QR code, and the money lands straight in your wallet, right away. Fast and simple.",
    "kind": "card",
-   "site": "https://nervixpay.live"
+   "site": "https://nervixpay.live",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s11",
    "text": "Nothing sits in the middle, and nobody can freeze your money, or your account.",
    "voice": "Nothing sits in the middle, and nobody can freeze your money, or your account.",
    "kind": "card",
-   "site": "https://nervixpay.live"
+   "site": "https://nervixpay.live",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s12",
    "text": "Look at how it compares. NervixPay is built for payments made by AI agents, and it's just as easy for people who aren't technical. It's fast, and you can set it up in minutes.",
    "voice": "Look at how it compares. NervixPay is built for payments made by AI agents, and it's just as easy for people who aren't technical. It's fast, and you can set it up in minutes.",
    "kind": "card",
-   "site": "https://nervixpay.live"
+   "site": "https://nervixpay.live",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s13",
    "text": "Your agents use it with keys you approve. And anyone can check a payment on PayScan, our public page of settled payments.",
    "voice": "Your agents use it with keys you approve. And anyone can check a payment on PayScan, our public page of settled payments.",
    "kind": "card",
-   "site": "https://nervixpay.live"
+   "site": "https://nervixpay.live",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s14",
@@ -286,28 +301,40 @@
    "text": "For the World Cup, we built WorldCup twenty-six dot world: a free collecting game with a hundred and twenty-one Legend cards. Every card has its own story.",
    "voice": "For the World Cup, we built WorldCup twenty-six dot world: a free collecting game with a hundred and twenty-one Legend cards. Every card has its own story.",
    "kind": "card",
-   "site": "https://worldcup26.world"
+   "site": "https://worldcup26.world",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s16",
    "text": "You read it, you listen, you watch the episode, and the card is yours. A daily quest brings you back. Free to play, just for fun.",
    "voice": "You read it, you listen, you watch the episode, and the card is yours. A daily quest brings you back. Free to play, just for fun.",
    "kind": "card",
-   "site": "https://worldcup26.world"
+   "site": "https://worldcup26.world",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s17",
    "text": "And here's the idea behind it: the game and the channel feed each other. Every card leads to an episode, and every episode leads back to a card. That's how a game becomes a community.",
    "voice": "And here's the idea behind it: the game and the channel feed each other. Every card leads to an episode, and every episode leads back to a card. That's how a game becomes a community.",
    "kind": "card",
-   "site": "https://worldcup26.world"
+   "site": "https://worldcup26.world",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s18",
    "text": "And it works: our World Cup channel went viral. In one month of the World Cup, we reached fourteen thousand subscribers.",
    "voice": "And it works: our World Cup channel went viral. In one month of the World Cup, we reached fourteen thousand subscribers.",
    "kind": "card",
-   "site": "https://worldcup26.world"
+   "site": "https://worldcup26.world",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s19",
@@ -373,28 +400,40 @@
    "text": "This is JEV, our live trading bot on KuCoin futures. It runs on its own from our Mac Studio, with an AI model as its brain.",
    "voice": "This is JEV, our live trading bot on KuCoin futures. It runs on its own from our Mac Studio, with an AI model as its brain.",
    "kind": "card",
-   "site": "https://danslab-jev.vercel.app"
+   "site": "https://danslab-jev.vercel.app",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s22",
    "text": "It opens a position, closes it on a clear target, and moves on to the next one.",
    "voice": "It opens a position, closes it on a clear target, and moves on to the next one.",
    "kind": "card",
-   "site": "https://danslab-jev.vercel.app"
+   "site": "https://danslab-jev.vercel.app",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s23",
    "text": "It trades small on purpose: a fixed trade size, a cap on how much it can have open, and a stop for the whole session.",
    "voice": "It trades small on purpose: a fixed trade size, a cap on how much it can have open, and a stop for the whole session.",
    "kind": "card",
-   "site": "https://danslab-jev.vercel.app"
+   "site": "https://danslab-jev.vercel.app",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s24",
    "text": "And I can start it or stop it from anywhere, right here.",
    "voice": "And I can start it or stop it from anywhere, right here.",
    "kind": "card",
-   "site": "https://danslab-jev.vercel.app"
+   "site": "https://danslab-jev.vercel.app",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s25",
@@ -439,21 +478,30 @@
    "text": "On Nervix Space, you bring your project: what it does, the price, and how to reach you. And here's the deal: the first two hundred projects are listed for free.",
    "voice": "On Nervix Space, you bring your project: what it does, the price, and how to reach you. And here's the deal: the first two hundred projects are listed for free.",
    "kind": "card",
-   "site": "https://nervix.space/list"
+   "site": "https://nervix.space/list",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s28",
    "text": "After that, it's ten dollars a month. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers.",
    "voice": "After that, it's ten dollars a month. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers.",
    "kind": "card",
-   "site": "https://nervix.space/list"
+   "site": "https://nervix.space/list",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s29",
    "text": "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Zmarty, our AI trading companion. And StreamStudio, the studio this video was made in.",
    "voice": "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Smarty, our AI trading companion. And StreamStudio, the studio this video was made in.",
    "kind": "card",
-   "site": "https://nervix.space/list"
+   "site": "https://nervix.space/list",
+   "plan": {
+    "card_template": "generic"
+   }
   },
   {
    "id": "s30",

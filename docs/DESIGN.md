@@ -348,9 +348,9 @@ machine restores scenes and names and lists what can be brought back. Keys live 
 ## Episode production rules
 
 1. **Scenes of about 10 seconds.** The script is split into ~10 s scenes (sentence boundaries, 3–13 s).
-   Each scene is rendered, cut out as its own clip (`scenes/scene-NN.mp4`, cut by HeyGen's captions with
-   `tools/compose/cuts.py`) and checked on its own. A faulty scene is re-rendered alone and swapped in;
-   the rest is never re-rendered. Only scenes whose words changed are rendered again.
+   The worker renders or reuses each scene's cached avatar clip and cut-out. It checks the clip
+   before composition, records a review sheet, and assembles the approved scenes. Editing card
+   placement or timing reuses the original avatar footage.
 2. **Workings stay until the video is on YouTube.** Captures, masks, scene clips, card renders and drafts are
    kept so any scene stays easy to edit. After the video is posted, offer to delete the workings; the final
    MP4, the script and the plan are kept.

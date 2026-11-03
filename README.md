@@ -50,7 +50,7 @@ Three processes and one browser app, all local to the Mac Studio:
    │  ffmpeg RTMP push for live                                 │  HeyGen API (paid, confirmed first)
    └── serves web/dist and assets/ in production                └── YouTube upload, vault push
  server/ MCP server (streamstudio.mcp, stdio) ──▶ the API above, for agents
- tools/compose: offline episode pipeline run by hand after a HeyGen render (not imported by the app)
+ server episode worker: script approval → per-scene QA and composition → Library
  mac/: launcher app that clones, builds, starts and opens the studio
 ```
 
@@ -70,8 +70,7 @@ the length of the broadcast. Agents reach the editor through the server's agent 
   [./server/src/streamstudio/README.md](./server/src/streamstudio/README.md).
 - web: [./web/README.md](./web/README.md) - React 19 + Vite + TypeScript editor, Program window and render
   view; module contracts under [./web/src/README.md](./web/src/README.md).
-- tools: [./tools/README.md](./tools/README.md) - hand-run production tools; `tools/compose` turns a HeyGen
-  render into a DansLab episode (motion cards, mix, per-scene QA and re-render).
+- [Production utilities](./tools/README.md) support independent card previews, the DansLab tour, and brand generation. The episode worker assembles videos for the Library.
 - mac: [./mac/README.md](./mac/README.md) - the StreamStudio.app launcher and its icon script.
 - assets: studio plates, brand files, avatar and object clips served at the web root (`/studio`, `/avatar`,
   `/objects`, `/brand`). No code.
