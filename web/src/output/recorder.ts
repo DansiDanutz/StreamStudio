@@ -86,6 +86,7 @@ export class Recorder {
 
 /** Upload a take to the Mac Studio (queues the MP4 job). Returns the recording id, or null offline. */
 export async function uploadTake(take: Take): Promise<string | null> {
+  if (!take.blob.size) return null
   try {
     const r = await fetch('/api/recordings', { method: 'POST', headers: { 'content-type': take.mime }, body: take.blob })
     if (!r.ok) return null

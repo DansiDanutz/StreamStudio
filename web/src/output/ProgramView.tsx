@@ -34,6 +34,10 @@ export function ProgramView() {
     rec.onTake = async (take) => {
       if (live.on) { rec.setTap(null); await live.close(); setOnAir(false) }
       setRecording(false)
+      if (!take.blob.size) {
+        setErr('The browser encoder returned an empty recording. Start a new take and check the tab capture.')
+        return
+      }
       const url = URL.createObjectURL(take.blob)
       setLast({ take, url, id: null, mp4: false })
       const id = await uploadTake(take)

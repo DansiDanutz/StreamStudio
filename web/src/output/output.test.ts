@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { pickMime, Recorder } from './recorder'
+import { pickMime, Recorder, uploadTake } from './recorder'
 import { liveKindOf } from '../stage/media'
 
 describe('recording output', () => {
@@ -52,6 +52,16 @@ describe('recording output', () => {
       expect(saved).toHaveBeenCalledTimes(1)
       expect(saved.mock.calls[0][0].blob.size).toBe(5)
       expect(track.stop).toHaveBeenCalledOnce()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+  it('skips upload when the encoder returns an empty blob', async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    try {
+      expect(await uploadTake({ blob: new Blob(), mime: 'video/webm', seconds: 4 })).toBeNull()
+      expect(fetch).not.toHaveBeenCalled()
     } finally {
       vi.unstubAllGlobals()
     }
