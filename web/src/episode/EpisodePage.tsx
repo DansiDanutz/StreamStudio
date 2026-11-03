@@ -130,6 +130,12 @@ export function EpisodePage({ id }: { id: string }) {
                 </div>
                 <div className="scene-text">{sc.text || sc.voice}</div>
                 {sc.voice && sc.text && sc.voice !== sc.text && <div className="scene-voice">voice: {sc.voice}</div>}
+                {st.qa && ep.status !== 'purged' && <details>
+                  <summary>Avatar review · {st.qa}</summary>
+                  {st.qa_issues?.map(issue => <p key={issue}>{issue}</p>)}
+                  <img loading="lazy" style={{ width: '100%' }} alt="First, largest frame change, and final frame"
+                    src={`/api/episodes/${ep.id}/qa/${sc.id}.jpg`} />
+                </details>}
                 {st.composed_hash && <video controls preload="none" style={{ width: '100%' }}
                   aria-label={`Preview ${sc.id}`} src={`/api/episodes/${ep.id}/scenes/${sc.id}/preview?v=${st.composed_hash}`} />}
                 {ep.validation.warnings[sc.id]?.map(w => <div key={w} className="episode-muted">{w}</div>)}

@@ -108,7 +108,7 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
                 ep, "needs_dan", f"Scene {sc.id} failed on HeyGen: {state['failed']}", scene=sc.id
             )
             return {**done, "needs_dan": sc.id}
-        for field in ("job_id", "compose_job_id"):
+        for field in ("job_id", "qa_job_id", "compose_job_id"):
             if _job_status(conn, st.get(field)) == "error" and not st.get(f"{field}_seen_error"):
                 st[f"{field}_seen_error"] = True
                 job = store.get_job(conn, st[field])
@@ -163,6 +163,31 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
     if ep.status == "budget_approved":
         record.set_status(ep, "in_progress")
 
+    qa_pending = False
+    for sc in script.scenes:
+        st = states[sc.id]
+        key = st["clip_key"]
+        report_path = d / "qa" / sc.id / f"{key}.json"
+        if report_path.exists():
+            report = json.loads(report_path.read_text())
+            st["qa_issues"] = report["issues"]
+            verdict = report["status"]
+            if verdict == "FAIL":
+                if st.get("qa_key") != key or st.get("qa") != "degraded":
+                    record.log(ep, "qa", "using the small presenter layout", scene=sc.id)
+                verdict = "degraded"
+            st.update(qa=verdict, qa_key=key)
+            continue
+        st.pop("qa", None)
+        st.pop("qa_issues", None)
+        qa_pending = True
+        if not _live(conn, st.get("qa_job_id")):
+            st["qa_job_id"] = _enqueue(conn, ep, "scene_qa", {"scene_id": sc.id, "key": key})
+            st["qa_job_id_seen_error"] = False
+            done["enqueued"].append(("scene_qa", sc.id))
+    if qa_pending:
+        return {**done, "waiting": "qa"}
+
     # ---- row 6: compose scenes whose inputs changed
     composed_ready = True
     for sc in script.scenes:
@@ -173,7 +198,7 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
             from .website_demo import asset_path
 
             card = asset_path(d, sc)
-        current = record.inputs_hash(sc, mp4, webm, card)
+        current = record.inputs_hash(sc, mp4, webm, card, degraded=st.get("qa") == "degraded")
         st["inputs_hash"] = current
         if st.get("composed_hash") == current:
             continue

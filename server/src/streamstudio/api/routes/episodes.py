@@ -425,3 +425,17 @@ def scene_preview(eid: str, sid: str, s: Settings = Depends(settings),
     if not path.is_file():
         raise HTTPException(404, "scene preview is not ready")
     return FileResponse(path, media_type="video/mp4", headers={"Cache-Control": "no-store"})
+
+@router.get("/{eid}/qa/{sid}.jpg")
+def scene_qa_sheet(eid: str, sid: str, s: Settings = Depends(settings),
+                   c: sqlite3.Connection = Depends(conn)):
+    ep = _episode(c, eid)
+    scene = next((sc for sc in ep.script.scenes if sc.id == sid), None)
+    if scene is None or not SCENE_ID.fullmatch(sid):
+        raise HTTPException(404, "scene not found")
+    st = ep.record["scenes_state"].get(sid, {})
+    key = record.scene_key(s, scene, ep.script, int(st.get("take", 0)))
+    sheet = record.episode_dir(s, eid) / "qa" / sid / f"{key}.jpg"
+    if not sheet.is_file():
+        raise HTTPException(404, "review sheet is not ready for this take")
+    return FileResponse(sheet, media_type="image/jpeg", headers={"Cache-Control": "no-store"})

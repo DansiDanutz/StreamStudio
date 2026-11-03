@@ -238,7 +238,11 @@ def test_the_thin_slice_runs_from_approval_to_a_private_upload(env):
     ep = client.get(f"/api/episodes/{eid}").json()
     assert ep["status"] == "uploaded_private", ep["log"]
     assert ep["outputs"]["youtube_video_id"] == "vidE1" and ep["next_action"] == "Publish"
-    assert ep["progress"] == {"clips": 2, "qa": 0, "composed": 2, "total": 2}
+    assert kinds.count("scene_qa") == 2
+    assert ep["scenes_state"]["s1"]["qa"] == "degraded"  # synthetic solid-color presenter
+    sheet = client.get(f"/api/episodes/{eid}/qa/s1.jpg")
+    assert sheet.status_code == 200 and sheet.content.startswith(b"\xff\xd8")
+    assert ep["progress"] == {"clips": 2, "qa": 2, "composed": 2, "total": 2}
     rid = ep["outputs"]["recording_id"]
     assert rid.endswith("-ep") and (s.recordings_dir / f"{rid}.mp4").exists()
     assert (s.recordings_dir / f"{rid}.srt").exists()

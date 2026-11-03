@@ -36,6 +36,23 @@ def episode_advance(ctx: JobContext) -> dict[str, Any]:
     return planner.advance(ctx.conn, ctx.settings, _payload(ctx)["episode_id"])
 
 
+@handler("scene_qa")
+def scene_qa(ctx: JobContext) -> dict[str, Any]:
+    from . import qa, record
+
+    p = _payload(ctx)
+    s = ctx.settings
+    ep = record.load(ctx.conn, p["episode_id"])
+    if ep is None:
+        raise ValueError("episode no longer exists")
+    scene = next(sc for sc in ep.script.scenes if sc.id == p["scene_id"])
+    key = p["key"]
+    clip, _ = record.clip_paths(s, key)
+    report = qa.inspect(record.episode_dir(s, ep.id) / "qa" / scene.id, key, clip, s)
+    _enqueue_planner(ctx, ep.id)
+    return report
+
+
 @handler("scene_compose")
 def scene_compose(ctx: JobContext) -> dict[str, Any]:
     """One scene's clip and cut-out → `scenes/<scene>.mp4`, with its inputs hash beside it."""
@@ -59,7 +76,7 @@ def scene_compose(ctx: JobContext) -> dict[str, Any]:
     card = d / "cards" / f"{st['card_id']}.mp4" if st.get("card_id") else None
     if scene.plan and scene.plan.website_demo:
         card = website_demo.prepare(s, scene, d)
-    current = record.inputs_hash(scene, mp4, webm, card)
+    current = record.inputs_hash(scene, mp4, webm, card, degraded=st.get("qa") == "degraded")
     if out.exists() and hash_file.exists() and hash_file.read_text().strip() == current:
         result = {"scene": scene.id, "skipped": True}
     else:

@@ -20,7 +20,7 @@ episode = [
     "numpy>=1.26",
     "scipy>=1.11",
     "rembg>=2",
-    "opencv-python-headless>=4.9",
+    "opencv-python-headless>=4.9,<5",
     "playwright>=1.45",
 ]
 
