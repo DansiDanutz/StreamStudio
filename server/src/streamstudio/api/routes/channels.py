@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
+import subprocess
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import Field
 
 from ...core import netguard, youtube
 from ...core.config import Settings
 from ...core.db import tx
-from ...episode import profiles
+from ...episode import channel_files, profiles
 from ...episode.contract import Strict
 from ..deps import conn, settings
 
@@ -69,6 +74,42 @@ def set_default(body: Selection, s: Settings = Depends(settings),
     return {"slug": body.slug}
 
 
+@router.put("/files", dependencies=[Depends(owner)])
+async def upload_file(name: str, request: Request, role: str = "audio",
+                      s: Settings = Depends(settings)):
+    ext = Path(name).suffix.lower()
+    if role != "audio" or ext not in channel_files.FORMATS:
+        raise HTTPException(415, "expected a supported audio file")
+    root = s.data_dir / "channels" / "tmp"
+    root.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=root) as tmp:
+        staged = Path(tmp) / ("upload" + ext)
+        digest = hashlib.sha256()
+        count = 0
+        with staged.open("wb") as stream:
+            async for chunk in request.stream():
+                count += len(chunk)
+                if count > 200 * 1024 * 1024:
+                    raise HTTPException(413, "channel file exceeds 200 MiB")
+                digest.update(chunk)
+                stream.write(chunk)
+        try:
+            channel_files.install_audio(s, staged, ext, digest.hexdigest())
+        except (ValueError, subprocess.TimeoutExpired) as e:
+            raise HTTPException(422, str(e)) from e
+    return {"sha256": digest.hexdigest(), "kind": "audio", "bytes": count,
+            "media_type": channel_files.FORMATS[ext][1]}
+
+
+@router.get("/files/{digest}")
+def fetch_file(digest: str, s: Settings = Depends(settings)):
+    path = channel_files.resolve(s, digest)
+    if path is None:
+        raise HTTPException(404, "channel file not found")
+    return FileResponse(path, media_type=channel_files.FORMATS[path.suffix][1],
+                        headers={"X-Content-Type-Options": "nosniff"})
+
+
 @router.get("/{slug}")
 def get(slug: str, version: int | None = None, s: Settings = Depends(settings),
         c: sqlite3.Connection = Depends(conn)):
@@ -94,6 +135,10 @@ def save(slug: str, body: Save, s: Settings = Depends(settings),
             raise HTTPException(422, "slug differs from the channel URL")
         if not body.profile.presenter.avatar_id or not body.profile.presenter.voice_id:
             raise HTTPException(422, "choose a presenter and voice")
+        try:
+            profiles.verify_sound(s, body.profile.sound)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
         target = body.profile.youtube_channel
         if target and target not in {ch["id"] for ch in youtube.channels(s.data_dir)}:
             raise HTTPException(422, "choose a connected YouTube channel")

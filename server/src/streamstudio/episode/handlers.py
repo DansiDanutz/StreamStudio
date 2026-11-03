@@ -114,8 +114,10 @@ def episode_assemble(ctx: JobContext) -> dict[str, Any]:
     if missing:
         raise ValueError(f"composed scenes missing: {', '.join(missing)}")
     ctx.progress(0.1, "assembling")
+    sound = ep.channel_settings.get("sound")
     result = mix.assemble(
-        s, script.scenes, files, s.assets_dir / "brand" / "danslab-intro.mp4", final
+        s, script.scenes, files, s.assets_dir / "brand" / "danslab-intro.mp4", final,
+        sound=mix.Sound.model_validate(sound) if sound is not None else None,
     )
     (d / "assemble.json").write_text(json.dumps(result, indent=1))
     _enqueue_planner(ctx, ep.id)

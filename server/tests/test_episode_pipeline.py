@@ -483,7 +483,7 @@ def test_registration_names_and_the_library_listing(env, tmp_path):
     assert ids == sorted(ids, reverse=True) and rid in ids and "rec_20200101-000000" in ids
     time.sleep(0)
 
-def test_cached_website_demo_reaches_library_and_serves_scene_preview(env):
+def test_cached_website_demo_reaches_library_and_serves_scene_preview(env, tmp_path):
     from streamstudio.core.config import CaptureSite
     from streamstudio.episode.website_demo import asset_path
 
@@ -497,8 +497,17 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env):
     rules = client.get("/api/episodes/workflows").json()
     assert rules[0]["id"] == "website-demo/v1"
     eid = client.post("/api/episodes", json=small_script(scenes=[scene.model_dump()])).json()["id"]
+    bed = tmp_path / "bed.wav"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=330:d=0.3",
+                    str(bed)], check=True)
+    upload_url = "/api/channels/files?name=bed.wav&role=audio"
+    assert client.put(upload_url, content=b"not wave audio", headers=ORIGIN).status_code == 422
+    upload = client.put(upload_url, content=bed.read_bytes(), headers=ORIGIN)
+    assert upload.status_code == 200, upload.text
+    digest = upload.json()["sha256"]
+    assert client.get(f"/api/channels/files/{digest}").content == bed.read_bytes()
     profile = client.get("/api/channels/danslab").json()
-    profile["profile"].update(language="en-GB", publish={
+    profile["profile"].update(language="en-GB", sound={"bed": digest}, publish={
         "description_footer": "Engineering at DansLab", "default_tags": ["walkthrough"]})
     saved = client.put("/api/channels/danslab", headers=ORIGIN, json={
         "base_version": profile["version"], "profile": profile["profile"]})
@@ -528,9 +537,15 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env):
     assert edited.status_code == 200 and edited.json()["status"] == "draft"
     assert client.get(preview).status_code == 404
     approve(client, eid)
+    latest = client.get("/api/channels/danslab").json()
+    latest["profile"]["sound"] = {}
+    changed = client.put("/api/channels/danslab", headers=ORIGIN, json={
+        "base_version": latest["version"], "profile": latest["profile"]})
+    assert changed.status_code == 200
     second_run = drain(s)
     revised = client.get(f"/api/episodes/{eid}").json()
     assert revised["status"] == "ready"
+    assert revised["profile"]["profile"]["sound"]["bed"] == digest
     assert revised["outputs"]["recording_id"] != original
     assert (s.recordings_dir / f"{original}.mp4").exists()
     assert client.get(preview).content != response.content

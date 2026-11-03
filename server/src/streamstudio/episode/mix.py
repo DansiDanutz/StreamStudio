@@ -15,9 +15,10 @@ from pathlib import Path
 from typing import Any
 
 from ..core.config import Settings
-from . import FPS
+from . import FPS, channel_files
 from .compose import probe_duration
 from .contract import Scene
+from .profiles import Sound
 
 SR = 48000
 LEVELS = {"intro": -18, "voice": -16, "bed": -36, "sfx": -26}
@@ -35,6 +36,13 @@ CUE_SOUNDS: dict[str, tuple[str, float, float]] = {
     # card cues (Stage 3), read from each card's cues.json
     "navigate": ("ui-click-soft", 0.0, -6),
     "counter": ("sparkle-soft", -0.1, 0),
+}
+
+
+EFFECT_ROLES = {
+    "riser-soft": "riser", "pop-reveal": "pop", "whoosh-soft": "whoosh",
+    "glitch-zap": "glitch", "warm-shimmer": "shimmer", "impact-deep-soft": "impact",
+    "ui-click-soft": "page", "sparkle-soft": "sparkle",
 }
 
 
@@ -106,10 +114,12 @@ def assemble(
     intro: Path,
     out_mp4: Path,
     extra_cues: list[dict] | None = None,
+    *, sound: Sound | None = None,
 ) -> dict[str, Any]:
     """Concat the scene files, put the intro in front, mix the voice, the bed and the SFX."""
     import numpy as np
 
+    levels = sound.levels.model_dump() if sound is not None else LEVELS
     durations = [probe_duration(s.ffprobe_bin, p) for p in scene_files]
     for p, d in zip(scene_files, durations, strict=True):
         frames = _frame_count(s, p)
@@ -143,25 +153,34 @@ def assemble(
          "-c", "copy", "-movflags", "+faststart", str(main)],
         check=True,
     )  # fmt: skip
-    put(_load(s, intro, LEVELS["intro"]), 0)
-    put(_load(s, main, LEVELS["voice"]), intro_d)
+    put(_load(s, intro, levels["intro"]), 0)
+    put(_load(s, main, levels["voice"]), intro_d)
     notes: list[str] = []
-    bed = bed_path(s)
+    bed = bed_path(s) if sound is None else None
+    if sound and sound.bed:
+        bed = channel_files.verify(s, sound.bed)
     if bed is not None:
-        m = _load(s, bed, LEVELS["bed"])
-        xf = int(3 * SR)
+        m = _load(s, bed, levels["bed"])
+        if not len(m):
+            raise ValueError("music bed decoded to zero samples")
+        xf = min(int(3 * SR), len(m) // 4)
         need = int((total - intro_d + 2) * SR)
-        loop = m.copy()
+        loop = np.empty((need, 2), dtype=np.float32)
+        filled = min(need, len(m))
+        loop[:filled] = m[:filled]
         ramp = np.linspace(0, 1, xf, dtype=np.float32)[:, None]
-        while len(loop) < need and len(m) > xf:
-            loop[-xf:] = loop[-xf:] * (1 - ramp) + m[:xf] * ramp
-            loop = np.concatenate([loop, m[xf:]])
-        loop = loop[:need]
-        fi, fo = int(2.5 * SR), int(5 * SR)
+        while filled < need:
+            if xf:
+                loop[filled-xf:filled] *= 1 - ramp
+                loop[filled-xf:filled] += m[:xf] * ramp
+            count = min(need - filled, len(m) - xf)
+            loop[filled:filled+count] = m[xf:xf+count]
+            filled += count
+        fi, fo = min(len(loop), int(2.5 * SR)), min(len(loop), int(5 * SR))
         loop[:fi] *= np.linspace(0, 1, fi, dtype=np.float32)[:, None]
         loop[-fo:] *= np.linspace(1, 0, fo, dtype=np.float32)[:, None]
         put(loop, max(0.0, intro_d - 1.0))
-    else:
+    elif sound is None:
         notes.append("no music bed: assets/brand/music is empty")
     cues = plan_cues(scenes, starts, durations) + list(extra_cues or [])
     cache: dict[str, Any] = {}
@@ -169,10 +188,15 @@ def assemble(
     for c in cues:
         c["t"] = round(c["t"] + intro_d, 2)
         if c["sfx"] not in cache:
-            p = sound_path(s, c["sfx"])
-            cache[c["sfx"]] = _load(s, p, LEVELS["sfx"]) if p else None
+            if sound is None:
+                p = sound_path(s, c["sfx"])
+            else:
+                digest = sound.sfx.get(EFFECT_ROLES.get(c["sfx"]))
+                p = channel_files.verify(s, digest) if digest else None
+            cache[c["sfx"]] = _load(s, p, levels["sfx"]) if p else None
         if cache[c["sfx"]] is None:
-            missing.add(c["sfx"])
+            if sound is None:
+                missing.add(c["sfx"])
             continue
         put(cache[c["sfx"]], max(0.0, c["t"]), 10 ** (c["db"] / 20))
     if missing:

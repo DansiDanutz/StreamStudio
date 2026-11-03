@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Annotated, Literal
 
 from pydantic import Field
 
 from ..core import heygen
+from . import channel_files
 from .contract import Strict
 
 
@@ -22,12 +24,40 @@ class Publish(Strict):
     default_tags: list[str] = []
 
 
+Digest = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+Effect = Literal["riser", "pop", "whoosh", "glitch", "shimmer", "impact", "page", "sparkle"]
+Level = Annotated[float, Field(ge=-70, le=-5)]
+
+
+class Levels(Strict):
+    intro: Level = -18
+    voice: Level = -16
+    bed: Level = -36
+    sfx: Level = -26
+
+
+class Sound(Strict):
+    bed: Digest | None = None
+    sfx: dict[Effect, Digest] = {}
+    levels: Levels = Field(default_factory=Levels)
+
+
+def verify_sound(s, sound: Sound | None):
+    if sound:
+        digests = set(sound.sfx.values())
+        if sound.bed:
+            digests.add(sound.bed)
+        for digest in digests:
+            channel_files.verify(s, digest)
+
+
 class Profile(Strict):
     slug: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
     name: str = Field(min_length=1)
     language: str = Field(default="en", pattern=r"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$")
     youtube_channel: str | None = Field(default=None, pattern=r"^UC[0-9A-Za-z_-]{22}$")
     presenter: Presenter
+    sound: Sound | None = None
     publish: Publish = Field(default_factory=Publish)
 
 
