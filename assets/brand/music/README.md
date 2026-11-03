@@ -1,0 +1,1 @@
+Music bed for episodes. Copy `ambient-pad.mp3` (Dan's own, Claude-Youtube `media/library/music/clips`) here and run `python tools/brand/update_manifest.py`. Listed in `../manifest.json`; the key `"bed"` names the loop.

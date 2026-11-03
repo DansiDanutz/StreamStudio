@@ -71,6 +71,7 @@ into `streamstudio.core`, and enqueue work for the worker through
 
 - `router` (prefix `/api`), `ROOT` (repo checkout), `STARTUP_REV`, `_git_head`
 - Routes: `health` (GET `/api/health`), `edl_schema` (GET `/api/edl/schema`)
+- `health.tools` carries, besides `ffmpeg`, `ffprobe`, `ollama`, `yt-dlp` and `whisper`, the episode factory's `opencv`, `rembg`, `playwright_chromium`, `hyperframes`, `fonts`, `intro`, `plate`, `music_manifest`, `haar_cascade` (a version, a path, a flag or `null`) from `episode.preflight.tools`; `preflight_ok` and `missing` come from `episode.preflight.check(s)` (Stage 1 needs)
 
 ### `vault.py`
 
@@ -108,7 +109,7 @@ into `streamstudio.core`, and enqueue work for the worker through
 - `[recordings.py:upload]` streams the body to `<recordings_dir>/<rid>.source.<ext>.part`, renames it, opens its own `sqlite3` connection and enqueues `finish_recording`. `[recordings.py:download]` calls `core.vault.fetch` to pull a missing MP4 from the vault (502 on `VaultError`). `[recordings.py:_dir]` creates `recordings_dir`.
 - `[projects.py:import_path]` inserts an `assets` row and a `probe` job. `[projects.py:create_project]`, `rename_project`, `delete_project` write `projects` (and, by schema cascade, `assets`, `edl_versions`, `jobs`).
 - `[scenes.py:put_scene]` and `[scenes.py:delete_scene]` write the `scenes` table.
-- `[system.py:_git_head]` runs `git -C <ROOT> rev-parse HEAD` (3 s timeout). `[system.py:health]` runs `ffmpeg`/`ffprobe -version`, `ffmpeg -encoders`, `shutil.which`, `shutil.disk_usage(data_dir)` and two `COUNT(*)` queries on `jobs`.
+- `[system.py:_git_head]` runs `git -C <ROOT> rev-parse HEAD` (3 s timeout). `[system.py:health]` runs `ffmpeg`/`ffprobe -version`, `ffmpeg -encoders`, `shutil.which`, `shutil.disk_usage(data_dir)`, two `COUNT(*)` queries on `jobs`, and `episode.preflight` (path checks and `importlib.util.find_spec`; nothing heavy is imported).
 - `[vault.py:configure]` writes `<data_dir>/vault.json`, may `mkdir` the folder backend root, and performs one network or filesystem list. `[vault.py:push]` enqueues `vault_push` via `worker.handlers.queue_vault_push`. `[vault.py:sync]` lists the remote, pulls `catalog/catalog.json`, and inserts missing `scenes`, `artifact_meta` and `vault_objects` rows. `[vault.py:fetch]` downloads a file into `assets_dir` or `recordings_dir`. `[vault.py:evict]` unlinks a local file and updates `vault_objects`. `[vault.py:files]` lists the remote.
 - `[youtube.py:import_client]` moves the newest `client_secret_*.json` out of `DOWNLOADS` into `<data_dir>/youtube/client.json`. `[youtube.py:connect]` writes `<data_dir>/youtube/pending.json` and redirects to Google. `[youtube.py:callback]` exchanges the code with Google and writes `<data_dir>/youtube/channels/<UC…>.json`. `[youtube.py:disconnect]` unlinks a channel file. `[youtube.py:queue_upload]` enqueues `youtube_upload`.
 

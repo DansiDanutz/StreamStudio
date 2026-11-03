@@ -1,0 +1,13 @@
+{
+  "_comment": "Names written for the voice (DESIGN rule 6): the HeyGen text uses `voice`, the screen uses `screen`. The validator warns when a scene's voice contains a `screen` spelling.",
+  "names": [
+    { "screen": "Zmarty", "voice": "Smarty" },
+    { "screen": "WorldCup26.world", "voice": "WorldCup twenty-six dot world" },
+    { "screen": "DansLab", "voice": "Dan's Lab" },
+    { "screen": "NervixPay", "voice": "Nervix Pay" },
+    { "screen": "Fake-Real", "voice": "Fake Real" },
+    { "screen": "StreamStudio", "voice": "Stream Studio" },
+    { "screen": "HeyGen", "voice": "Hey Gen" },
+    { "screen": "YouTube", "voice": "YouTube" }
+  ]
+}

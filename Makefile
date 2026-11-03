@@ -3,8 +3,9 @@ PY := server/.venv/bin/python
 
 .PHONY: setup setup-media dev api worker web build test lint mac-app
 
-setup:            ## install everything (python venv from uv.lock + node modules)
-	cd server && uv sync -p 3.12
+setup:            ## install everything (python venv with the episode extra + Playwright Chromium + node modules)
+	cd server && uv sync -p 3.12 --extra episode
+	server/.venv/bin/playwright install chromium
 	cd web && npm install
 
 setup-media:      ## also the offline media tools (cut-out, dissolve, opener): large download

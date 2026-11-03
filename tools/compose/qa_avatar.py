@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 FPS_S = 12.5
-CASCADE = cv2.CascadeClassifier(str(Path(__file__).parent / 'models' / 'haarcascade_frontalface_default.xml'))
+CASCADE = cv2.CascadeClassifier(str(Path(__file__).resolve().parents[2] / 'assets' / 'models' / 'haarcascade_frontalface_default.xml'))
 
 
 def frames(path, w=480):

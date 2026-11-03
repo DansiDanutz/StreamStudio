@@ -9,9 +9,12 @@ SFX. Everything here is run by hand with Python 3 and ffmpeg; nothing in `tools/
 
 ## Subdirectories & Boundaries
 
+- brand: [./brand/README.md](./brand/README.md) - the one-off brand generators: the DansLab logo-reveal intro
+  rendered at 25 fps into `assets/brand/` (`make_intro.py`) and the brand asset manifest refresh
+  (`update_manifest.py`). The server's episode factory reads `assets/brand/`; nothing here is imported by it.
 - compose: [./compose/README.md](./compose/README.md) - the offline episode pipeline (`cuts.py`, `masks.py`,
-  `render.py`, `mix.py`, `scenecut.py`, `qa_avatar.py`, `splice.py`, `peek.py`) with its per-episode plan files, the
-  OpenCV face model under `compose/models/`, and two code subdirectories:
+  `render.py`, `mix.py`, `scenecut.py`, `qa_avatar.py`, `splice.py`, `peek.py`) with its per-episode plan files (the
+  OpenCV face model it loads lives in `assets/models/`), and two code subdirectories:
   - compose/motion: [./compose/motion/README.md](./compose/motion/README.md) - HyperFrames motion-card builder
     (`build.py` `Comp`), the Episode 1 storyboards (`cards.py`, `cards_v2.py`) and capture stitching (`stitch.py`).
   - compose/motion/intro: [./compose/motion/intro/README.md](./compose/motion/intro/README.md) - generator for the

@@ -12,6 +12,7 @@ from ... import __version__
 from ...core import media, transcribe
 from ...core.config import Settings
 from ...edl.model import EDL
+from ...episode import preflight
 from ..deps import conn, settings
 
 router = APIRouter(prefix="/api", tags=["system"])
@@ -42,6 +43,7 @@ def health(s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn
     running = c.execute("SELECT COUNT(*) FROM jobs WHERE status = 'running'").fetchone()[0]
     disk = shutil.disk_usage(s.data_dir)
     head = _git_head()
+    pre = preflight.check(s)
     return {
         "ok": True,
         "version": __version__,
@@ -60,7 +62,11 @@ def health(s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn
             "ollama": shutil.which("ollama"),
             "yt-dlp": shutil.which("yt-dlp"),
             "whisper": transcribe.whisper_status(s),
+            # episode factory (Stage 1 needs; see episode.preflight.check)
+            **preflight.tools(s),
         },
+        "preflight_ok": pre["ok"],
+        "missing": pre["missing"],
         "hw_encoders": media.hw_encoders(s.ffmpeg_bin),
         "jobs": {"queued": queued, "running": running},
         "import_roots": [str(p) for p in s.allowed_import_roots()],

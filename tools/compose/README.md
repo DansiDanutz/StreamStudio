@@ -22,7 +22,7 @@ Subdirectories:
 
 - [motion](./motion/README.md): the HyperFrames motion cards (`build.py`, storyboards, `stitch.py`) and, under
   [motion/intro](./motion/intro/README.md), the logo-reveal intro composition.
-- `models/`: `haarcascade_frontalface_default.xml`, the OpenCV face detector loaded by `qa_avatar.py`. No code.
+- The OpenCV face detector `qa_avatar.py` loads lives in `assets/models/haarcascade_frontalface_default.xml` (moved there so the server can serve it from `assets_dir`).
 
 Data files in this directory: `episode-01.plan.json` and `episode-01-v2.plan.json` (per-episode plans, see below),
 `episode-01-v2.durations.json` (measured scene lengths for `motion/cards_v2.py`), `danslab-network.cuts.json`.
@@ -104,7 +104,7 @@ executes them. Only `render.py` exposes functions that another script reuses (`p
 ### `qa_avatar.py` — avatar QA for scene clips
 
 - Usage: `python qa_avatar.py SCENES_DIR [--sheet]`; checks every `scene-NN.mp4` in the directory.
-- `FPS_S = 12.5` (sampling rate); `CASCADE`: Haar face detector from `models/`.
+- `FPS_S = 12.5` (sampling rate); `CASCADE`: Haar face detector from `assets/models/`.
 - `frames(path, w=480)`: grey frames at `FPS_S`. `audio_rms(path, n)`: per-frame RMS at 16 kHz mono.
   `face_box(g)`: largest detected face or `None`. `check(path)`: one clip's measurements and issue list.
 - `main()`: judges every clip against the median of the others (face placement and lip ratio), writes `qa.json`,

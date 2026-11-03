@@ -1,0 +1,11 @@
+{
+  "name": "streamstudio-cards",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HyperFrames workspace for StreamStudio card and intro renders (copied to <data_dir>/cards by make setup and the launcher).",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "gsap": "^3.15.0",
+    "hyperframes": "^0.9.6"
+  }
+}

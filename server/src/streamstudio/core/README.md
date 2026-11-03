@@ -26,7 +26,8 @@ middleware built on Starlette types.
 
 ### `config.py`
 
-- `Settings(BaseSettings)` — fields `data_dir`, `assets_dir`, `import_roots`, `host`, `port`, `allow_tailnet`, `extra_hosts`, `worker_concurrency`, `job_heartbeat_timeout_s`, `job_max_attempts`, `ffmpeg_bin`, `ffprobe_bin`, `whisper_bin`, `whisper_model`; properties `db_path`, `projects_dir`, `recordings_dir`; methods `allowed_import_roots()`, `ensure_dirs()`
+- `CaptureSite(BaseModel)` — `host: str`, `mode: "auto" | "manual"` (a site the episode factory may capture for a card)
+- `Settings(BaseSettings)` — fields `data_dir`, `assets_dir`, `import_roots`, `host`, `port`, `allow_tailnet`, `extra_hosts`, `worker_concurrency`, `job_heartbeat_timeout_s`, `job_max_attempts`, `ffmpeg_bin`, `ffprobe_bin`, `whisper_bin`, `whisper_model`, `capture_allowlist: list[CaptureSite]`, `hyperframes_browser: Path | None` (`None`: Playwright's Chromium), `episode_rerender_attempts` (4), `episode_rerender_usd` (1.5), `heygen_month_ceiling_usd` (400); properties `db_path`, `projects_dir`, `recordings_dir`, `episodes_dir`, `cards_dir`, `sites_dir`; methods `allowed_import_roots()`, `ensure_dirs()` (creates the five directories)
 - `get_settings()` (lru-cached)
 
 ### `db.py`
