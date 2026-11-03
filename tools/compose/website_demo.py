@@ -29,6 +29,11 @@ def main():
         print(website_demo.prepare(s, scene, args.workspace))
         return
     card = website_demo.asset_path(args.workspace, scene)
+    if card and not card.is_file() and scene.plan.website_demo.page_switch:
+        try:
+            card = website_demo.prepare(s, scene, args.workspace, cached_only=True)
+        except ValueError as error:
+            parser.error(str(error))
     if not card or not card.is_file():
         parser.error("prepare this capture before previewing")
     website_demo.overlay(s, args.base, card, scene.plan.website_demo, args.output)

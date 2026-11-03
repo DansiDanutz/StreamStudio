@@ -110,7 +110,7 @@ def automatic_hero(page):
     }""")
 
 
-def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
+def prepare(s: Settings, scene: Scene, folder: Path, *, cached_only: bool = False) -> Path:
     from playwright.sync_api import Error as BrowserError
     from playwright.sync_api import sync_playwright
 
@@ -130,7 +130,7 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
         second = first.model_copy(deep=True)
         second.site = switch.site
         second.plan.website_demo = WebsiteDemo(focus_label=switch.focus_label)
-        sources = [prepare(s, page, folder) for page in (first, second)]
+        sources = [prepare(s, page, folder, cached_only=cached_only) for page in (first, second)]
         frames = max(1, math.ceil(switch.at_s * FPS))
         with TemporaryDirectory(dir=dst.parent) as temp:
             movie = Path(temp) / "sequence.mp4"
@@ -143,6 +143,8 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
         return dst
     if dst.is_file():
         return dst
+    if cached_only:
+        raise ValueError("prepare both page captures before previewing this switch")
     dst.parent.mkdir(parents=True, exist_ok=True)
     width, height = 1200, 740
     with TemporaryDirectory(dir=dst.parent) as temp:
