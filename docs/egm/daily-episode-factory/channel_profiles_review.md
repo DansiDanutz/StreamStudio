@@ -1,6 +1,7 @@
 # Goldfish Annotated Review Report: channel profiles amendment
 
-Status: resolved (2026-11-03: 94 fixes applied, 0 contested, 2 nits declined)
+Status: resolved and re-audited (2026-11-03: review 94 fixes applied, 0 contested, 2 nits
+declined; re-audit 23 fixes applied, 0 contested, 1 nit declined, residuals accepted below)
 
 **Target:** `daily-episode-factory.md`, the 2026-11-03 channel-profiles amendment (Overview,
 Goals, Non-Goals, Open Questions, CUJ 5, Glossary, the record, the script contract, "Channel
@@ -46,7 +47,7 @@ episode path should not read DansLab's plate file at all.
 | M3 | PROPOSE FIX | Verified `core/config.py:12-13` (env-only settings). Default stored in `app_settings`, changed by `PUT /api/channels/default` and **Make default**; `Settings.default_profile` is the first-run value; `ensure_seed` reads every seed folder's slug, so it names none. |
 | M4 | PROPOSE FIX | Owner decision applied instead of fontTools: fonts by magic bytes (OTF, TTF, WOFF2), images by Pillow, media by `ffprobe -protocol_whitelist file` with a format allowlist; sidecar records the media type; served with `nosniff`. |
 | M5 | PROPOSE FIX | Verified `core/netguard.py:69-71` returns true for `None`. Every channel write needs a present and allowed `Origin`; 403 tests; NFR states the check stops cross-site requests only and names the backstops. |
-| M6 | PROPOSE FIX | Duplicating clears `youtube_channel`; save refuses a channel that is not connected; approve-script checks it before money is spent; the estimate shows the channel title; the page warns on shared or empty channels. Per the owner's decision an empty channel stays allowed (not 422). |
+| M6 | PROPOSE FIX | Duplicating clears `youtube_channel`; save refuses a channel that is not connected; approve-script checks it before money is spent; the estimate shows the channel title; the page warns on shared or empty channels. Per the owner's decision an empty channel stays allowed (not 422). **Superseded** by the manual-upload ruling: approve-script no longer checks YouTube; the channel is resolved only at Upload private. |
 | M7 | PROPOSE FIX | `profiles.missing(pinned)` runs at approve-script and approve-budget before any reservation, and at create (409); recovery row rewritten (same sha256 restores the pinned version); repin allowed from `needs_dan`. |
 | M8 | PROPOSE FIX | Owner decision applied: delete refused (409 with ids) while any episode in any state names the slug in the script or the pin; files never deleted; `seeded:<slug>` flag stops a deleted DansLab being seeded again; default cannot be deleted. |
 | M9 | PROPOSE FIX | `ensure_seed` inside `BEGIN IMMEDIATE`, `INSERT OR IGNORE`, temp-plus-rename files; concurrency test in 34a. |
@@ -146,12 +147,12 @@ episode path should not read DansLab's plate file at all.
 *   **Q6 and Q7** stay open in the design: when a non-English channel needs its own QA
     normalisers, and whether channel files are vaulted or cleaned.
 *   **Empty `youtube_channel`.** As decided, a profile may leave it empty. With only DansLab's
-    YouTube channel connected, such a profile's episodes upload to DansLab; the estimate screen
-    shows "Uploads to: DansLab" before any money is spent. Critic M6 proposed refusing an empty
-    value for every profile but the seed.
-*   **Tag text colour.** Mapping both `render.py` text whites to `palette.text` makes the site
-    tag's text six levels lighter than Episode 1 v2. Adding a ninth palette field would keep it
-    exact.
+    YouTube channel connected, such a profile's episodes would upload to DansLab; the estimate
+    screen says "Upload channel: DansLab (the only connected channel; this profile names
+    none)". Since the manual-upload ruling nothing uploads before Dan clicks Upload private, so
+    this is information, not a gate (superseded part: the approve-script check).
+*   **Tag text colour.** Settled after review: a ninth palette field, `tag_text`, keeps it
+    exact (see the manual-upload section).
 *   **Seed sources.** The bed, the eight SFX and the Inter OTFs are on the Linux box
     (`MEDIA_LIB`, `/usr/share/fonts/opentype/inter/`); someone copies them into
     `assets/channels/danslab/` and fills each licence note in `manifest.json`.
@@ -188,6 +189,57 @@ connecting more YouTube channels for now. Applied throughout `daily-episode-fact
 *   **Open item 1 stands.** With uploads manual, the estimate screen and the Upload private click
     both show the YouTube channel before anything is uploaded.
 
-One point left for the owner: the existing MCP `youtube_upload` tool (unchanged by this design)
-can still upload any registered take, including an episode's, if an agent calls it. It is not
-automatic, but it is not Dan's click either. Removing or gating it is a separate change.
+Settled after this section was written: item 28a removes the MCP `youtube_upload` tool and
+requires a present, allowed `Origin` on the take upload route; the re-audit below adds the
+`POST /api/jobs` allowlist and keeps episode recordings out of the take upload route.
+
+## Re-audit (2026-11-03)
+
+Source: `channel_profiles_reaudit_report.md`, the single allowed re-audit (1 Blocker, 10
+Majors, 13 Nits after deduplication). It found every original Blocker and Major fixed and
+contested none. Each claim below was checked against the repository before editing.
+
+| Severity | PROPOSE FIX | CONTEST | DECLINE |
+| --- | --- | --- | --- |
+| Blocker | 1 | 0 | 0 |
+| Major | 10 | 0 | 0 |
+| Nit | 12 | 0 | 1 |
+| **Total** | **23** | **0** | **1** |
+
+| ID | Category | Resolution |
+| --- | --- | --- |
+| B1 | PROPOSE FIX | Verified `api/routes/jobs.py:26-34` enqueues any registered kind with no `Origin`, and that nothing in `web/src` posts to `/api/jobs`. Item 28a: `create_job` accepts only `API_KINDS = {"noop", "probe", "transcribe"}`; every other kind is 403 naming its dedicated route; tests in `test_api.py`. Risks, NFR Security and Rollout updated. |
+| M1 | PROPOSE FIX | New planner row 0: a recorded stage job in `error` (attempts spent) sets `needs_dan` with the reason. Row 10 needs `upload_job_id` unset. Advance moves errored job ids to `prev_job_id` (row 2 transfers the clip claim from it), then sets `uploaded_private`, `ready` (upload requested, so row 10 resumes the upload) or `in_progress`. Publish and Refresh are synchronous (502, state unchanged). Tests in item 34. |
+| M2 | PROPOSE FIX | Verified `api/routes/youtube.py:101-121` and `YouTubeUpload.tsx` accept any take and public privacy. Item 28: the take upload route refuses an episode's recording with 409 ("use the episode's Upload private"); the picker leaves episode entries out. Publish kit text and tests updated. |
+| M3 | PROPOSE FIX | Row 9a fires from `budget_approved` or `in_progress`; the palette-repin test ends in `ready`. |
+| M4 | PROPOSE FIX | The planner acts only in `budget_approved`, `in_progress` and `ready` with an upload requested; elsewhere it returns. Test: a clip finishing in `draft` enqueues nothing. |
+| M5 | PROPOSE FIX | `PUT /script` allowed from `needs_dan` (transition rule, item 20, test 33). |
+| M6 | PROPOSE FIX | With an empty profile channel the estimate names the channel Upload private would use, or "not connected", or "several connected". CUJ 5, "The YouTube channel", the paid step, items 20 and 31 and test 33 updated. |
+| M7 | PROPOSE FIX | Owner decision applied instead of the report's 422: one answer, 409 "default profile X missing", at create. Preflight runs with `profiles=False` at create (503 for toolchain only); health uses `profiles=True`. Items 9, 10, 20, the Status section and test 33 updated; the Risks row already said 409. |
+| M8 | PROPOSE FIX | Verified `test_agent.py:62-67` and `:84-89`. Item 28a drops `youtube_upload` from the exact list and its call block; item 44a adds `test_agent.py` with the seven new tools. |
+| M9 | PROPOSE FIX | Rollout names the two non-additive Stage 1 changes (items 28, 28a) and the `/api/jobs` allowlist; reverting restores agent take upload. |
+| M10 | PROPOSE FIX | Verified root `README.md:99-101`, `server/src/streamstudio/README.md:31` and the `youtube.py` docstring. All three are in item 28a. |
+| N1 | PROPOSE FIX | Cancel moved from test 33 to test 44. |
+| N2 | PROPOSE FIX | A second Upload private is 409; the page shows "Uploading…". |
+| N3 | PROPOSE FIX | The page polls while `ready` with an upload requested. |
+| N4 | PROPOSE FIX | Purge states aligned in the Goal, the record and the diagram. |
+| N5 | PROPOSE FIX | NFR now says no MCP tool and no cross-site page can upload; a forged local `Origin` is the accepted residual. |
+| N6 | PROPOSE FIX | MCP sentence lists upload. |
+| N7 | PROPOSE FIX | Row 11 only sets `uploaded_private`. |
+| N8 | PROPOSE FIX | `avatar/cutout.py:153` (the `encode_alpha_webm` call). |
+| N9 | PROPOSE FIX | Verified `api/routes/heygen.py:26` and `HeygenPanel.tsx:7`; item 18 reworded. |
+| N10 | PROPOSE FIX | Item 25 uses `preview_frames(s, conn, profile)`. |
+| N11 | DECLINE | Intended: saving a changed `youtube_channel` that is not connected stays 422, so a typo is caught on save. It gates nothing in the pipeline. |
+| N12 | PROPOSE FIX | This log: M6 row and the empty-channel bullet marked superseded; the MCP `youtube_upload` paragraph marked settled; tag text marked settled. |
+| N13 | PROPOSE FIX | Item 55 rewrites `docs/DESIGN.md` rule 2; the `danslab` scan covers only `*.py`, `*.ts`, `*.tsx`. The optional `Origin` on publish, purge, repin and cancel is not applied (residual 2). |
+
+### Accepted residuals
+
+1.  **A local client that forges `Origin`.** The `Origin` check stops cross-site browser
+    requests and MCP, not a process on the tailnet that sets the header. The backstops are the
+    budget screen, the stop at `ready`, the private upload and the `/api/jobs` allowlist.
+2.  **No presence check on publish, purge, repin and cancel.** The middleware already refuses a
+    disallowed `Origin`, so cross-site pages cannot reach them; a presence check would only stop
+    non-browser clients, which can forge it (residual 1). MCP has no tool for any of them.
+3.  **Profile save checks the YouTube channel** (N11, declined above).
+4.  **Q6 and Q7** stay open in the design.

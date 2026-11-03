@@ -1,12 +1,13 @@
 # Daily episode factory
 
 *   **Author:** Dan (DansiDanutz)
-*   **Status:** Amended (channel profiles); review findings resolved 2026-11-03
+*   **Status:** Final (amended 2026-11-03: channel profiles, manual upload)
 *   **Date:** 2026-11-02; amended 2026-11-03
 *   **Predecessor:** [concepts_brief.md](./concepts_brief.md) (six Goldfish reviews of [hypothesis.md](./hypothesis.md))
 *   **Review:** EGM Stages 5 to 9 complete; findings resolved on 2026-11-02 (see `goldfish_review_report.md`).
-    The 2026-11-03 amendment (channel profiles) was reviewed separately; its findings and their
-    resolution are in `channel_profiles_review.md`.
+    The 2026-11-03 amendment (channel profiles, manual upload) was reviewed and then re-audited
+    once; both are complete. Findings, their resolution and the accepted residuals are in
+    `channel_profiles_review.md`.
 
 --------------------------------------------------------------------------------
 
@@ -101,8 +102,8 @@ Each goal names its pass/fail measure. The mechanisms that meet them are in the 
 *   **The toolchain is declared and checked.** A preflight refuses to start an episode when any
     tool, font or asset the shipped stage needs is missing, and nothing is hard-coded to one
     machine.
-*   **Workings are purged on request once the video is public.** The final MP4, the script and
-    the episode record are kept.
+*   **Workings are purged on request once the video is public**, or from `ready` or `cancelled`
+    for an episode Dan does not upload. The final MP4, the script and the episode record are kept.
 *   **Any channel, no code change.** A new channel is a new profile. Dan makes it in the
     Channels page from Stage 2; in Stage 1 it is made through the channels API. No code this
     plan creates names a channel, presenter, colour, font, intro, music track or YouTube channel
@@ -254,8 +255,9 @@ previewed as a grey silhouette.
     `"profile": "didyouknow"`; another script with no `profile` arrives the same day.
 *   **Then**: The preview frame shows the new look before saving. The `didyouknow` episode is
     composed on the new plate with the new colours, intro and bed, captioned in the profile's
-    language, and reaches `ready`; nothing is uploaded, and the estimate screen said "Upload
-    channel: not connected (connect before uploading)". The episode with no `profile`
+    language, and reaches `ready`; nothing is uploaded, and the estimate screen said "Upload channel: DansLab
+    (the only connected channel; this profile names none)", so Dan knows to connect and name
+    the new channel before he clicks Upload private. The episode with no `profile`
     is a DansLab episode. Both share one HeyGen wallet, one allowance setting and one monthly
     ceiling. No file in the repository changed.
 
@@ -326,7 +328,7 @@ expose the episode the way they expose clips and recordings today.
 
 ```text
  writer (Dan or agent)                                    Dan (phone or Mac, over the tailnet)
-   │ POST /api/episodes {script}                           │ approve script · approve budget · publish
+   │ POST /api/episodes {script}                           │ approve script · approve budget · upload private · publish
    ▼                                                       ▼
  API ──► validator ──► episode record (SQLite) ◄──────── Episode page / MCP episode_status
    │                        ▲        │
@@ -416,9 +418,8 @@ the states in brackets follow only Dan's Upload private and Publish clicks. Prog
 `in_progress` is shown from counts in `scenes_state` ("rendering 12/36, QA 8/36, composing
 3/36, assembling"), not stored. Transition rules:
 
-*   `PUT /{id}/script` from `draft`, `script_approved`, `budget_approved`, `in_progress` or
-    `ready` returns
-    the episode to `draft`. In-flight clip jobs finish and are charged to the existing
+*   `PUT /{id}/script` from `draft`, `script_approved`, `budget_approved`, `in_progress`,
+    `ready` or `needs_dan` returns the episode to `draft`. In-flight clip jobs finish and are charged to the existing
     reservation; nothing new is enqueued until the next budget approval, which reserves one line
     per distinct (clip key, take): every live render job under its own key and take, plus every
     scene that has no clip and no live job for its current key (an edited scene whose old render
@@ -431,11 +432,17 @@ the states in brackets follow only Dan's Upload private and Publish clicks. Prog
     Once `outputs.upload_requested_at` is set, the edit is refused with 409. An edit keeps the pinned
     profile. An edit that changes `script.profile` while a pin exists is refused with 409
     ("change the channel with Use latest profile").
-*   `needs_dan`: a stage job ends in `error` (network, tool crash, disk full, HeyGen cap), or a
-    render fails after the allowance is spent; the reason is written to `log`.
-    `POST /{id}/advance` after Dan acts returns the episode to `in_progress`.
+*   `needs_dan`: a stage job ends in `error` after its last attempt (network, tool crash, disk
+    full, HeyGen cap, YouTube quota), or a render fails after the allowance is spent; planner
+    rows 0, 1 and 3c set it and write the reason to `log`.
+*   `POST /{id}/advance` (from `needs_dan`, after Dan acts) moves each recorded job id whose job
+    ended in `error` to `prev_job_id` beside it and clears it, so the planner enqueues that job
+    once more (another error parks the episode again). It then sets `uploaded_private` when the
+    upload state file names a `video_id`; else `ready` when `outputs.upload_requested_at` is
+    set, so row 10 enqueues the upload again and it resumes from its state file; else
+    `in_progress`. Then it enqueues the planner.
 *   `POST /{id}/repin {profile?}` (the **Use latest profile** button) is allowed from the same
-    states as `PUT /{id}/script` (so from `ready` too) and from `needs_dan`. It is refused with
+    states as `PUT /{id}/script` (so from `ready` and `needs_dan` too). It is refused with
     409 once `outputs.upload_requested_at` is set. Under the row lock it:
     *   sets `script.profile` to `profile` when one is given (422 when no such profile exists);
     *   clears `record.profile` and `outputs.channel`;
@@ -458,14 +465,15 @@ the states in brackets follow only Dan's Upload private and Publish clicks. Prog
     `youtube.pick_channel(s.data_dir, pinned.youtube_channel)` (409 when that channel is not
     connected, or when the profile names none and none or several are connected), writes
     `outputs.channel` and `outputs.upload_requested_at`, and enqueues the planner. The episode
-    stays `ready` until the upload lands.
+    stays `ready` until the upload lands. A second click is 409 once
+    `outputs.upload_requested_at` is set, so a changed channel cannot start a second video.
 *   `cancelled` (Stage 2): `POST /{id}/cancel` from any state up to and including `ready`, but
     not once `outputs.upload_requested_at` is set; releases the unsubmitted part of the
     reservation (see "The paid step") and allows purge.
 *   `uploaded_private`: set by the planner when the upload's state file names a video id.
 *   `scheduled` and `published`: set by the publish click and the refresh call (see "Publish").
-*   `purged`: set by `episode_purge`, which only the Purge button enqueues, from `ready`,
-    `published` or `cancelled`.
+*   `purged`: set by `episode_purge`, which only the Purge button enqueues, from `ready` (before any
+    upload request), `published` or `cancelled`.
 
 ### The script contract and validator
 
@@ -659,8 +667,12 @@ fails `youtube.CHANNEL_ID` or, when it changed from the previous version, is not
 `youtube.channels(s.data_dir)`. An empty value is allowed. Duplicating a profile clears
 `youtube_channel`. YouTube gates nothing before the upload: approve-script and approve-budget
 do not look at it, and an episode builds to `ready` with no YouTube channel connected. The
-estimate screen shows "Upload channel: <title>", or "Upload channel: not connected (connect
-before uploading)", as information only. The channel is resolved, with its 409s, only when Dan
+estimate screen shows, as information only, the channel Upload private would use: "Upload
+channel: <title>" for the profile's channel; when the profile names none, the channel
+`pick_channel` would choose ("Upload channel: <title> (the only connected channel; this profile
+names none)"); otherwise "Upload channel: not connected (connect before uploading)", or, with
+several connected and none named, "Upload channel: several connected; name one in the
+profile". The channel is resolved, with its 409s, only when Dan
 clicks Upload private (`POST /api/episodes/{id}/upload`). The Channels page warns when two
 profiles name the same YouTube channel, or when a profile names none.
 
@@ -756,10 +768,17 @@ job id in the record inside the lock (per scene: `job_id` for the clip, `qa_job_
 for that scene or episode is live, so a planner run during a capture, a card render, a composite
 or an assembly never enqueues the same work twice.
 
+The planner acts only in `budget_approved` and `in_progress` (rows 0 to 9a) and in `ready` with
+`outputs.upload_requested_at` set (rows 0, 10 and 11). In every other state, `draft` and
+`needs_dan` included, it returns without action; Advance changes the state first. A clip job
+that finishes after an edit or a repin therefore enqueues a planner that does nothing, and
+`heygen_clip` still writes its ledger charge in any state.
+
 | # | Predicate (record + files) | Action |
 | --- | --- | --- |
+| 0 | A job id recorded in a scene's `compose_job_id` (from Stage 2 also `qa_job_id`, from Stage 3 `capture_job_id` and `card_job_id`) or in `outputs.assemble_job_id`, `kit_job_id`, `register_job_id` or `upload_job_id` names a job in `error` (the worker has already spent its attempts) | Set `needs_dan`; log the job's error in plain words ("Upload failed: <reason>", "Scene N: compose failed: <reason>"). Nothing is re-enqueued until Advance. |
 | 1 | `budget_approved` or `in_progress`; a scene's clip state file says `failed` for its current take, or its recorded job ended in `error` (Stage 1) | Stage 1: set `needs_dan`, log the reason. Stage 2: see row 3. |
-| 2 | A scene has no clip (`<key>.mp4` and `.cutout.webm`) for its current take, no `failed` entry for that take, and no live job | Enqueue one `heygen_clip` (payload as today plus `take`, `episode_id`, `scene_id`, one attempt); record the job id; set `in_progress`. If the scene's previous job ended in `error` with a saved `video_id`, transfer the claim to the new job id so it resumes that render. |
+| 2 | A scene has no clip (`<key>.mp4` and `.cutout.webm`) for its current take, no `failed` entry for that take, and no live job | Enqueue one `heygen_clip` (payload as today plus `take`, `episode_id`, `scene_id`, one attempt); record the job id; set `in_progress`. If the scene's `prev_job_id` (set by Advance) ended in `error` with a saved `video_id`, transfer the claim to the new job id so it resumes that render. |
 | 3 (Stage 2) | A scene's clip and cut-out exist for its current take, its QA result for that take is missing, and no `scene_qa` job for it is live | Enqueue `scene_qa`; after the first full pass store the medians in `reference`, with the resolved presenter they were taken with. (A `failed` state file means no clip exists, so rows 3a and 3c, not this row, handle a failed render.) |
 | 3a (Stage 2) | A scene is `FAIL`, or its clip state file says `failed`, and the allowance has attempts and USD left | Increment `take`, charge the allowance, go to row 2. |
 | 3b (Stage 2) | A scene is `FAIL` and the allowance is spent | Mark the scene `degraded` (its last clip is composed in the small rectangle); log it. |
@@ -770,9 +789,9 @@ or an assembly never enqueues the same work twice.
 | 7 | Every `scenes/<id>.mp4` is up to date and neither `final.mp4` nor `outputs.recording_id` exists | Enqueue `episode_assemble`. |
 | 8 | `final.mp4` exists and `kit.json` does not | Enqueue `episode_publish_kit`. |
 | 9 | `kit.json` exists and `outputs.recording_id` is unset | Enqueue `episode_register`. |
-| 9a | `outputs.recording_id` is set, `kit.json` and `final.srt` exist, and the episode is `in_progress` | Set `ready`; release what is left of the reservation; log "Ready: final MP4 in Library". The planner stops here; it never enqueues `youtube_upload` on its own. |
-| 10 | `outputs.upload_requested_at` is set (only `POST /{id}/upload` sets it), `outputs.recording_id` is set, the upload state file has no `video_id`, and `outputs.upload_job_id` is unset or names a job that is neither queued nor running | Enqueue `youtube_upload` with `{id, channel, key: "<channel>/<rid>", meta: clean_meta(kit.title, kit.description, kit.tags, "private"), episode_id}` and record its id in `outputs.upload_job_id`. |
-| 11 | The upload state file names a `video_id` | Set `uploaded_private`; release what is left of the reservation. |
+| 9a | `outputs.recording_id` is set, `kit.json` and `final.srt` exist, and the episode is `budget_approved` or `in_progress` (an approval with no new clips never passes through `in_progress`) | Set `ready`; release what is left of the reservation; log "Ready: final MP4 in Library". The planner stops here; it never enqueues `youtube_upload` on its own. |
+| 10 | `outputs.upload_requested_at` is set (only `POST /{id}/upload` sets it), `outputs.recording_id` is set, the upload state file has no `video_id`, and `outputs.upload_job_id` is unset | Enqueue `youtube_upload` with `{id, channel, key: "<channel>/<rid>", meta: clean_meta(kit.title, kit.description, kit.tags, "private"), episode_id}` and record its id in `outputs.upload_job_id`. |
+| 11 | The upload state file names a `video_id` | Set `uploaded_private`. |
 
 No handler waits for another: each stage handler enqueues `episode_advance` when it finishes, the
 planner counts what exists, and only the last handler of a stage finds everything present. Two
@@ -785,8 +804,8 @@ payment (see "The paid step").
 The confirm screen is served by `GET /api/episodes/{id}/estimate`, which uses the shared estimate
 logic in `core/heygen.py` (the same numbers the editor's HeyGen panel shows) and adds: the wallet
 balance after this render, the month's total after this render (with the share of each
-channel), the allowance, the ceiling, "Upload channel: <title>" or "Upload channel: not
-connected (connect before uploading)" (information only, never a refusal), and the presenter's
+channel), the allowance, the ceiling, the "Upload channel" line described in "The YouTube channel"
+(information only, never a refusal), and the presenter's
 name, avatar id and voice id. The response carries a one-time `confirm_token`, stored on the
 record and valid for ten minutes.
 
@@ -822,7 +841,7 @@ A `heygen_clip` carrying an `episode_id` behaves differently from today's handle
 It takes the plate, desk and seat it passes to the cut-out from the pinned profile, not from
 `assets/studio/` and the seat literals in `worker/handlers.py:182` and `:263`; without an
 `episode_id` (the editor) nothing changes. The kept `.cutout.webm` is encoded from the segmented
-frames alone (`avatar/cutout.py:150`), so it does not depend on the plate; the plate only feeds
+frames alone (`avatar/cutout.py:153`), so it does not depend on the plate; the plate only feeds
 the on-plate composite that `_cutout_clip` throws away. The change stops every channel's clips
 from reading DansLab's plate file, and a clip shared by two channels with the same presenter
 and words stays correct for both.
@@ -977,10 +996,13 @@ the preceding scenes' measured durations.
 today discovers takes only through their `rec_*.source.*` upload files, which a registered
 episode does not have, so the listing is extended to include `rec_*.episode.json` entries, merged
 and sorted by id with the takes; a contract test asserts a registered episode appears in the
-listing and in the YouTube take picker. The vault and the `youtube_upload` job work unchanged.
+listing with `episode` set and is absent from the YouTube take picker, and the take upload
+route refuses it (409, "use the episode's Upload private"), so an episode reaches YouTube only
+through `POST /{id}/upload`. The vault and the `youtube_upload` job work unchanged.
 The MCP `youtube_upload` tool is removed in Stage 1, and `POST /api/recordings/{rid}/youtube`
-requires a present and allowed `Origin` (item 28a), so every upload, of an episode or of any
-other take, starts from Dan's click in the browser. The planner sets `ready` once the recording is registered and stops. The
+requires a present and allowed `Origin` (item 28a), and `POST /api/jobs` refuses upload, paid
+and episode kinds (item 28a), so every upload, of an episode or of any other take, starts from
+Dan's click in the browser. The planner sets `ready` once the recording is registered and stops. The
 episode uploads only after Dan clicks **Upload private** (`POST /{id}/upload`, see "The episode
 record"), and the upload is always private.
 
@@ -1032,14 +1054,16 @@ The editor gets an Episode page (`?episode=<id>`, usable at a 390 px wide viewpo
 scenes, warnings, the four buttons (Approve script, Approve budget, Upload private, Publish),
 "Ready: final MP4 in Library. Upload private?" when the episode is `ready`, and a "Needs you" panel that shows the last log line and the
 one action that unblocks it. In Stage 2 the MCP server gains `episode_create`, `episode_list`,
-`episode_status`, `episode_estimate` and `episode_refresh`, none of which can approve, publish,
-cancel or purge, and the read-only `channel_list` and `channel_get`. Every job the planner enqueues carries `project_id` and
+`episode_status`, `episode_estimate` and `episode_refresh`, none of which can approve, upload,
+publish, cancel or purge, and the read-only `channel_list` and `channel_get`. Every job the planner enqueues carries `project_id` and
 `payload.episode_id`; the worker log line includes it. `heygen_ledger` is the cost ledger;
 `budget.spent` is a cached projection of it. `/api/health` reports the toolchain (ffmpeg, whisper,
 rembg, OpenCV, Playwright Chromium, HyperFrames) and, as a top-level `default_profile`, whether
 the default profile exists and has its required files, with cheap existence checks only.
 Creating an episode also checks the named profile's required files (plate, seat, at least one
-font) and refuses with 409 naming the missing ones; 503 stays for missing toolchain parts.
+font) and refuses with 409 naming the missing ones, and a script with no `profile` while the
+stored default has no row is refused with the same 409 ("default profile X missing"); 503 stays
+for missing toolchain parts only.
 
 A Library group for episodes is deferred (Future Improvements).
 
@@ -1282,10 +1306,11 @@ rejected and why. After each, the option chosen in this design is stated.
 | HeyGen network error, timeout or concurrent cap | clip job `error` | `needs_dan` | "Scene N: HeyGen unreachable / cap reached; retry when ready" | Advance transfers the claim to a new job that resumes the saved render |
 | Failed render is billed by HeyGen | Stage 0 measurement | | | charged in the ledger until shown otherwise |
 | Two planners enqueue the same clip | job id recorded under the row lock; claim in the state file | | | one `create_video` per (key, take) |
-| YouTube upload fails or quota exceeded (only after Upload private) | upload job `error` | `needs_dan` | "Upload failed: reason" | resumable upload continues from its state file on Advance |
-| YouTube OAuth refresh fails | upload, publish or refresh call `error` | `needs_dan` | "Reconnect YouTube" | Dan reconnects the channel; Advance |
+| YouTube upload fails or quota exceeded (only after Upload private) | upload job `error` after its last attempt (planner row 0) | `needs_dan`; no new upload job until Advance | "Upload failed: reason" | Advance returns the episode to `ready` with the request kept; row 10 enqueues one upload that resumes from its state file |
+| A compose, assemble, kit or register job fails | job `error` after its last attempt (planner row 0) | `needs_dan` | "Scene N: compose failed: reason" | Dan fixes the cause; Advance enqueues the job once more |
+| YouTube OAuth refresh fails | upload job `error`; Publish and Refresh are synchronous and return 502 | `needs_dan` for the upload; unchanged for Publish and Refresh | "Reconnect YouTube" | Dan reconnects the channel; Advance for the upload, or clicks Publish or Refresh again |
 | No YouTube channel connected, profile names none and several are connected, or its channel is not connected | profile save 422 (a changed, unconnected channel); Upload private 409 | `ready` (building is never blocked) | "Upload channel: not connected (connect before uploading)" / "Connect channel Y" | Dan connects the channel, or edits the profile and repins, then clicks Upload private again |
-| An episode uploads without Dan asking | none needed: no code path sets `outputs.upload_requested_at` except `POST /{id}/upload`, which needs a browser `Origin`; MCP has no upload tool of any kind and the take upload route also needs a browser `Origin` (item 28a) | `ready` | | tests assert the planner never enqueues `youtube_upload` without `upload_requested_at`, that `mcp.TOOLS` has no upload tool, and that the take upload route refuses a request with no `Origin` |
+| An episode uploads without Dan asking | none needed: no code path sets `outputs.upload_requested_at` except `POST /{id}/upload`, which needs a browser `Origin`; MCP has no upload tool of any kind, the take upload route also needs a browser `Origin` and refuses an episode's recording, and `POST /api/jobs` refuses upload, paid and episode kinds (items 28 and 28a) | `ready` | | tests assert the planner never enqueues `youtube_upload` without `upload_requested_at`, that `mcp.TOOLS` has no upload tool, that the take upload route refuses a request with no `Origin` and an episode's recording, and that `POST /api/jobs` is 403 for `youtube_upload`, `heygen_clip` and `episode_purge` |
 | Profile edited after approval | `profile_latest_version` above the pinned version | unchanged | "Profile changed since approval" | repin (back to `draft`), or do nothing: the episode keeps its pinned version, and script edits keep it too |
 | Profile file missing on disk (deleted by hand) | create 409; approve-script and approve-budget 409 before any reservation; handler `error` | refused / `draft` / `needs_dan` | "Profile X is missing its plate" | upload the same file again (the same sha256 restores the pinned version), then approve again or Advance; or save a new file and repin |
 | Mistyped `avatar_id` or `voice_id` | avatar id checked against HeyGen's looks on save (422); the estimate screen shows the presenter's name and ids; QA (Stage 2) finds a face that does not match `reference` | `draft` / `script_approved` | "Avatar X is not in your HeyGen account" | fix the profile and repin before approving the budget |
@@ -1328,9 +1353,12 @@ rejected and why. After each, the option chosen in this design is stated.
     check stops cross-site browser requests, not a client on the tailnet; for those, pinning, the
     budget screen (which shows the presenter), the stop at `ready` and the private upload are the
     backstop. `POST /{id}/upload` needs the same present-and-allowed `Origin` and is the only
-    way an episode reaches YouTube; MCP has no upload tool of any kind, and the take upload
-    route (`POST /api/recordings/{rid}/youtube`) needs the same `Origin`, so no agent can
-    upload anything.
+    way an episode reaches YouTube: the take upload route
+    (`POST /api/recordings/{rid}/youtube`) needs the same `Origin` and refuses an episode's
+    recording, and `POST /api/jobs` accepts only free, local, non-episode kinds (403 for
+    `youtube_upload`, `heygen_clip`, every episode, scene, card, site and channel kind). So no
+    MCP tool and no cross-site page can upload, spend or purge; a local client that forges
+    `Origin` is the accepted residual risk.
 *   **Cost.** One confirm per episode; retries and QA re-renders charge a visible allowance; a
     monthly ceiling refuses approval; reservations are atomic; one charge per (scene, take);
     cancelled episodes keep submitted work reserved until it is charged. No MCP tool approves.
@@ -1355,7 +1383,11 @@ rejected and why. After each, the option chosen in this design is stated.
     `/api/health`; the `?channels=1` view; `data_dir/channels/`; the cut-out's optional `desk`
     argument. The editor's intro file is unchanged. A revert leaves the profile rows, the settings
     row and the channel files in place, where nothing reads them. The Script panel, Program window, stage and
-    recordings behave as before. Episode 1 v2 is imported as a test fixture, not migrated in place.
+    recordings behave as before. Two Stage 1 changes are not additive (items 28 and 28a): the
+    MCP `youtube_upload` tool is removed, and `POST /api/recordings/{rid}/youtube` requires a
+    present, allowed `Origin` and refuses an episode's recording; `POST /api/jobs` also refuses
+    every kind outside its allowlist with 403. Agents lose take upload and generic job
+    creation; reverting the commit restores both. Episode 1 v2 is imported as a test fixture, not migrated in place.
 *   **Testability.** Every handler runs under `make test` with the fake HeyGen and YouTube
     transports that `test_heygen.py` and `test_youtube.py` already use, a fake HyperFrames
     renderer hook, and synthetic clips made with ffmpeg's `lavfi`. The package imports cleanly
@@ -1540,12 +1572,14 @@ it changes, so the READMEs never lag the code by a stage.
     the function body, as `handlers._cutout_clip` does today.
     `preflight.check(s, conn, stage) -> {ok, missing}` uses `shutil.which`, `Path.exists` and
     `importlib.util.find_spec` (for the `rembg`, `cv2` and `playwright` packages, never importing
-    them), and checks the tools of the shipped stage: Stage 1 ffmpeg, ffprobe, rembg, and the
-    default profile, read with `profiles.default_slug(conn, s)` and `profiles.latest`; a missing
+    them), and checks the tools of the shipped stage: Stage 1 ffmpeg, ffprobe, rembg, and, when
+    called as `check(s, conn, stage, profiles=True)` (health only), the default profile, read with `profiles.default_slug(conn, s)` and `profiles.latest`; a missing
     row is itself an entry ("default profile X missing"), and so is each missing required file
     (plate, seat, at least one font). Stage 2 adds whisper and the Haar cascade; Stage 3 adds
     Playwright Chromium and the HyperFrames workspace
-    (`data_dir/cards/node_modules/hyperframes/package.json`).
+    (`data_dir/cards/node_modules/hyperframes/package.json`). Create calls it with
+    `profiles=False`, so a missing default profile is never a 503; create reports it as a 409
+    (item 20).
 
 #### 10. `server/src/streamstudio/api/routes/system.py` (Modify)
 
@@ -1553,8 +1587,8 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: `tools` gains `opencv`, `rembg`, `playwright_chromium`, `hyperframes`,
     each a version or path or `None` (versions through the existing `media.tool_version`).
     The response gains a top-level `default_profile` (`{slug, version, missing: [...]}`), plus
-    `preflight_ok` and `missing` from `preflight.check`, which health calls with its own
-    connection. README: `api/routes/README.md` `system.py` entries.
+    `preflight_ok` and `missing` from `preflight.check(..., profiles=True)`, which health calls
+    with its own connection. README: `api/routes/README.md` `system.py` entries.
 
 #### 11. `.github/workflows/ci.yml` (Modify)
 
@@ -1725,7 +1759,9 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Type / Scope**: HeyGen client and helpers.
 *   **Proposed Changes**: `item_key(look, voice, script, motion, silent_s, take=0)` appends
     `take` to the hashed list only when it is above zero, so today's keys are unchanged (tested).
-    `USD_PER_S = 0.0385` and `WORDS_PER_S = 2.5` move here from the route and the panel;
+    `WORDS_PER_S = 2.5` moves here from the route (`api/routes/heygen.py:26`), and
+    `USD_PER_S = 0.0385` mirrors the panel's `API_USD_PER_S` (`HeygenPanel.tsx:7`, removed from
+    the panel in item 49);
     `estimate_seconds(script, silent_s) -> float` (the route's formula: `silent_s`, else
     `max(2.0, words / 2.5 + 0.6)`); `estimate(items: list[dict]) -> {seconds, usd, clips, with_motion}`
     over plain dicts with `script`, `silent_s`, `motion`. README: `core/README.md` `heygen.py`
@@ -1742,17 +1778,19 @@ it changes, so the READMEs never lag the code by a stage.
 
 *   **Type / Scope**: FastAPI router, prefix `/api/episodes`.
 *   **Proposed Changes**:
-    *   `POST /`: preflight 503 with the missing names; resolves the script's slug, or writes
-        `profiles.default_slug` into `script.profile`; validate 422 (an unknown slug is the
-        `_script` error); 409 with the fields of `profiles.missing(s, latest)` when not empty;
-        create.
+    *   `POST /`: preflight (`profiles=False`) 503 with the missing toolchain names only;
+        resolves the script's slug, or writes `profiles.default_slug` into `script.profile`,
+        and refuses with 409 ("default profile X missing") when that default has no row;
+        validate 422 (an unknown slug the script names is the `_script` error); 409 with the
+        fields of `profiles.missing(s, latest)` when not empty; create. These are the only
+        create answers for a missing profile; health and the Risks table use the same 409.
     *   `GET /`; `GET /{id}` (pure; returns `EpisodeOut` = the record without
         `budget.confirm_token` plus `progress: {clips, qa, composed, total}`,
         `validation: {errors, warnings}`, `next_action: str | None`, `last_log: str | None`,
         `profile_name: str | None`, `profile_latest_version: int | None`).
     *   `PUT /{id}/script`: returns the episode to `draft`; when the script hash changes, unlinks
         `final.mp4`, `final.srt` and `kit.json` and clears `outputs.recording_id`; keeps the pin;
-        allowed from `ready`; 409 when it changes `script.profile` while a pin exists; 409 once
+        allowed from `ready` and `needs_dan`; 409 when it changes `script.profile` while a pin exists; 409 once
         `outputs.upload_requested_at` is set.
     *   `POST /{id}/approve-script`: pins the latest version of `script.profile` only when
         `record.profile` is unset; then 409 when `profiles.missing(s, pinned)` is not empty, and
@@ -1763,7 +1801,8 @@ it changes, so the READMEs never lag the code by a stage.
         unlinks `final.mp4`, `final.srt` and `kit.json`, clears `outputs.recording_id`, returns to
         `draft`; allowed from `ready`, refused once `outputs.upload_requested_at` is set).
     *   `GET /{id}/estimate`: issues `confirm_token` with a ten-minute expiry, and adds
-        "Upload channel: <title>" or "not connected (connect before uploading)" (from
+        the "Upload channel" line of "The YouTube channel" (the profile's channel, or the one
+        `pick_channel` would choose when the profile names none, or "not connected"; from
         `youtube.channels`; information only, never a 409), the presenter's name and ids, and
         the month's total per channel.
     *   `POST /{id}/approve-budget`:
@@ -1781,9 +1820,12 @@ it changes, so the READMEs never lag the code by a stage.
         present and allowed `Origin` as approve-budget does (403 without); under the row lock
         resolves `youtube.pick_channel(s.data_dir, pinned.youtube_channel)` (exists,
         `core/youtube.py:128-139`), 409 when it raises; writes `outputs.channel` and
-        `outputs.upload_requested_at`; enqueues `episode_advance`.
+        `outputs.upload_requested_at`; enqueues `episode_advance`; 409 when
+        `outputs.upload_requested_at` is already set.
     *   `POST /{id}/publish` (Stage 1: publish now only; `publish_at` accepted from Stage 2),
-        `POST /{id}/advance`, `POST /{id}/purge`.
+        `POST /{id}/advance` (the state rule in "The episode record": clears errored job ids
+        into `prev_job_id`, then `uploaded_private`, `ready` or `in_progress`),
+        `POST /{id}/purge`.
 
     Stage 2 adds `POST /{id}/refresh`, `POST /{id}/cancel`, `GET /{id}/qa/{scene}.jpg`. Ids
     validated by the regexes in files 14 and 16. README: `api/routes/README.md` new section;
@@ -1879,9 +1921,10 @@ it changes, so the READMEs never lag the code by a stage.
     and `worker/handlers.py` never imports the episode package at module level (its two
     function-level imports are `episode.ledger` and `episode.profiles`, file 22; both import only
     `core` and pydantic, so there is no cycle). `planner.py`
-    implements the condition table in the Technical Plan under the `episodes` row lock: Stage 1
-    ships rows 1 (the `needs_dan` branch), 2 (with claim transfer for an errored job that saved a
-    `video_id`), 6 (clip-and-cut-out predicate), 7, 8, 9, 9a, 10 and 11; Stage 2 replaces row 1
+    implements the condition table in the Technical Plan under the `episodes` row lock, acting
+    only in the states the table names: Stage 1
+    ships rows 0, 1 (the `needs_dan` branch), 2 (with claim transfer from `prev_job_id` for an
+    errored job that saved a `video_id`), 6 (clip-and-cut-out predicate), 7, 8, 9, 9a, 10 and 11; Stage 2 replaces row 1
     with 3a to 3c and row 6's predicate with QA. Job ids are recorded in `scenes_state` before
     enqueueing; the only `jobs` read is `status` of a recorded id; reservation release at
     `ready`; `youtube_upload` is enqueued only by row 10, which needs
@@ -1931,7 +1974,7 @@ it changes, so the READMEs never lag the code by a stage.
     at module level, so it is imported inside the handler and the compositing functions, never
     at the top of `compose.py` (file 36 checks). Output `scenes/<scene>.mp4` via temp plus
     rename; `inputs_hash` (with `look_hash`) recorded. Stage 1 composes avatar scenes on the
-    plate; card slices arrive in Stage 3. Stage 2 adds `preview_frames(s, profile)` (item 41a).
+    plate; card slices arrive in Stage 3. Stage 2 adds `preview_frames(s, conn, profile)` (item 41a).
     README: `render/README.md` names the compositor as a `lipsync.py` caller; `episode/README.md`.
 
 #### 26. `server/src/streamstudio/episode/mix.py` (Create)
@@ -1991,26 +2034,48 @@ it changes, so the READMEs never lag the code by a stage.
     language) and `rec_<stamp>-ep.episode.json`, records the path in `outputs.final_mp4`,
     returns the recording id.
 
-#### 28. `server/src/streamstudio/api/routes/recordings.py` (Modify)
+#### 28. `server/src/streamstudio/api/routes/recordings.py`, `server/src/streamstudio/api/routes/youtube.py`, `web/src/publish/YouTubeUpload.tsx`, `web/src/publish/YouTubeUpload.test.tsx` (Modify)
 
-*   **Type / Scope**: Recordings listing.
+*   **Type / Scope**: Recordings listing; an episode uploads only through its own route.
 *   **Proposed Changes**: `list_recordings` also lists `rec_*.episode.json` entries (id, `mp4`,
     `mp4_bytes`, `transcript`, `source_bytes: null`, `episode: <id>`), merged with the takes and
-    sorted by id descending, so the existing ordering test and the YouTube take picker keep
-    working. README: `api/routes/README.md` `recordings.py` entry.
+    sorted by id descending, so the existing ordering test keeps working. `queue_upload` in
+    `api/routes/youtube.py` refuses with 409 ("use the episode's Upload private") a `rid` whose
+    `<rid>.episode.json` sidecar names an episode, so an episode goes to YouTube only through
+    `POST /api/episodes/{id}/upload`, private, on the profile's channel, with
+    `upload_requested_at` set. `YouTubeUpload.tsx` leaves out entries whose `episode` is set;
+    its vitest asserts an episode entry is not offered. README: `api/routes/README.md`
+    `recordings.py` and `youtube.py` entries; `web/src/publish/README.md`.
 
-#### 28a. `server/src/streamstudio/mcp.py`, `server/src/streamstudio/api/routes/youtube.py`, `server/tests/test_agent.py`, `server/tests/test_youtube.py`, `docs/AGENTS.md` (Modify)
+#### 28a. `server/src/streamstudio/mcp.py`, `server/src/streamstudio/api/routes/youtube.py`, `server/src/streamstudio/api/routes/jobs.py`, `server/tests/test_agent.py`, `server/tests/test_youtube.py`, `server/tests/test_api.py`, `docs/AGENTS.md`, `README.md`, `server/src/streamstudio/README.md` (Modify)
 
 *   **Type / Scope**: No upload without Dan's click (owner decision, 2026-11-03).
 *   **Proposed Changes**: Remove the `youtube_upload` tool from `mcp.TOOLS` and its handler;
     `youtube_status` stays (read-only). `POST /api/recordings/{rid}/youtube` refuses with 403
     a request whose `Origin` is missing or not allowed (`netguard.origin_allowed` plus an
     explicit presence check, since it returns `True` for `None`); the editor's YouTube panel
-    sends one already. Tests: `test_agent.py` asserts no tool name contains `upload`;
-    `test_youtube.py` sends `Origin: http://testclient` on its upload calls and adds a 403 case
-    with no `Origin`. `docs/AGENTS.md` drops the `youtube_upload` row and says uploads are the
-    owner's click. README: `server/src/streamstudio/README.md` `mcp.TOOLS`;
-    `api/routes/README.md` `youtube.py`.
+    sends one already; the module docstring drops "agents (MCP) can only upload private" and
+    says every upload starts from a browser click.
+    `create_job` in `api/routes/jobs.py` (today it enqueues any registered kind with any payload
+    and no `Origin`, `jobs.py:26-34`) accepts only `API_KINDS = {"noop", "probe",
+    "transcribe"}`: free, local and never tied to an episode. Nothing in `web/src` posts to
+    `/api/jobs` today (the editor only polls `GET /api/jobs/{id}`), so no caller changes. Every
+    other kind is 403 naming the route to use: `youtube_upload` (Upload private, or
+    `POST /api/recordings/{rid}/youtube`), `heygen_clip` (`POST /api/heygen/render`),
+    `vault_push` (`POST /api/vault/push`), `finish_recording` (`POST /api/recordings`), every
+    `episode_*`, `scene_*`, `card_*` and `site_*` kind (`/api/episodes`) and every `channel_*`
+    kind (`/api/channels`). An unknown kind stays 400.
+    Tests: `test_agent.py` drops `"youtube_upload"` from the exact expected tool list
+    (lines 62-67), deletes the `youtube_upload` call block (lines 84-89) and asserts no tool
+    name contains `upload`; `test_youtube.py` sends `Origin: http://testclient` on its upload
+    calls and adds a 403 case with no `Origin`; `test_api.py` asserts `POST /api/jobs` is 403
+    for `youtube_upload`, `heygen_clip`, `vault_push` and `episode_purge` (no job row written)
+    and 201 for `noop`. `docs/AGENTS.md` drops the `youtube_upload` row and says uploads are
+    the owner's click. The root `README.md` (lines 99-101) drops the clause that the MCP server
+    uploads as `private` and says "no MCP tool uploads; every upload starts from a browser
+    click with an allowed `Origin`". README: `server/src/streamstudio/README.md` `mcp.TOOLS`,
+    and its `[mcp.py:call]` `youtube_upload` invariant (line 31) is removed;
+    `api/routes/README.md` `youtube.py` and `jobs.py` (`create_job` allowlist).
 
 #### 29. `server/src/streamstudio/core/youtube.py` (Modify)
 
@@ -2036,10 +2101,13 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: Reachable at `?episode=<id>`; Stage 1: the channel's name
     (`profile_name`) and pinned profile version in the header, the scene list with errors,
     four buttons (Approve script; Approve budget with the estimate screen and the token;
-    Upload private, shown only in `ready`; Publish now, shown only in `uploaded_private`); in
+    Upload private, shown only in `ready` before an upload is requested, and replaced by
+    "Uploading…" in `ready` with `outputs.upload_requested_at` set; Publish now, shown only in
+    `uploaded_private`); in
     `ready` the page shows "Ready: final MP4 in Library. Upload private?" with a link to the MP4
-    and the kit. The estimate screen shows "Upload channel: <title>" or "Upload channel: not
-    connected (connect before uploading)", and the presenter's name and ids. Polls `GET /api/episodes/{id}` every 5 s while `in_progress`;
+    and the kit. The estimate screen shows the "Upload channel" line of "The YouTube channel", and the
+    presenter's name and ids. Polls `GET /api/episodes/{id}` every 5 s while `in_progress`, or
+    while `ready` with `outputs.upload_requested_at` set;
     usable at a 390 px wide viewport (`index.css` gains a `.episode` breakpoint). `api.ts` exports
     `getEpisode`, `putScript`, `approveScript`, `repin(profile?)`, `estimate`,
     `approveBudget(token)`, `upload()`, `publish(publish_at?)`, `advance`, `purge`, and from
@@ -2072,22 +2140,24 @@ it changes, so the READMEs never lag the code by a stage.
         reserved once, an edited scene with its old render running is reserved for both keys,
         then the previous reservation is released and the month's total never drops below the
         live job's estimate in between;
-    *   `PUT /script` returns an `in_progress` or `ready` episode to `draft`, unlinks
+    *   `PUT /script` returns an `in_progress`, `ready` or `needs_dan` episode to `draft`, unlinks
         `final.mp4` and `kit.json` and clears `outputs.recording_id` when the hash changes, and
         is refused (409) once `outputs.upload_requested_at` is set;
     *   `POST /{id}/upload` is 409 from every state but `ready`, 403 without `Origin` and with a
         disallowed one; from `ready` it writes `outputs.channel` and `upload_requested_at`; it is
         409 when the profile's YouTube channel is not connected, when none is connected, and
-        when the profile names none and two are connected;
-    *   repin and cancel are allowed in `ready` and refused once an upload is requested; purge
-        works from `ready`;
+        when the profile names none and two are connected; a second click is 409 and enqueues
+        nothing;
+    *   repin is allowed in `ready` and refused once an upload is requested; purge works from
+        `ready` and is refused once an upload is requested;
     *   an episode's project row is absent from `GET /api/projects` and `GET /api/projects/{pid}`
         answers 404 for it;
     *   publish now through the fake YouTube transport sets `published`;
     *   `GET /{id}` has no side effects and returns the `EpisodeOut` shape, including
         `profile_name` and `profile_latest_version`;
-    *   preflight 503 with missing names; create 409 naming the field when the profile's plate
-        file is missing;
+    *   preflight 503 names only missing toolchain parts; create 409 naming the field when the
+        profile's plate file is missing; a script with no `profile` while the stored default
+        has no row is 409 ("default profile X missing"), never 503 or 422;
     *   a script with no `profile` gets `danslab` written into `script.profile` at create (the
         response shows it); one naming an unknown profile is a 422 error;
     *   after create, making another profile the default leaves the episode's slug and its pin
@@ -2109,8 +2179,9 @@ it changes, so the READMEs never lag the code by a stage.
     *   Upload private writes the pinned profile's `youtube_channel` to `outputs.channel` (the
         upload uses it);
     *   a profile with no `youtube_channel` and one connected YouTube channel uploads to that
-        channel on Upload private; the estimate response names its title, and with none
-        connected says "not connected (connect before uploading)".
+        channel on Upload private; the estimate response names its title ("the only connected
+        channel; this profile names none"), with none connected says "not connected (connect
+        before uploading)", and with two connected and none named says "several connected".
 
 #### 34. `server/tests/test_episode_pipeline.py` (Create)
 
@@ -2129,13 +2200,21 @@ it changes, so the READMEs never lag the code by a stage.
         fallback, intro offset; a footer that would pass 5000 bytes is kept whole and the body
         shortened;
     *   registration names, sidecar and language file; a registered episode appears in
-        `GET /api/recordings` in the right order;
+        `GET /api/recordings` in the right order with `episode` set, and
+        `POST /api/recordings/{rid}/youtube` for it is 409;
     *   after registration the planner sets `ready`, releases the reservation, and never
         enqueues `youtube_upload` without `outputs.upload_requested_at` (run the planner
         repeatedly in `ready`: no upload job);
     *   with zero connected YouTube channels, an episode still reaches `ready`;
     *   after Upload private, row 10 enqueues one private `youtube_upload`; the upload handler
         enqueues the planner and the planner sets `uploaded_private`;
+    *   an upload job ending in `error` parks the episode in `needs_dan`, and further planner
+        runs enqueue no upload; Advance returns it to `ready` and row 10 enqueues one upload
+        that resumes from the state file;
+    *   a `scene_compose` job ending in `error` parks the episode in `needs_dan` with no new
+        compose job; Advance enqueues it once more;
+    *   a clip job that finishes while the episode is in `draft` (after an edit or a repin)
+        enqueues a planner that enqueues nothing and writes the charge;
     *   purge keeps the right files and writes the export;
     *   a second, synthetic profile (a red-and-yellow palette, a one-colour plate, a 2 s intro
         uploaded at 30 fps with a tone, a sine-tone bed, `language: "ro"`, its own footer and
@@ -2146,8 +2225,8 @@ it changes, so the READMEs never lag the code by a stage.
     *   a profile with no intro, no bed and one empty SFX slot assembles, chapters start at
         0:00 without "Intro", and the log has one "has no <field>; skipped" line for each;
     *   changing only the palette, then repin, approve-script and a zero-line approve-budget,
-        re-composes every scene, enqueues no `heygen_clip`, rebuilds `final.mp4`, and a sampled
-        rim pixel shows the new colour;
+        re-composes every scene, enqueues no `heygen_clip`, rebuilds `final.mp4`, a sampled
+        rim pixel shows the new colour, and the episode ends in `ready`;
     *   changing only the description footer, then repin, re-composes nothing and enqueues no
         `heygen_clip`; the rebuilt kit has the new footer;
     *   changing `presenter.voice_id` changes every clip key.
@@ -2187,7 +2266,8 @@ it changes, so the READMEs never lag the code by a stage.
     *   `PUT /default` makes another profile the default, refuses a slug with no row (409), and
         `GET /` marks the new default;
     *   every write with no `Origin` is 403, and with a disallowed `Origin` is 403;
-    *   no `danslab` (any case) under `server/src/streamstudio/episode/`,
+    *   no `danslab` (any case) in a `*.py`, `*.ts` or `*.tsx` file under
+        `server/src/streamstudio/episode/`,
         `server/src/streamstudio/api/routes/episodes.py`, `server/src/streamstudio/api/routes/channels.py`,
         `web/src/episode/` or `web/src/channels/` (a source scan in the test; the live studio's
         existing references are out of its scope, see Non-Goals).
@@ -2318,13 +2398,14 @@ it changes, so the READMEs never lag the code by a stage.
     *   after a repin that changes `avatar_id`, `reference` is rebuilt from the next full pass
         and the new clips are not measured against the old medians;
     *   a render `failed` after the allowance parks in `needs_dan`;
-    *   cancel releases only unsubmitted reservations;
+    *   cancel releases only unsubmitted reservations, is allowed in `ready`, and is refused
+        once an upload is requested;
     *   scheduled publish, refresh cooldown, a passed `publish_at` with a private video does not
         set `published`;
     *   every validator warning row on a minimal script, with thresholds from a non-default
         profile (`scene_s`, `event_gap_s`).
 
-#### 44a. `server/tests/test_channels.py` (Modify); `web/src/channels/channels.test.tsx` (Create)
+#### 44a. `server/tests/test_channels.py`, `server/tests/test_agent.py` (Modify); `web/src/channels/channels.test.tsx` (Create)
 
 *   **Type / Scope**: Stage 2 channel tests.
 *   **Proposed Changes**:
@@ -2337,6 +2418,9 @@ it changes, so the READMEs never lag the code by a stage.
         `avatar_id` and whose cut-out exists, and the grey silhouette when there is none;
     *   `channel_list` and `channel_get` return the latest version; a slug with `/` is escaped by
         `_seg`; `mcp.TOOLS` has no channel write tool;
+    *   `test_agent.py`: the exact expected tool list gains `episode_create`, `episode_list`,
+        `episode_status`, `episode_estimate`, `episode_refresh`, `channel_list` and
+        `channel_get`;
     *   vitest: the page duplicates a profile, uploads a picked file as a raw body, saves with
         `base_version`, shows the reload message on 409, and shows the shared-channel warning.
 
@@ -2514,7 +2598,9 @@ it changes, so the READMEs never lag the code by a stage.
     `ready`; then, optionally, Upload private and publish), and the rule that nothing uploads
     automatically; it states that the production-rule thresholds are per profile, with DansLab's as
     the seed values; one sentence notes that the saved stage layouts are called sets in prose;
-    the offline compositor section points at the episode package.
+    the offline compositor section points at the episode package. Rule 2 ("Workings stay until
+    the video is on YouTube", `docs/DESIGN.md:354`) becomes "Workings stay until Dan purges
+    them", since purge is allowed from `ready` and `cancelled` too.
 
 #### 56. `docs/AGENTS.md`, `docs/AGENT_GUIDE.md` (Modify)
 
