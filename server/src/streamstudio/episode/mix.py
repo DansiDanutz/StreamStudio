@@ -153,7 +153,7 @@ def assemble(
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
     work = out_mp4.parent / "mix"
     work.mkdir(exist_ok=True)
-    # the voice: the scene files concatenated (video and audio), so timings match the picture
+    # Concatenate the picture. Decode each voice separately to discard per-file AAC padding.
     concat_list = work / "scenes.txt"
     concat_list.write_text("".join(f"file '{p.resolve()}'\n" for p in scene_files))
     main = work / "main.mp4"
@@ -164,7 +164,9 @@ def assemble(
     )  # fmt: skip
     if intro:
         put(_load(s, intro, levels["intro"]), 0)
-    put(_load(s, main, levels["voice"]), intro_d)
+    for path, start, duration in zip(scene_files, starts, durations, strict=True):
+        voice = _load(s, path, levels["voice"])
+        put(voice[:round(duration * SR)], intro_d + start)
     notes: list[str] = []
     bed = bed_path(s) if sound is None else None
     if sound and sound.bed:
