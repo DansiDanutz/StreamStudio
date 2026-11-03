@@ -80,7 +80,7 @@ def scene_compose(ctx: JobContext) -> dict[str, Any]:
         card = website_demo.prepare(s, scene, d)
     current = record.inputs_hash(
         scene, mp4, webm, card, degraded=st.get("qa") == "degraded",
-        look=ep.channel_settings.get("look"), card_track=st.get("card_track"),
+        studio_dir=s.assets_dir / "studio", look=ep.channel_settings.get("look"), card_track=st.get("card_track"),
     )
     if out.exists() and hash_file.exists() and hash_file.read_text().strip() == current:
         result = {"scene": scene.id, "skipped": True}

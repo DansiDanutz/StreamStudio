@@ -764,3 +764,17 @@ def test_writer_feedback_returns_to_draft_before_spending(env):
     assert client.post(base + "/approve-budget", json={"confirm_token": token},
                        headers=ORIGIN).status_code == 409
     assert store.list_jobs(connection(s)) == []
+
+def test_scene_cache_follows_default_studio_assets(tmp_path):
+    scene = Scene(id="s1", text="Welcome to the studio.")
+
+    def key(look=None):
+        return record.inputs_hash(scene, None, None, None, studio_dir=tmp_path, look=look)
+
+    pinned = {"plate": {"seat": {"hands_y": 0.7}}}
+    pinned_key = key(pinned)
+    for name in ("plate-landscape-final.json", "plate-landscape-final.png", "plate-landscape-final.desk.png"):
+        before = key()
+        (tmp_path / name).write_bytes(b"updated")
+        assert key() != before
+        assert key(pinned) == pinned_key

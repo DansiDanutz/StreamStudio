@@ -271,7 +271,7 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
         st["card_track"] = tracks.get(sc.id)
         current = record.inputs_hash(
             sc, mp4, webm, card, degraded=st.get("qa") == "degraded",
-            look=ep.channel_settings.get("look"), card_track=st["card_track"],
+            studio_dir=s.assets_dir / "studio", look=ep.channel_settings.get("look"), card_track=st["card_track"],
         )
         st["inputs_hash"] = current
         if st.get("composed_hash") == current:
