@@ -155,3 +155,39 @@ episode path should not read DansLab's plate file at all.
 *   **Seed sources.** The bed, the eight SFX and the Inter OTFs are on the Linux box
     (`MEDIA_LIB`, `/usr/share/fonts/opentype/inter/`); someone copies them into
     `assets/channels/danslab/` and fills each licence note in `manifest.json`.
+
+## Owner change after review: upload is a manual click (2026-11-03)
+
+The owner's words: "I don't want anything to upload automatically yet." He is also not
+connecting more YouTube channels for now. Applied throughout `daily-episode-factory.md`:
+
+*   **New end state `ready`.** Once the final MP4 is registered with its kit and SRT, planner
+    row 9a sets `ready`, releases the reservation and stops. Row 10 enqueues `youtube_upload`
+    only when `outputs.upload_requested_at` is set; row 11 is unchanged.
+*   **New click, `POST /api/episodes/{id}/upload` (Upload private).** Only from `ready`; needs a
+    present and allowed `Origin`; no MCP tool. It resolves the YouTube channel with
+    `pick_channel` (409 when not connected or ambiguous), writes `outputs.channel` and
+    `outputs.upload_requested_at`, and enqueues the planner. The upload stays private; Publish
+    follows `uploaded_private` as before.
+*   **YouTube gates nothing before the upload.** Channel resolution and its 409s are removed
+    from approve-script and approve-budget; the estimate shows "Upload channel: <title>, or not
+    connected (connect before uploading)" as information. Profile save still checks a changed,
+    non-empty `youtube_channel`. Episodes build to `ready` with zero connected channels.
+*   **Transitions.** Script edit and repin are allowed in `ready` and refused once an upload is
+    requested; cancel up to `ready`; purge from `ready`, `published` and `cancelled`.
+*   **Clicks counted honestly.** Two clicks to `ready` (approve script, approve budget), then
+    optional Upload private and Publish. Overview, Goals, CUJs 1, 2, 3 and 5, the smallest
+    version, Stage 1's title, the planner table, items 20, 24, 30, 31, 33, 34, 41, 43, 55-58,
+    Risks, NFR and the Verification Plan are updated. No auto-upload setting; it is one line in
+    Future Improvements.
+*   **Open item 2 settled.** A ninth palette field, `tag_text` (DansLab `#ECEEF6`), keeps
+    Episode 1 v2's tag text exact.
+*   **Open item 3.** Copying the seed files from the Linux box is a Stage 0 task in item 6, by
+    Dan or an agent on the Linux box; every licence note is filled in before Stage 1, and test
+    34a checks it.
+*   **Open item 1 stands.** With uploads manual, the estimate screen and the Upload private click
+    both show the YouTube channel before anything is uploaded.
+
+One point left for the owner: the existing MCP `youtube_upload` tool (unchanged by this design)
+can still upload any registered take, including an episode's, if an agent calls it. It is not
+automatic, but it is not Dan's click either. Removing or gating it is a separate change.
