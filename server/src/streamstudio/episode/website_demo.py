@@ -174,7 +174,8 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
                     if label:
                         target = page.get_by_label(label, exact=True)
                         if not target.count():
-                            target = page.get_by_text(label, exact=True).filter(visible=True)
+                            target = page.get_by_text(label, exact=True)
+                            target = target.and_(page.locator(":visible"))
                         if target.count() != 1:
                             raise ValueError(f"capture target must match exactly once: {label}")
                         target.scroll_into_view_if_needed()
