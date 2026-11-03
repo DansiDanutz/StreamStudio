@@ -159,26 +159,28 @@ def episode_publish_kit(ctx: JobContext) -> dict[str, Any]:
 @handler("episode_register")
 def episode_register(ctx: JobContext) -> dict[str, Any]:
     """`final.mp4` → the recordings library as `rec_<stamp>-ep`."""
+    from ..core.db import tx
     from . import kit, record
 
     p = _payload(ctx)
     s = ctx.settings
-    ep = record.load(ctx.conn, p["episode_id"])
-    if ep is None:
-        raise ValueError("episode no longer exists")
-    existing = kit.registered_recording(s, ep.id, ep.record.get("revision", 0))
-    d = record.episode_dir(s, ep.id)
-    if existing and (s.recordings_dir / f"{existing}.mp4").exists():
+    with tx(ctx.conn):
+        ep = record.load(ctx.conn, p["episode_id"])
+        if ep is None:
+            raise ValueError("episode no longer exists")
+        existing = kit.registered_recording(s, ep.id, ep.record.get("revision", 0))
+        d = record.episode_dir(s, ep.id)
+        if existing and (s.recordings_dir / f"{existing}.mp4").exists():
+            _enqueue_planner(ctx, ep.id)
+            return {"recording_id": existing, "skipped": True}
+        final = d / "final.mp4"
+        if not final.exists():
+            raise ValueError("final.mp4 is missing")
+        k = json.loads((d / "kit.json").read_text())
+        revision = ep.record.get("revision", 0)
+        result = kit.register(s, ep.id, final, d / "final.srt", k, revision=revision)
         _enqueue_planner(ctx, ep.id)
-        return {"recording_id": existing, "skipped": True}
-    final = d / "final.mp4"
-    if not final.exists():
-        raise ValueError("final.mp4 is missing")
-    k = json.loads((d / "kit.json").read_text())
-    revision = ep.record.get("revision", 0)
-    result = kit.register(s, ep.id, final, d / "final.srt", k, revision=revision)
-    _enqueue_planner(ctx, ep.id)
-    return result
+        return result
 
 
 @handler("episode_purge")

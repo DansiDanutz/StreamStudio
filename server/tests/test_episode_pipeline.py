@@ -525,3 +525,28 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env):
     assert client.get(preview).content != response.content
     assert {j["kind"] for j in second_run}.isdisjoint({"heygen_clip", "scene_qa", "youtube_upload"})
     assert asset_path(record.episode_dir(s, eid), scene) == card
+
+def test_partial_library_registration_keeps_source_and_recovers(env, tmp_path, monkeypatch):
+    client, s, _, _ = env
+    movie = tmp_path / "final.mp4"
+    movie.write_bytes(b"encoded scene")
+    caps = tmp_path / "final.srt"
+    caps.write_text("captions")
+    original_replace = Path.replace
+
+    def fail_at_visibility(path, target):
+        if path.suffix == ".mp4":
+            raise OSError("simulated interrupted registration")
+        return original_replace(path, target)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "replace", fail_at_visibility)
+        with pytest.raises(OSError, match="interrupted"):
+            kit.register(s, "ep_test1234", movie, caps, {"title": "Tour"})
+    assert movie.read_bytes() == b"encoded scene"
+    assert kit.registered_recording(s, "ep_test1234") is None
+    assert client.get("/api/recordings").json() == []
+    saved = kit.register(s, "ep_test1234", movie, caps, {"title": "Tour"})
+    assert Path(saved["mp4"]).read_bytes() == b"encoded scene"
+    assert Path(saved["srt"]).read_text() == "captions"
+    assert kit.registered_recording(s, "ep_test1234") == saved["recording_id"]

@@ -91,6 +91,8 @@ def list_recordings(
     for side in _dir(s).glob("rec_*.episode.json"):
         rid = side.name[: -len(".episode.json")]
         mp4 = side.parent / f"{rid}.mp4"
+        if not mp4.is_file():
+            continue
         try:
             episode = json.loads(side.read_text()).get("episode")
         except (json.JSONDecodeError, OSError):

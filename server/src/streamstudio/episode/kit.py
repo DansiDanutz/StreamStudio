@@ -11,10 +11,12 @@ measured duration split by character count; every time is offset by the intro.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import time
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from ..core.config import Settings
@@ -160,24 +162,34 @@ def register(
     its captions, a minimal transcript file naming the language, and the episode sidecar."""
     d = s.recordings_dir
     d.mkdir(parents=True, exist_ok=True)
-    rid = time.strftime("rec_%Y%m%d-%H%M%S") + "-ep"
-    while (d / f"{rid}.mp4").exists():
-        time.sleep(1)
-        rid = time.strftime("rec_%Y%m%d-%H%M%S") + "-ep"
-    shutil.move(str(final_mp4), d / f"{rid}.mp4")
-    if final_srt.exists():
-        shutil.copy2(final_srt, d / f"{rid}.srt")
-    (d / f"{rid}.transcript.json").write_text(json.dumps({"language": "en", "source": "script"}))
-    (d / f"{rid}.episode.json").write_text(
-        json.dumps(
-            {
-                "episode": episode_id,
-                "revision": revision,
-                "title": kit.get("title"),
-                "registered_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            }
+    stamp = int(time.time())
+    while True:
+        rid = time.strftime("rec_%Y%m%d-%H%M%S", time.localtime(stamp)) + "-ep"
+        if not any(d.glob(f"{rid}.*")):
+            break
+        stamp += 1
+    with TemporaryDirectory(dir=d, prefix=".register-") as staging:
+        staged = Path(staging)
+        movie = staged / f"{rid}.mp4"
+        try:
+            os.link(final_mp4, movie)
+        except OSError:
+            shutil.copy2(final_mp4, movie)
+        if final_srt.exists():
+            shutil.copy2(final_srt, staged / f"{rid}.srt")
+        (staged / f"{rid}.transcript.json").write_text(
+            json.dumps({"language": "en", "source": "script"})
         )
-    )
+        (staged / f"{rid}.episode.json").write_text(json.dumps({
+            "episode": episode_id, "revision": revision, "title": kit.get("title"),
+            "registered_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }))
+        # The Library discovers the MP4. Expose it only after every companion is in place.
+        for companion in staged.iterdir():
+            if companion != movie:
+                companion.replace(d / companion.name)
+        movie.replace(d / movie.name)
+    final_mp4.unlink()
     return {"recording_id": rid, "mp4": str(d / f"{rid}.mp4"), "srt": str(d / f"{rid}.srt")}
 
 
@@ -188,7 +200,9 @@ def registered_recording(s: Settings, episode_id: str, revision: int = 0) -> str
         try:
             sidecar = json.loads(p.read_text())
             if sidecar.get("episode") == episode_id and sidecar.get("revision", 0) == revision:
-                best = p.name[: -len(".episode.json")]
+                rid = p.name[: -len(".episode.json")]
+                if (s.recordings_dir / f"{rid}.mp4").is_file():
+                    best = rid
         except (json.JSONDecodeError, OSError):
             continue
     return best
