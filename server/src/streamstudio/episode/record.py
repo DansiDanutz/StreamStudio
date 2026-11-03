@@ -124,7 +124,8 @@ def _file_sha1(p: Path | None) -> str:
 
 def inputs_hash(
     scene: Scene, clip_mp4: Path | None, cutout_webm: Path | None, card_mp4: Path | None,
-    *, degraded: bool = False, look: dict | None = None, card_track=None, studio_dir: Path | None = None,
+    *, degraded: bool = False, look: dict | None = None, card_track=None,
+    studio_dir: Path | None = None,
 ) -> str:
     """What `scene_compose` depends on: the text, the clip and cut-out, the card, the plan."""
     plan = scene.plan.model_dump_json(exclude_none=True) if scene.plan else ""
@@ -135,7 +136,10 @@ def inputs_hash(
     if look:
         raw += "\n" + json.dumps(look, sort_keys=True)
     elif studio_dir is not None and not (scene.plan and scene.plan.connected_cards):
-        for name in ("plate-landscape-final.json", "plate-landscape-final.png", "plate-landscape-final.desk.png"):
+        for name in (
+            "plate-landscape-final.json", "plate-landscape-final.png",
+            "plate-landscape-final.desk.png",
+        ):
             raw += "\n" + _file_sha1(studio_dir / name)
     if card_track is not None:
         raw += "\n" + json.dumps(card_track)

@@ -773,7 +773,10 @@ def test_scene_cache_follows_default_studio_assets(tmp_path):
 
     pinned = {"plate": {"seat": {"hands_y": 0.7}}}
     pinned_key = key(pinned)
-    for name in ("plate-landscape-final.json", "plate-landscape-final.png", "plate-landscape-final.desk.png"):
+    for name in (
+        "plate-landscape-final.json", "plate-landscape-final.png",
+        "plate-landscape-final.desk.png",
+    ):
         before = key()
         (tmp_path / name).write_bytes(b"updated")
         assert key() != before
