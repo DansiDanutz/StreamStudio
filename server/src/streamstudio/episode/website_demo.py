@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import http.client
 import json
 import os
 import subprocess
@@ -125,22 +126,26 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
                     raise ValueError("manual screenshot failed its integrity check")
             cx, cy = manual.focus_x, manual.focus_y
         else:
+            from .capture_network import CaptureOrigin
+
+            origin = CaptureOrigin(urlsplit(scene.site).hostname)
             with sync_playwright() as pw:
                 browser = pw.chromium.launch(executable_path=s.hyperframes_browser)
-                page = browser.new_page(viewport={"width": width, "height": height},
-                                        reduced_motion="reduce", service_workers="block")
+                context = browser.new_context(viewport={"width": width, "height": height},
+                                              reduced_motion="reduce", service_workers="block",
+                                              offline=True)
+                context.route_web_socket("**/*", lambda ws: ws.close())
 
                 def same_site(route):
-                    url = route.request.url
-                    if (not auto_site(s, url)
-                            or urlsplit(url).hostname != urlsplit(scene.site).hostname):
+                    req = route.request
+                    try:
+                        response = origin.fetch(req.url, req.method, req.headers)
+                    except (ValueError, OSError, http.client.HTTPException):
                         return route.abort()
-                    response = route.fetch(max_redirects=0)
-                    if 300 <= response.status < 400:
-                        return route.abort()
-                    return route.fulfill(response=response)
+                    return route.fulfill(**response)
 
-                page.route("**/*", same_site)
+                context.route("**/*", same_site)
+                page = context.new_page()
                 response = page.goto(scene.site, wait_until="load")
                 if not response or not response.ok:
                     raise ValueError("website capture failed")
@@ -159,7 +164,7 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
                     scroll = min(160, extra, max(0, round(box["y"] + box["height"]/2 - height*.32)))
                     page.screenshot(path=image, animations="disabled",
                                     clip={"x": 0, "y": 0, "width": width, "height": height+scroll})
-                page.unroute_all(behavior="wait")
+                context.unroute_all(behavior="wait")
                 browser.close()
             cx = (box["x"] + box["width"] / 2) / width
             cy = (box["y"] + box["height"] / 2) / height
