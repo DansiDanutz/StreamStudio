@@ -225,3 +225,37 @@ def episode_purge(ctx: JobContext) -> dict[str, Any]:
             )
         record.save(ctx.conn, ep)
     return result
+
+
+@handler("channel_intro")
+def channel_intro(ctx: JobContext) -> dict[str, Any]:
+    from ..core.db import tx
+    from . import profiles
+    from .channel_intro import generate
+
+    p = _payload(ctx)
+    source = profiles.get(ctx.conn, p["slug"], p["version"])
+    if not source or source["hash"] != p["hash"]:
+        raise ValueError("the selected channel version no longer exists")
+    profile = profiles.Profile.model_validate(source["profile"])
+    digest = generate(ctx.settings, profile)
+    with tx(ctx.conn):
+        latest = profiles.get(ctx.conn, p["slug"])
+        if not latest:
+            return {"discarded": True, "reason": "channel removed during rendering"}
+        current = profiles.Profile.model_validate(latest["profile"])
+        previous_sound = profile.sound or profiles.Sound()
+        current_sound = current.sound or profiles.Sound()
+        if (current.name != profile.name or current.intro != profile.intro
+                or current_sound.sfx != previous_sound.sfx
+                or current_sound.levels.intro != previous_sound.levels.intro
+                or current_sound.intro not in (previous_sound.intro, digest)):
+            return {"discarded": True, "reason": "channel changed during rendering"}
+        if current_sound.intro == digest:
+            return {"slug": p["slug"], "version": latest["version"], "intro": digest}
+        profile = current
+        if profile.sound is None:
+            profile.sound = profiles.Sound()
+        profile.sound.intro = digest
+        saved = profiles.save(ctx.conn, profile, latest["version"] + 1)
+    return {"slug": p["slug"], "version": saved["version"], "intro": digest}

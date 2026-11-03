@@ -682,3 +682,43 @@ def test_cancel_releases_only_unsubmitted_clips_and_no_second_release(env):
     assert client.get(url).json()["budget"]["spent"]["renders"] == 1
     assert client.post(url + "/purge").status_code == 202
     assert ("POST", "/v3/videos") not in fake.calls
+
+
+def test_channel_intro_job_keeps_concurrent_edits_and_rejects_a_changed_template(env, monkeypatch):
+    from streamstudio.episode import channel_intro
+    from streamstudio.worker.main import run_one
+
+    client, s, _, _ = env
+    c = connection(s)
+    url = "/api/channels/danslab"
+
+    def edit_during_render(settings, profile):
+        latest = client.get(url).json()
+        data = latest["profile"]
+        if profile.name == "DansLab":
+            data["publish"]["description_footer"] = "Edited while rendering"
+        result = client.put(url, headers=ORIGIN, json={"base_version": latest["version"],
+                                                       "profile": data})
+        assert result.status_code == 200
+        return "a" * 64
+
+    monkeypatch.setattr(channel_intro, "generate", edit_during_render)
+    assert client.post(url + "/intro").status_code == 403
+    job = client.post(url + "/intro", headers=ORIGIN).json()["job_id"]
+    assert client.post(url + "/intro", headers=ORIGIN).json()["job_id"] == job
+    assert run_one(c, s, "intro")
+    latest = client.get(url).json()
+    assert latest["profile"]["sound"]["intro"] == "a" * 64
+    assert latest["profile"]["publish"]["description_footer"] == "Edited while rendering"
+
+    def change_title(settings, profile):
+        data = {**latest["profile"], "sound": None, "intro": {"title": "New title"}}
+        assert client.put(url, headers=ORIGIN, json={"base_version": latest["version"],
+                                                     "profile": data}).status_code == 200
+        return "b" * 64
+
+    monkeypatch.setattr(channel_intro, "generate", change_title)
+    job = client.post(url + "/intro", headers=ORIGIN).json()["job_id"]
+    assert run_one(c, s, "intro")
+    assert store.get_job(c, job)["result"]["discarded"]
+    assert client.get(url).json()["profile"]["sound"] is None

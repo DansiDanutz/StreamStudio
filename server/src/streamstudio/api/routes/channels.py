@@ -194,3 +194,19 @@ def remove(slug: str, base_version: int | None = None, s: Settings = Depends(set
                                       "episodes": [r["id"] for r in used]})
         c.execute("DELETE FROM channel_profiles WHERE slug=?", (slug,))
     return {"removed": slug}
+
+
+@router.post("/{slug}/intro", status_code=202, dependencies=[Depends(owner)])
+def render_intro(slug: str, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)):
+    from ...core import store
+
+    with tx(c):
+        profiles.seed(c, s)
+        profile = profiles.get(c, slug)
+        if not profile:
+            raise HTTPException(404, "channel not found")
+        key = f"{slug}/{profile['version']}"
+        job = store.find_active_job(c, "channel_intro", key, field="key") or store.enqueue(
+            c, "channel_intro", payload={"slug": slug, "version": profile["version"],
+                                         "hash": profile["hash"], "key": key})
+    return {"job_id": job["id"]}

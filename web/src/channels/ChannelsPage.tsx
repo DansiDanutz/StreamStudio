@@ -6,6 +6,7 @@ type Profile = {
   slug: string; name: string; language: string; youtube_channel: string | null
   presenter: { name: string; avatar_id: string; voice_id: string; motion?: string | null }
   publish: { description_footer: string; default_tags: string[] }
+  intro?: { kicker?: string; title?: string; title_em?: string; tagline?: string; logo_letter?: string; colours?: Record<string, string> }
   look?: Record<string, unknown> | null
   sound?: Record<string, unknown> | null
 }
@@ -114,6 +115,32 @@ export function ChannelsPage() {
         change={v => edit({ publish: { ...draft.publish, description_footer: v } })} />
       <label>Default tags (one per line)<textarea value={draft.publish.default_tags.join('\n')}
         onChange={e => edit({ publish: { ...draft.publish, default_tags: e.target.value.split('\n') } })} /></label>
+      <details><summary>Animated intro</summary>
+        {(['kicker', 'title', 'title_em', 'tagline', 'logo_letter'] as const).map((key, i) =>
+          <Field key={key} label={['Intro kicker', 'Intro title', 'Emphasized title', 'Intro tagline', 'Logo letter'][i]}
+            value={draft.intro?.[key] ?? ''} change={v => edit({ intro: { ...draft.intro, [key]: v } })} />)}
+        {Object.entries(draft.intro?.colours ?? {}).map(([key, colour]) =>
+          <Field key={key} label={`Intro color · ${key}`} value={colour}
+            change={v => edit({ intro: { ...draft.intro, colours: { ...draft.intro?.colours, [key]: v } } })} />)}
+        <button disabled={dirty} onClick={() => void run(async () => {
+          const job = await request<{job_id: string}>('/' + draft.slug + '/intro', 'POST')
+          setMessage('Rendering intro locally…')
+          for (;;) {
+            await new Promise(resolve => setTimeout(resolve, 1500))
+            const response = await fetch('/api/jobs/' + job.job_id)
+            if (!response.ok) throw new Error('Could not read intro job status.')
+            const state = await response.json()
+            if (state.status === 'error' || state.status === 'cancelled') throw new Error(state.error || state.status)
+            if (state.status === 'done') {
+              display(await request<Version>('/' + draft.slug)); setRows(await request<Summary[]>())
+              setMessage(state.result?.discarded ? 'Channel changed during rendering. Render again with the latest version.' : 'Generated intro saved to the channel.')
+              break
+            }
+          }
+        })}>Generate intro from saved version</button>
+        {typeof draft.sound?.intro === 'string' && <video controls preload="none" style={{width: '100%'}}
+          aria-label="Channel intro" src={'/api/channels/files/' + draft.sound.intro} />}
+      </details>
       <details><summary>Visual and sound settings</summary>
         <p>Upload a file, then use its SHA-256 in the appropriate look or sound field.</p>
         <label>File type<select value={role} onChange={e => setRole(e.target.value)}>

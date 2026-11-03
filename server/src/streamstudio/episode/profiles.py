@@ -96,12 +96,33 @@ def verify_look(s, look: Look | None):
             channel_files.verify(s, look.plate.desk, kind="image")
 
 
+class IntroColours(Strict):
+    bg: Color = "#050404"
+    glow: Color = "#160b091a"
+    accent: Color = "#e74c3c"
+    accent_dark: Color = "#c0392b"
+    highlight: Color = "#d4a017"
+    letter: Color = "#fffef7"
+    title: Color = "#fafafa"
+    muted: Color = "#b9b1a4"
+
+
+class Intro(Strict):
+    kicker: str = Field(default="", max_length=40)
+    title: str = Field(default="", max_length=64)
+    title_em: str = Field(default="", max_length=40)
+    tagline: str = Field(default="", max_length=120)
+    logo_letter: str = Field(default="", max_length=1)
+    colours: IntroColours = Field(default_factory=IntroColours)
+
+
 class Profile(Strict):
     slug: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
     name: str = Field(min_length=1)
     language: str = Field(default="en", pattern=r"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$")
     youtube_channel: str | None = Field(default=None, pattern=r"^UC[0-9A-Za-z_-]{22}$")
     presenter: Presenter
+    intro: Intro = Field(default_factory=Intro)
     look: Look | None = None
     sound: Sound | None = None
     publish: Publish = Field(default_factory=Publish)
