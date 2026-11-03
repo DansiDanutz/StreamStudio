@@ -20,7 +20,7 @@ CATALOG = {
     "id": "website-demo/v1",
     "choose_when": "A card scene explains a visible feature on an allowed HTTPS site.",
     "requires": ["scene.site"],
-    "focus_label": "Optional exact label. Otherwise scroll to the largest visible hero graphic.",
+    "focus_label": "Exact accessible label or unique visible text. Omit to select the page hero.",
     "callout": "Without an explicit label, show the page address and scene text at the reveal.",
     "manual": "For a manual host, upload a screenshot and supply its sha256 and focal point.",
     "capture": "Playwright Chromium viewport and a camera move to the labeled feature",
@@ -173,6 +173,10 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
                     label = scene.plan.website_demo.focus_label
                     if label:
                         target = page.get_by_label(label, exact=True)
+                        if not target.count():
+                            target = page.get_by_text(label, exact=True).filter(visible=True)
+                        if target.count() != 1:
+                            raise ValueError(f"capture target must match exactly once: {label}")
                         target.scroll_into_view_if_needed()
                         box = target.bounding_box()
                         if not box:
