@@ -35,7 +35,7 @@ CATALOG = {
         "When narration names several items already visible together, use focus_cues. "
         "Measure cue times against the actual voice take and rectangles against the opening frame.",
         "When narration moves to another page, use page_switch. Prepare both pages once. "
-        "Preview a timing edit from those cached cards. The second site requires automatic capture.",
+        "Preview timing edits from the cached cards. The second site requires automatic capture.",
         "Use separate scenes if a page switch and timed outlines are both needed.",
     ],
     "continuity": "Adjacent scenes with the same site and direction share one camera move.",
