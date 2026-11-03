@@ -173,17 +173,20 @@ HEYGEN_POLL_S = 8.0
 
 
 def _cutout_clip(mp4: Path, out_webm: Path, plate: Path) -> bool:
-    """Cut Dan out of a rendered clip (local rembg). False if the cut-out tools are missing."""
-    import shutil
+    """Build the local alpha clip. Studio composition happens in the episode compositor."""
+    from tempfile import TemporaryDirectory
 
     try:
-        from ..avatar.cutout import run as cutout_run
+        from ..avatar import cutout
     except ImportError:
         return False
-    tmp = out_webm.parent / f".work-{out_webm.stem}"
-    res = cutout_run(mp4, plate, tmp, scale=0.66, hands_y=0.68, x=0.47, keep=False)
-    shutil.move(res["cutout_webm"], out_webm)
-    shutil.rmtree(tmp, ignore_errors=True)
+    with TemporaryDirectory(dir=out_webm.parent, prefix=".cutout-") as tmp:
+        work = Path(tmp)
+        frames = cutout.extract_frames(mp4, work / "frames")
+        cutout.segment(frames, work / "alpha")
+        result = work / "finished.webm"
+        cutout.encode_alpha_webm(work / "alpha", cutout.probe(mp4)["fps"], mp4, result)
+        result.replace(out_webm)
     return True
 
 
@@ -229,7 +232,8 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
         state["claim"] = ctx.job["id"]
         state_file.write_text(json.dumps(state))
 
-    if not mp4.exists():
+    downloaded = not mp4.exists()
+    if downloaded:
         cfg = heygen.load_config(s.data_dir)
         client = heygen.Client(cfg["api_key"], HEYGEN_TRANSPORT)
         if not state.get("video_id"):
@@ -286,6 +290,12 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
             with urllib.request.urlopen(req, timeout=300) as r, part.open("wb") as f:  # noqa: S310
                 shutil_copy(r, f)
         part.replace(mp4)
+    if episode_id and (downloaded or state.get("claim") == ctx.job["id"]):
+        try:
+            seconds = media.summarize(media.probe(mp4, s.ffprobe_bin))["duration_us"] / 1e6
+        except media.MediaError:
+            seconds = float(p.get("seconds") or 0)
+        _episode_charge(ctx, p, seconds)
     cut = None
     if not webm.exists() or webm.stat().st_mtime < mp4.stat().st_mtime:
         ctx.progress(0.85, "cutting out")
@@ -294,13 +304,10 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
             cut = f"/avatar/{out_dir.name}/{webm.name}"
     else:
         cut = f"/avatar/{out_dir.name}/{webm.name}"
+    if episode_id and cut is None:
+        raise RuntimeError("local avatar cut-out unavailable; the source clip is cached")
     queue_vault_push(ctx.conn, s)
     if episode_id:
-        try:
-            seconds = media.summarize(media.probe(mp4, s.ffprobe_bin))["duration_us"] / 1e6
-        except media.MediaError:
-            seconds = float(p.get("seconds") or 0)
-        _episode_charge(ctx, p, seconds)
         _episode_planner(ctx, episode_id)
     return {
         "clip": url,

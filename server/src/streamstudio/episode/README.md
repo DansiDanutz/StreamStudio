@@ -1,5 +1,13 @@
 # episode
 
+## Using previously rendered avatar footage
+
+If the expected clip key already has an MP4, the estimate assigns zero provider cost to that
+clip, even when its alpha cut-out is missing. The worker segments the existing frames locally
+with rembg's CPU runtime and atomically installs the VP9 alpha file. It records provider usage
+for the episode that actually downloaded the render. A local cut-out error retains the source
+MP4 for retry. Use `STREAMSTUDIO_HEYGEN_CACHE_ONLY=true` to reject new provider submissions.
+
 ## Overview
 
 The episode factory: a script in, a private YouTube upload out (design:

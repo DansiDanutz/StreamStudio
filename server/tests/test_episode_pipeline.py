@@ -789,3 +789,23 @@ def test_adjacent_card_slices_continue_the_same_camera_move(env, tmp_path):
                       "rgb24", "-"]))
         assert mix._frame_count(s, out) == 25
     assert starts[0] != starts[1]
+
+
+def test_cached_mp4_with_missing_cutout_needs_no_render_budget(env):
+    client, s, fake, _ = env
+    s.heygen_cache_only = True
+    eid = client.post("/api/episodes", json=small_script(scenes=[
+        {"id": "s1", "text": "Reuse the existing Dan take."}])).json()["id"]
+    c = db.connect(s.db_path)
+    ep = record.load(c, eid)
+    key = record.scene_key(s, ep.script.scenes[0], ep.script)
+    mp4, cutout = record.clip_paths(s, key)
+    make_clip(mp4)
+    assert not cutout.exists()
+    assert client.get(f"/api/episodes/{eid}/cost").json()["usd"] == 0
+    approve(client, eid)
+    drain(s)
+    ep = client.get(f"/api/episodes/{eid}").json()
+    assert ep["status"] == "ready" and cutout.exists()
+    assert ep["budget"]["spent"] == {"renders": 0, "seconds": 0, "usd": 0}
+    assert ("POST", "/v3/videos") not in fake.calls

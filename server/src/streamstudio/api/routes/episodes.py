@@ -299,18 +299,19 @@ def _lines(s: Settings, c: sqlite3.Connection, ep: record.Episode) -> list[dict[
         take = int(st.get("take", 0))
         key = record.scene_key(s, sc, script, take)
         st["clip_key"] = key
-        mp4, webm = record.clip_paths(s, key)
+        mp4, _ = record.clip_paths(s, key)
         live_key = st.get("job_key")  # the key the live job renders (may be an old one)
         live = _live(c, st.get("job_id"))
         seconds = heygen.estimate_seconds(sc.spoken, None)
-        if live and live_key and live_key not in seen:
+        if (live and live_key and live_key not in seen
+                and not record.clip_paths(s, live_key)[0].is_file()):
             seen.add(live_key)
             lines.append(
                 {"scene_id": sc.id, "clip_key": live_key, "take": int(st.get("job_take", take)),
                  "job_id": st["job_id"], "script": sc.spoken, "silent_s": None,
                  "motion": script.motion, "seconds": seconds, "live": True}
             )  # fmt: skip
-        if key in seen or (mp4.exists() and webm.exists()):
+        if key in seen or mp4.is_file():
             continue
         if live and live_key == key:
             continue
