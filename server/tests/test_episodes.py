@@ -402,8 +402,8 @@ def test_publish_now_sets_published_through_youtube(env):
         record.set_status(ep, "uploaded_private")
         ep.record["outputs"].update({"channel": CH1, "youtube_video_id": "vid123"})
         record.save(c, ep)
-    r = client.post(f"/api/episodes/{eid}/publish", json={"publish_at": "2099-01-01T00:00:00Z"})
-    assert r.status_code == 422  # Stage 2
+    r = client.post(f"/api/episodes/{eid}/publish", json={"publish_at": "yesterday"})
+    assert r.status_code == 422
     r = client.post(f"/api/episodes/{eid}/publish", json={})
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "published" and r.json()["next_action"] == "Purge workings"
@@ -461,3 +461,37 @@ def test_script_warnings_explain_claims_voice_pacing_and_structure(tmp_path):
     assert any("source" in w for w in report["warnings"]["s1"])
     assert any("Stream Studio" in w for w in report["warnings"]["s1"])
     assert any("8s" in w for w in report["warnings"]["s2"])
+
+def test_scheduled_release_requires_observed_public_status_before_purge(env, monkeypatch):
+    client, s, _, tube = env
+    eid = client.post("/api/episodes", json=small_script()).json()["id"]
+    c = connection(s)
+    with db.tx(c):
+        ep = record.load(c, eid)
+        record.set_status(ep, "uploaded_private")
+        ep.record["outputs"].update(channel=CH1, youtube_video_id="vid123")
+        record.save(c, ep)
+    when = "2099-01-01T00:00:00Z"
+    r = client.post(f"/api/episodes/{eid}/publish", json={"publish_at": when})
+    assert r.json()["status"] == "scheduled"
+    assert tube.updates[-1]["status"] == {"privacyStatus": "private", "publishAt": when}
+    calls = []
+
+    def observe(api, video_id):
+        calls.append(video_id)
+        return {"privacy": "private" if len(calls) == 1 else "public", "publish_at": None}
+
+    monkeypatch.setattr(youtube, "video_status", observe)
+    with db.tx(c):
+        ep = record.load(c, eid)
+        ep.record["outputs"]["publish_at"] = "2000-01-01T00:00:00Z"
+        record.save(c, ep)
+    r = client.post(f"/api/episodes/{eid}/refresh").json()
+    assert r["status"] == "scheduled" and r["last_log"] == "scheduled release did not happen"
+    assert client.post(f"/api/episodes/{eid}/purge").status_code == 409
+    assert client.post(f"/api/episodes/{eid}/refresh").json() == r and calls == ["vid123"]
+    with db.tx(c):
+        ep = record.load(c, eid)
+        ep.record["last_checked_at"] = "2000-01-01T00:00:00Z"
+        record.save(c, ep)
+    assert client.post(f"/api/episodes/{eid}/refresh").json()["status"] == "published"

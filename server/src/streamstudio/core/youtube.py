@@ -383,7 +383,7 @@ def add_captions(api: Client, video_id: str, srt: Path, language: str) -> str:
 # ------------------------------------------------------------------ publish
 
 
-def _rfc3339_future(value: str) -> str:
+def rfc3339_future(value: str) -> str:
     """`publish_at` as YouTube wants it: RFC 3339, in the future."""
     import datetime as dt
 
@@ -406,7 +406,7 @@ def set_status(
         raise YouTubeError(f"privacy must be one of {', '.join(PRIVACY)}")
     status: dict[str, Any] = {"privacyStatus": privacy}
     if publish_at:
-        status = {"privacyStatus": "private", "publishAt": _rfc3339_future(publish_at)}
+        status = {"privacyStatus": "private", "publishAt": rfc3339_future(publish_at)}
     out = api.json(
         "PUT", "/youtube/v3/videos?part=status", {"id": video_id, "status": status}
     )

@@ -14,6 +14,7 @@ export function EpisodePage({ id }: { id: string }) {
   const [ep, setEp] = useState<Episode | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [est, setEst] = useState<Estimate | null>(null)
+  const [release, setRelease] = useState('')
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
@@ -58,7 +59,12 @@ export function EpisodePage({ id }: { id: string }) {
           {action === 'upload' && (
             <button disabled={busy} onClick={() => run(() => api.uploadPrivate(ep.id))}>Upload private</button>
           )}
-          {action === 'publish' && (
+          {(action === 'publish' || ep.status === 'scheduled') && <>
+            <label>Release time (local) <input type="datetime-local" value={release} onChange={e => setRelease(e.target.value)} /></label>
+            <button disabled={busy || !release} onClick={() => run(() => api.publish(ep.id, new Date(release).toISOString()))}>Schedule release</button>
+            <button disabled={busy} onClick={() => run(() => api.refresh(ep.id))}>Check YouTube status</button>
+          </>}
+          {(action === 'publish' || ep.status === 'scheduled') && (
             <button disabled={busy} onClick={() => run(() => api.publish(ep.id))}>Publish now</button>
           )}
           {action === 'advance' && (

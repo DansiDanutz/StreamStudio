@@ -337,19 +337,39 @@ def publish(
     c: sqlite3.Connection = Depends(conn),
 ):
     """Dan's third click: the private video goes public now (scheduling arrives in Stage 2)."""
-    if body.publish_at:
-        raise HTTPException(422, "scheduled publishing arrives in Stage 2: publish now only")
+    if body.publish_at is not None:
+        try:
+            youtube.rfc3339_future(body.publish_at)
+        except youtube.YouTubeError as e:
+            raise HTTPException(422, str(e)) from e
     from ...episode import publish as publish_mod
 
     with tx(c):
         ep = _episode(c, eid)
-        if ep.status != "uploaded_private":
+        if ep.status not in ("uploaded_private", "scheduled"):
             raise HTTPException(409, f"nothing to publish: the episode is {ep.status}")
         try:
-            publish_mod.publish(c, s, ep, None)
+            publish_mod.publish(c, s, ep, body.publish_at)
         except youtube.YouTubeError as e:
             raise HTTPException(502, str(e)) from e
         record.save(c, ep)
+    return _out(s, ep)
+
+
+@router.post("/{eid}/refresh")
+def refresh(eid: str, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)):
+    from ...episode.publish import refresh_status
+
+    with tx(c):
+        ep = _episode(c, eid)
+        if ep.status not in ("uploaded_private", "scheduled", "published"):
+            raise HTTPException(409, "no uploaded video to check")
+        if ep.status != "published":
+            try:
+                if refresh_status(s, ep):
+                    record.save(c, ep)
+            except youtube.YouTubeError as e:
+                raise HTTPException(502, str(e)) from e
     return _out(s, ep)
 
 

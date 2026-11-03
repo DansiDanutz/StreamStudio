@@ -75,6 +75,7 @@ export const approveScript = (id: string) => call<Episode>('POST', `/${id}/appro
 export const estimate = (id: string) => call<Estimate>('GET', `/${id}/estimate`)
 export const approveBudget = (id: string, token: string) => call<Episode & { job_id: string }>('POST', `/${id}/approve-budget`, { confirm_token: token })
 export const uploadPrivate = (id: string) => call<Episode>('POST', `/${id}/upload`, {})
+export const refresh = (id: string) => call<Episode>('POST', `/${id}/refresh`)
 export const publish = (id: string, publishAt?: string) => call<Episode>('POST', `/${id}/publish`, publishAt ? { publish_at: publishAt } : {})
 export const advance = (id: string) => call<Episode & { job_id: string }>('POST', `/${id}/advance`)
 export const purge = (id: string) => call<Episode & { job_id: string }>('POST', `/${id}/purge`)
