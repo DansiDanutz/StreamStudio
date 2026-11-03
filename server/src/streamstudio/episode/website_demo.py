@@ -11,6 +11,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit, urlunsplit
 
 from ..core.config import Settings
+from . import FPS
 from .contract import Scene, WebsiteDemo
 
 CATALOG = {
@@ -20,7 +21,8 @@ CATALOG = {
     "manual": "For a manual host, upload a screenshot and supply its sha256 and focal point.",
     "capture": "Playwright Chromium viewport and a camera move to the labeled feature",
     "editable_without_capture": ["side", "reveal_at"],
-    "reveal_at": "Fraction of narration duration when the camera starts moving.",
+    "reveal_at": "Fraction of the first scene duration when the camera starts moving.",
+    "continuity": "Adjacent scenes with the same site and direction share one camera move.",
 }
 
 
@@ -148,17 +150,40 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
     return dst
 
 
+def card_timeline(scenes: list[Scene], durations: list[float]) -> dict[str, tuple[int, int]]:
+    """Return (offset, reveal) in frames on the shared camera track for consecutive shots."""
+    tracks = {}
+    previous = None
+    offset = reveal = 0
+    for scene, duration in zip(scenes, durations, strict=True):
+        spec = scene.plan.website_demo if scene.plan else None
+        if spec is None:
+            previous = None
+            continue
+        track = (scene.site, spec)
+        length = max(1, round(duration * FPS))
+        if track != previous:
+            offset = 0
+            reveal = min(length-1, round(length * spec.reveal_at))
+        tracks[scene.id] = (offset, reveal)
+        previous = track
+        offset += length
+    return tracks
+
+
 def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path,
-            *, outline: tuple = (171, 191, 198, 255)) -> None:
+            *, outline: tuple = (171, 191, 198, 255), track: tuple[int, int] | None = None) -> None:
     """Render a 1920x1080 scene. Preserve the base soundtrack and hold the capture after reveal."""
     from .compose import probe_duration
 
     duration = probe_duration(s.ffprobe_bin, base)
-    start = round(duration * spec.reveal_at * 25) / 25
+    length = max(1, round(duration * FPS))
+    offset, reveal = track or (0, min(length-1, round(length * spec.reveal_at)))
     x = "60" if spec.side == "left" else "W-w-60"
     color = bytes(outline).hex()
     filters = (f"[1:v]scale=1180:-2,format=yuva420p,pad=iw+8:ih+8:4:4:color=0x{color},"
-               f"tpad=start_duration={start}:start_mode=clone[c];"
+               f"tpad=start={reveal}:start_mode=clone:stop_mode=clone:stop=-1,"
+               f"trim=start_frame={offset}:end_frame={offset+length},setpts=PTS-STARTPTS[c];"
                f"[0:v][c]overlay=x={x}:y=(H-h)/2:eof_action=repeat[v]")
     out.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=out.parent) as temp:

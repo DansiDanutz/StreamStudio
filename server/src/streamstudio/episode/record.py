@@ -124,7 +124,7 @@ def _file_sha1(p: Path | None) -> str:
 
 def inputs_hash(
     scene: Scene, clip_mp4: Path | None, cutout_webm: Path | None, card_mp4: Path | None,
-    *, degraded: bool = False, look: dict | None = None,
+    *, degraded: bool = False, look: dict | None = None, card_track=None,
 ) -> str:
     """What `scene_compose` depends on: the text, the clip and cut-out, the card, the plan."""
     plan = scene.plan.model_dump_json(exclude_none=True) if scene.plan else ""
@@ -134,6 +134,8 @@ def inputs_hash(
     )  # fmt: skip
     if look:
         raw += "\n" + json.dumps(look, sort_keys=True)
+    if card_track is not None:
+        raw += "\n" + json.dumps(card_track)
     if degraded:
         raw += "\ndegraded"
     return hashlib.sha1(raw.encode()).hexdigest()[:16]

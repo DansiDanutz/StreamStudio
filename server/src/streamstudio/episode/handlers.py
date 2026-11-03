@@ -80,7 +80,7 @@ def scene_compose(ctx: JobContext) -> dict[str, Any]:
         card = website_demo.prepare(s, scene, d)
     current = record.inputs_hash(
         scene, mp4, webm, card, degraded=st.get("qa") == "degraded",
-        look=ep.channel_settings.get("look"),
+        look=ep.channel_settings.get("look"), card_track=st.get("card_track"),
     )
     if out.exists() and hash_file.exists() and hash_file.read_text().strip() == current:
         result = {"scene": scene.id, "skipped": True}
@@ -92,6 +92,7 @@ def scene_compose(ctx: JobContext) -> dict[str, Any]:
         else:
             result = compose.compose_scene(
                 s, scene, mp4, webm, out, card_mp4=card, degraded=st.get("qa") == "degraded",
+                card_track=st.get("card_track"),
                 compositor=compose.Compositor(s, ep.channel_settings.get("look")),
                 progress=lambda f, m: ctx.progress(0.05 + 0.9 * f, m),
             )  # fmt: skip

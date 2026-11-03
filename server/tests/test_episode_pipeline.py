@@ -745,3 +745,36 @@ def test_manual_capture_is_scoped_to_page_and_worker_uses_it_offline(env, tmp_pa
     assert all(j["status"] == "done" for j in jobs), [(j["kind"], j["error"]) for j in jobs]
     assert client.get(f"/api/episodes/{eid}").json()["status"] == "ready"
     assert website_demo.asset_path(record.episode_dir(s, eid), scene).is_file()
+
+
+def test_adjacent_card_slices_continue_the_same_camera_move(env, tmp_path):
+    from streamstudio.episode.website_demo import card_timeline, overlay
+
+    _, s, _, _ = env
+    scene = Scene.model_validate({"id": "s1", "kind": "card", "site": "https://example.org",
+                                  "text": "Inspect the graphic.", "plan": {"website_demo": {
+                                      "focus_label": "Chart", "reveal_at": .80}}})
+    second = scene.model_copy(update={"id": "s2"})
+    tracks = card_timeline([scene, second], [1, 1])
+    assert tracks == {"s1": (0, 20), "s2": (25, 20)}
+    cues = mix.plan_cues([scene, second], [0, 1], [1, 1])
+    assert [c["kind"] for c in cues] == ["navigate", "counter"]
+    base = tmp_path / "base.mp4"
+    card = tmp_path / "motion.mp4"
+    make_clip(base)
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i",
+                    "testsrc2=size=400x240:rate=25:duration=1.44", "-c:v", "libx264", str(card)],
+                   check=True)
+    # Match the episode compositor's output geometry.
+    wide = tmp_path / "wide.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-i", str(base), "-vf", "scale=1920:1080",
+                    "-c:a", "copy", str(wide)], check=True)
+    starts = []
+    for sid, timing in tracks.items():
+        out = tmp_path / f"{sid}.mp4"
+        overlay(s, wide, card, scene.plan.website_demo, out, track=timing)
+        starts.append(subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(out),
+                      "-frames:v", "1", "-vf", "scale=160:90", "-f", "rawvideo", "-pix_fmt",
+                      "rgb24", "-"]))
+        assert mix._frame_count(s, out) == 25
+    assert starts[0] != starts[1]

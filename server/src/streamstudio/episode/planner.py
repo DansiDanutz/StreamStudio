@@ -139,10 +139,11 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
         mp4, webm = record.clip_paths(s, key)
         has_clip = mp4.exists() and webm.exists()
         st["clip"] = has_clip
-        if has_clip and not st.get("duration_s"):
+        if has_clip and st.get("duration_key") != key:
             from .compose import probe_duration  # ffprobe only
 
             st["duration_s"] = round(probe_duration(s.ffprobe_bin, mp4), 3)
+            st["duration_key"] = key
         if not has_clip:
             clips_ready = False
         hash_file = d / "scenes" / f"{sc.id}.hash"
@@ -254,6 +255,9 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
             verdict = "degraded"
         st.update(qa=verdict, qa_key=st["clip_key"])
 
+    from .website_demo import card_timeline
+
+    tracks = card_timeline(script.scenes, [states[sc.id]["duration_s"] for sc in script.scenes])
     # ---- row 6: compose scenes whose inputs changed
     composed_ready = True
     for sc in script.scenes:
@@ -264,9 +268,10 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
             from .website_demo import asset_path
 
             card = asset_path(d, sc)
+        st["card_track"] = tracks.get(sc.id)
         current = record.inputs_hash(
             sc, mp4, webm, card, degraded=st.get("qa") == "degraded",
-            look=ep.channel_settings.get("look"),
+            look=ep.channel_settings.get("look"), card_track=st["card_track"],
         )
         st["inputs_hash"] = current
         if st.get("composed_hash") == current:

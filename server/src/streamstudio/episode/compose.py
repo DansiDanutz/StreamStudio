@@ -382,6 +382,7 @@ def compose_scene(
     out_mp4: Path,
     *,
     card_mp4: Path | None = None,
+    card_track: tuple[int, int] | None = None,
     degraded: bool = False,
     progress: Callable[[float, str], None] | None = None,
     compositor: Compositor | None = None,
@@ -473,7 +474,8 @@ def compose_scene(
         try:
             if not card_mp4:
                 raise ValueError("website demo capture missing")
-            overlay(s, tmp, card_mp4, plan.website_demo, out_mp4, outline=comp.colors["outline"])
+            overlay(s, tmp, card_mp4, plan.website_demo, out_mp4, outline=comp.colors["outline"],
+                    track=card_track)
         finally:
             tmp.unlink(missing_ok=True)
     else:
