@@ -39,7 +39,7 @@ def episode_advance(ctx: JobContext) -> dict[str, Any]:
 @handler("scene_compose")
 def scene_compose(ctx: JobContext) -> dict[str, Any]:
     """One scene's clip and cut-out → `scenes/<scene>.mp4`, with its inputs hash beside it."""
-    from . import compose, record
+    from . import compose, record, website_demo
 
     p = _payload(ctx)
     s = ctx.settings
@@ -57,6 +57,8 @@ def scene_compose(ctx: JobContext) -> dict[str, Any]:
     out = d / "scenes" / f"{scene.id}.mp4"
     hash_file = d / "scenes" / f"{scene.id}.hash"
     card = d / "cards" / f"{st['card_id']}.mp4" if st.get("card_id") else None
+    if scene.plan and scene.plan.website_demo:
+        card = website_demo.prepare(s, scene, d)
     current = record.inputs_hash(scene, mp4, webm, card)
     if out.exists() and hash_file.exists() and hash_file.read_text().strip() == current:
         result = {"scene": scene.id, "skipped": True}

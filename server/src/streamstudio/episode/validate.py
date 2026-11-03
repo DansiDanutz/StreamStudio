@@ -13,6 +13,7 @@ from pathlib import Path
 from ..core import heygen
 from ..core.config import Settings
 from .contract import Script
+from .website_demo import auto_site
 
 #: Scenes shorter or longer than this are flagged (DESIGN rule 1), from Stage 2.
 MIN_S, MAX_S = 3.0, 13.0
@@ -45,6 +46,9 @@ def validate(script: Script, s: Settings) -> dict[str, dict[str, list[str]]]:
         seen.add(sc.id)
         if sc.kind == "card" and not (sc.site or "").strip():
             err(sc.id, "a card scene needs a site")
+        if (sc.plan and sc.plan.website_demo
+                and (sc.kind != "card" or not auto_site(s, sc.site or ""))):
+            err(sc.id, "website demo needs a card on an auto-allowed HTTPS site")
         if not sc.spoken:
             err(sc.id, "both voice and text are empty")
     return {"errors": errors, "warnings": warnings}

@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from ...core import heygen, netguard, store, youtube
@@ -21,7 +22,8 @@ from ...core.config import Settings
 from ...core.db import tx
 from ...core.ids import now_iso
 from ...episode import ledger, preflight, record, validate
-from ...episode.contract import EPISODE_ID, Script
+from ...episode.contract import EPISODE_ID, SCENE_ID, Script, WebsiteDemo
+from ...episode.website_demo import CATALOG
 from ..deps import conn, settings
 
 router = APIRouter(prefix="/api/episodes", tags=["episodes"])
@@ -82,6 +84,11 @@ def create(body: Script, s: Settings = Depends(settings), c: sqlite3.Connection 
 @router.get("")
 def list_episodes(c: sqlite3.Connection = Depends(conn)) -> list[dict]:
     return record.list_episodes(c)
+
+
+@router.get("/workflows")
+def workflows():
+    return [{**CATALOG, "schema": WebsiteDemo.model_json_schema()}]
 
 
 @router.get("/{eid}")
@@ -369,3 +376,14 @@ def purge(eid: str, s: Settings = Depends(settings), c: sqlite3.Connection = Dep
             c, "episode_purge", project_id=ep.project_id, payload={"episode_id": ep.id}
         )
     return {**_out(s, ep), "job_id": job["id"]}
+
+@router.get("/{eid}/scenes/{sid}/preview")
+def scene_preview(eid: str, sid: str, s: Settings = Depends(settings),
+                  c: sqlite3.Connection = Depends(conn)):
+    ep = _episode(c, eid)
+    if not SCENE_ID.fullmatch(sid) or not any(sc.id == sid for sc in ep.script.scenes):
+        raise HTTPException(404, "scene not found")
+    path = record.episode_dir(s, eid) / "scenes" / f"{sid}.mp4"
+    if not path.is_file():
+        raise HTTPException(404, "scene preview is not ready")
+    return FileResponse(path, media_type="video/mp4", headers={"Cache-Control": "no-store"})

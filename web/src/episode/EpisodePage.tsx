@@ -123,6 +123,8 @@ export function EpisodePage({ id }: { id: string }) {
                 </div>
                 <div className="scene-text">{sc.text || sc.voice}</div>
                 {sc.voice && sc.text && sc.voice !== sc.text && <div className="scene-voice">voice: {sc.voice}</div>}
+                {st.composed_hash && <video controls preload="none" style={{ width: '100%' }}
+                  aria-label={`Preview ${sc.id}`} src={`/api/episodes/${ep.id}/scenes/${sc.id}/preview?v=${st.composed_hash}`} />}
                 {errs.map((e) => <div key={e} className="scene-error">{e}</div>)}
               </li>
             )

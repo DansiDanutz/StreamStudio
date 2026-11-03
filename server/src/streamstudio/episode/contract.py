@@ -24,6 +24,15 @@ class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class WebsiteDemo(Strict):
+    """website-demo/v1: immutable capture inputs and editable scene direction."""
+
+    workflow: Literal["website-demo/v1"] = "website-demo/v1"
+    focus_label: str = Field(min_length=1, max_length=160)
+    side: Literal["left", "right"] = "right"
+    reveal_at: float = Field(default=0.30, ge=0, lt=1)
+
+
 class Plan(Strict):
     """Per-scene creative data: table overlays, framing, cues."""
 
@@ -42,6 +51,7 @@ class Plan(Strict):
     end_at: Fraction | None = None
     end_until: Fraction | None = None
     whoosh_at: Fraction | None = None
+    website_demo: WebsiteDemo | None = None
     card_template: Literal["generic"] | None = None
 
 

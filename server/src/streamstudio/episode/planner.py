@@ -169,6 +169,10 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
         st = states[sc.id]
         mp4, webm = record.clip_paths(s, st["clip_key"])
         card = d / "cards" / f"{st['card_id']}.mp4" if st.get("card_id") else None
+        if sc.plan and sc.plan.website_demo:
+            from .website_demo import asset_path
+
+            card = asset_path(d, sc)
         current = record.inputs_hash(sc, mp4, webm, card)
         st["inputs_hash"] = current
         if st.get("composed_hash") == current:

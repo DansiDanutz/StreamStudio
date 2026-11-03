@@ -478,3 +478,29 @@ def test_registration_names_and_the_library_listing(env, tmp_path):
     ids = [x["id"] for x in client.get("/api/recordings").json()]
     assert ids == sorted(ids, reverse=True) and rid in ids and "rec_20200101-000000" in ids
     time.sleep(0)
+
+def test_cached_website_demo_reaches_library_and_serves_scene_preview(env):
+    from streamstudio.core.config import CaptureSite
+    from streamstudio.episode.website_demo import asset_path
+
+    client, s, _, tube = env
+    s.capture_allowlist = [CaptureSite(host="nervixpay.live")]
+    scene = Scene.model_validate({
+        "id": "s10", "kind": "card", "site": "https://nervixpay.live",
+        "text": "Look at the product QR code.",
+        "plan": {"website_demo": {"focus_label": "Scannable NervixPay product preview"}},
+    })
+    rules = client.get("/api/episodes/workflows").json()
+    assert rules[0]["id"] == "website-demo/v1"
+    eid = client.post("/api/episodes", json=small_script(scenes=[scene.model_dump()])).json()["id"]
+    card = asset_path(record.episode_dir(s, eid), scene)
+    make_clip(card)
+    preview = f"/api/episodes/{eid}/scenes/s10/preview"
+    assert client.get(preview).status_code == 404
+    approve(client, eid)
+    ran = drain(s)
+    assert all(j["status"] == "done" for j in ran), [(j["kind"], j["error"]) for j in ran]
+    assert client.get(f"/api/episodes/{eid}").json()["status"] == "ready"
+    response = client.get(preview)
+    assert response.headers["content-type"] == "video/mp4" and b"ftyp" in response.content[:32]
+    assert tube.inits == 0

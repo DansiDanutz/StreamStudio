@@ -434,5 +434,15 @@ def compose_scene(
     if frames == 0 or enc.returncode != 0:
         tmp.unlink(missing_ok=True)
         raise RuntimeError(f"compose of {scene.id} produced no frames")
-    tmp.replace(out_mp4)
+    if plan.website_demo:
+        from .website_demo import overlay
+
+        try:
+            if not card_mp4:
+                raise ValueError("website demo capture missing")
+            overlay(s, tmp, card_mp4, plan.website_demo, out_mp4)
+        finally:
+            tmp.unlink(missing_ok=True)
+    else:
+        tmp.replace(out_mp4)
     return {"frames": frames, "duration_s": round(frames / FPS, 3), "cue": cue}
