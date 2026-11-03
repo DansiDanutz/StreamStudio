@@ -1,3 +1,5 @@
+import pytest
+
 from streamstudio.core.config import Settings
 from streamstudio.episode import validate, website_demo
 from streamstudio.episode.contract import Scene, Script
@@ -60,3 +62,21 @@ def test_page_switch_retiming_reuses_pages_and_checks_second_host(tmp_path):
     assert not validate.validate(script, settings)["errors"]
     script.scenes[0].plan.website_demo.page_switch.site = "https://other.test"
     assert validate.validate(script, settings)["errors"]["s28"]
+
+
+def test_offline_sequence_reports_the_missing_second_page(tmp_path):
+    settings = Settings(capture_allowlist=[{"host": "nervix.space", "mode": "auto"}])
+    first = Scene(id="s28", kind="card", text="Every project gets its own page.",
+                  site="https://nervix.space", plan={"website_demo": {}})
+    prepared = website_demo.asset_path(tmp_path, first)
+    prepared.parent.mkdir()
+    prepared.touch()
+    data = first.model_dump()
+    second = "https://nervix.space/l/nervixpay"
+    data["plan"]["website_demo"]["page_switch"] = {"at_s": 2.94, "site": second}
+    scene = Scene.model_validate(data)
+    with pytest.raises(ValueError, match="missing prepared card") as exc:
+        website_demo.prepare(settings, scene, tmp_path, cached_only=True)
+    assert second in str(exc.value)
+    assert not website_demo.asset_path(tmp_path, scene).exists()
+    assert not (tmp_path / "caps").exists()

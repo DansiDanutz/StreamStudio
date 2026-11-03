@@ -144,7 +144,7 @@ def prepare(s: Settings, scene: Scene, folder: Path, *, cached_only: bool = Fals
     if dst.is_file():
         return dst
     if cached_only:
-        raise ValueError("prepare both page captures before previewing this switch")
+        raise ValueError(f"missing prepared card for {scene.site} (expected {dst.name})")
     dst.parent.mkdir(parents=True, exist_ok=True)
     width, height = 1200, 740
     with TemporaryDirectory(dir=dst.parent) as temp:
