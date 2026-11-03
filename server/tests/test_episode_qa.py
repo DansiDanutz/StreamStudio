@@ -23,3 +23,15 @@ def test_transcript_review_normalizes_names_and_scopes_repeat_failures():
         report = {"status": "ok", "issues": []}
         qa.review_speech(report, expected, "different line", first, names)
         assert report["status"] == verdict and report["word_error_rate"] > .25
+
+
+def test_transcript_retry_follows_whisper_availability(monkeypatch):
+    status = {"bin": None, "model": None}
+    monkeypatch.setattr(qa.transcribe, "whisper_status", lambda settings: status)
+    report = {"transcript_available": False, "whisper_status": status.copy()}
+    assert qa.reusable_report(report, None)
+    status.update(bin="whisper-cli", model="dan-local.bin")
+    assert not qa.reusable_report(report, None)
+    assert not qa.reusable_report({"transcript_available": False}, None)
+    assert qa.reusable_report({**report, "whisper_status": status.copy()}, None)
+    assert qa.reusable_report({"transcript_available": True}, None)

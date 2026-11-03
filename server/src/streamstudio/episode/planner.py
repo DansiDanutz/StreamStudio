@@ -226,7 +226,7 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
         report_path = d / "qa" / sc.id / f"{key}.json"
         if report_path.exists():
             report = json.loads(report_path.read_text())
-            if "transcript_available" in report:
+            if qa.reusable_report(report, s):
                 reports[sc.id] = report
                 continue
         st.pop("qa", None)

@@ -164,6 +164,13 @@ def review_speech(report: dict, expected: str, heard: str, first: str | None, na
         report["status"] = "LOOK"
 
 
+def reusable_report(report: dict, s: Settings) -> bool:
+    if report.get("transcript_available") is not False:
+        return report.get("transcript_available") is True
+    status = transcribe.whisper_status(s)
+    return not all(status.values()) or report.get("whisper_status") == status
+
+
 def inspect(folder: Path, key: str, clip: Path, s: Settings, expected: str, first_key: str) -> dict:
     from .validate import voice_names
 
@@ -171,11 +178,7 @@ def inspect(folder: Path, key: str, clip: Path, s: Settings, expected: str, firs
     result = folder / f"{key}.json"
     if result.exists():
         cached = json.loads(result.read_text())
-        if cached.get("transcript_available") is True:
-            return cached
-        if cached.get("transcript_available") is False and not all(
-            transcribe.whisper_status(s).values()
-        ):
+        if reusable_report(cached, s):
             return cached
     with TemporaryDirectory(dir=folder) as tmp:
         sheet = Path(tmp) / "sheet.jpg"
@@ -186,6 +189,7 @@ def inspect(folder: Path, key: str, clip: Path, s: Settings, expected: str, firs
             transcript = transcribe.transcribe(clip, words, srt, s)
         except (transcribe.TranscribeError, subprocess.SubprocessError, OSError) as exc:
             report["transcript_available"] = False
+            report["whisper_status"] = transcribe.whisper_status(s)
             report["issues"].append(f"transcript unavailable: {exc}")
         else:
             first = folder / f"{first_key}.words.json"
