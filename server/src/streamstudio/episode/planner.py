@@ -57,6 +57,35 @@ def clip_payload(
     }  # fmt: skip
 
 
+def _retry_take(conn, s, ep, scene, script, st, reason):
+    """Reserve one retry from the approved episode-wide allowance under the planner lock."""
+    budget = ep.record["budget"]
+    allowance = budget.get("allowance") or {}
+    if s.heygen_cache_only or not budget.get("approval_id"):
+        return False
+    retries = budget.setdefault("retries", [])
+    if len(retries) >= allowance.get("attempts", 0):
+        return False
+    seconds = heygen.estimate_seconds(scene.spoken, None)
+    cost = round(seconds * heygen.USD_PER_S, 4)
+    charges = dict(conn.execute(
+        "SELECT clip_key,usd FROM heygen_ledger WHERE episode_id=? AND kind='charge'", (ep.id,)))
+    used = sum(max(r["usd"], charges.get(r["key"], 0)) for r in retries)
+    if round(used + cost, 4) > allowance.get("usd", 0):
+        return False
+    take = int(st.get("take", 0)) + 1
+    key = record.scene_key(s, scene, script, take)
+    job_id = _enqueue(conn, ep, "heygen_clip", clip_payload(s, ep, scene, script, key, take))
+    retries.append({"key": key, "scene": scene.id, "take": take, "usd": cost})
+    st.setdefault("rejected_takes", []).append({"key": st["clip_key"], "reason": reason})
+    for field in ("duration_s", "qa", "qa_key", "qa_issues", "composed_hash"):
+        st.pop(field, None)
+    st.update(take=take, clip=False, clip_key=key, job_key=key, job_take=take,
+              job_id=job_id, job_id_seen_error=False)
+    record.log(ep, "retry", f"{scene.id}: queued take {take} after {reason}", scene=scene.id)
+    return True
+
+
 def settle_cancelled(conn, s, ep):
     """Release unused funds, retaining in-flight submissions until their charge arrives."""
     charged = {r[0] for r in conn.execute(
@@ -127,6 +156,9 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
         st = states[sc.id]
         state = record.read_clip_state(s, st["clip_key"])
         if state.get("failed") and not st.get("clip"):
+            if _retry_take(conn, s, ep, sc, script, st, state["failed"]):
+                done["enqueued"].append(("heygen_clip", sc.id))
+                return done
             record.set_status(
                 ep, "needs_dan", f"Scene {sc.id} failed on HeyGen: {state['failed']}", scene=sc.id
             )
@@ -208,10 +240,15 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
     if ep.record.get("reference") is None:
         ep.record["reference"] = {**qa.cohort_reference(list(reports.values())),
                                   "presenter": [script.look, script.voice_id, script.motion]}
-    for sid, report in reports.items():
+    for sc in script.scenes:
+        sid = sc.id
+        report = reports[sid]
         st = states[sid]
         verdict, st["qa_issues"] = qa.compare(report, ep.record["reference"])
         if verdict == "FAIL":
+            if _retry_take(conn, s, ep, sc, script, st, "; ".join(st["qa_issues"])):
+                done["enqueued"].append(("heygen_clip", sid))
+                return done
             if st.get("qa_key") != st["clip_key"] or st.get("qa") != "degraded":
                 record.log(ep, "qa", "using the small presenter layout", scene=sid)
             verdict = "degraded"

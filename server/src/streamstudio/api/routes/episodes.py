@@ -404,6 +404,7 @@ def approve_budget(
         )  # fmt: skip
         if previous:
             ledger.release(c, ep.id, previous)
+        b["retries"] = []
         b.update(
             {"approved_at": now_iso(), "confirm_token": None, "token_expires_at": None,
              "approval_id": approval_id, "clips": est["clips"], "seconds": est["seconds"],

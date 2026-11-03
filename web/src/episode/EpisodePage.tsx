@@ -163,6 +163,7 @@ export function EpisodePage({ id }: { id: string }) {
         <section className="episode-budget">
           <h2>Budget</h2>
           <div className="episode-muted">
+            {Boolean(ep.budget.retries?.length) && <span>Replacement takes used: {ep.budget.retries?.length} of {ep.budget.allowance.attempts}. </span>}
             Approved {ep.budget.approved_at}: {ep.budget.clips} clips, {usd(ep.budget.usd)} plus {usd(ep.budget.allowance.usd)} allowance.
             Spent so far: {ep.budget.spent.renders} renders, {usd(ep.budget.spent.usd)}.
           </div>

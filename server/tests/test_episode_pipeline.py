@@ -145,7 +145,7 @@ def env(tmp_path, monkeypatch):
         shutil.copytree(ROOT / "assets" / sub, assets / sub)
     s = Settings(
         data_dir=tmp_path / "data", assets_dir=assets, import_roots=[], allow_tailnet=True,
-        extra_hosts=["testclient"], heygen_month_ceiling_usd=50.0,
+        extra_hosts=["testclient"], heygen_month_ceiling_usd=50.0, episode_rerender_attempts=0,
     )  # fmt: skip
     fake = RealClipHeyGen()
     tube = FakeTube()
@@ -321,7 +321,7 @@ def test_a_failed_render_is_recorded_charged_once_and_parks_the_episode(env):
     clip_jobs = jobs_of(s, "heygen_clip")
     assert len(clip_jobs) == 2 and all(j["status"] == "done" for j in clip_jobs)
     assert all(j["result"]["failed"] == "bad audio" for j in clip_jobs)
-    # advancing does not re-render a failed take by itself (the allowance arrives in Stage 2)
+    # advancing does not re-render a failed take after the approved allowance is exhausted
     client.post(f"/api/episodes/{eid}/advance")
     drain(s)
     assert len(jobs_of(s, "heygen_clip")) == 2
@@ -666,3 +666,48 @@ def test_connected_card_workflow_renders_motion_and_preserves_the_approved_audio
     frames = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(movie), "-vf",
                                       "fps=5,scale=160:90", "-an", "-f", "framemd5", "-"])
     assert len({line.split(b",")[-1] for line in frames.splitlines() if line.startswith(b"0,")}) > 2
+
+
+@pytest.mark.parametrize(("attempts", "usd", "cache_only", "expected_retries"), [
+    (1, 1.5, False, 1), (4, .001, False, 0), (4, 1.5, True, 0),
+])
+def test_retry_caps_and_cache_only(env, attempts, usd, cache_only, expected_retries):
+    client, s, fake, _ = env
+    s.episode_rerender_attempts = attempts
+    s.episode_rerender_usd = usd
+    fake.fail = True
+    eid = client.post("/api/episodes", json=two_scenes()).json()["id"]
+    approve(client, eid)
+    # Simulate an operator turning cache-only on after approval and a submitted take failing.
+    c = db.connect(s.db_path)
+    assert run_one(c, s, "plan")
+    first = jobs_of(s, "heygen_clip")[0]
+    assert run_one(c, s, "render")
+    s.heygen_cache_only = cache_only
+    drain(s)
+    ep = client.get(f"/api/episodes/{eid}").json()
+    assert ep["status"] == "needs_dan"
+    assert len(ep["budget"]["retries"]) == expected_retries
+    assert len(jobs_of(s, "heygen_clip")) == 2 + expected_retries
+    if expected_retries:
+        retry = ep["budget"]["retries"][0]
+        assert retry["take"] == 1 and retry["key"] != first["payload"]["key"]
+    paid_calls = sum(call == ("POST", "/v3/videos") for call in fake.calls)
+    client.post(f"/api/episodes/{eid}/advance")
+    drain(s)
+    assert sum(call == ("POST", "/v3/videos") for call in fake.calls) == paid_calls
+
+
+def test_visual_failure_retries_once_then_uses_degraded_layout(env):
+    client, s, _, _ = env
+    s.episode_rerender_attempts = 1
+    scene = {"id": "s1", "text": "The factory verifies every scene before assembly."}
+    eid = client.post("/api/episodes", json=small_script(scenes=[scene])).json()["id"]
+    approve(client, eid)
+    drain(s)
+    ep = client.get(f"/api/episodes/{eid}").json()
+    assert ep["status"] == "ready"
+    state = ep["scenes_state"]["s1"]
+    assert state["qa"] == "degraded" and state["take"] == 1
+    assert len(state["rejected_takes"]) == 1 and len(ep["budget"]["retries"]) == 1
+    assert ep["budget"]["spent"]["renders"] == 2
