@@ -12,6 +12,7 @@ into `streamstudio.core`, and enqueue work for the worker through
 | Module          | Prefix            | What it serves                                                         |
 | --------------- | ----------------- | ---------------------------------------------------------------------- |
 | `agent.py`      | `/api`            | Artifact library and the agent bus (SSE to the open editor)            |
+| `episodes.py`   | `/api/episodes`   | The episode factory: script in, approve script, approve budget (paid), publish, advance, purge |
 | `heygen.py`     | `/api/heygen`     | HeyGen config, credit balance, looks, and the paid render estimate/queue |
 | `jobs.py`       | `/api/jobs`       | Job list, create, get, cancel                                          |
 | `live.py`       | `/api/live`       | RTMP go-live config, status, and the WebSocket ingest                  |
@@ -32,12 +33,19 @@ into `streamstudio.core`, and enqueue work for the worker through
 - Routes: `library` (GET `/api/library`, filters `kind`, `q`, `group`, `tag`), `name_artifact` (PATCH `/api/library/{aid}`), `artifact` (GET `/api/library/{aid}`), `publish` (POST `/api/library/web`, 204), `stream` (GET `/api/agent/stream`, Server-Sent Events), `do` (POST `/api/agent/do`), `result` (POST `/api/agent/result/{cid}`, 204), `state` (GET `/api/agent/state`), `timeline` (GET `/api/agent/timeline`), `guide` (GET `/api/agent/guide`), `post_state` (POST `/api/agent/state`, 204)
 - Helpers: `_take_name`, `_storage`, `_server_artifacts`, `_decorate`, `_web_path`
 
+### `episodes.py`
+
+- `router` (prefix `/api/episodes`), `TOKEN_TTL_S = 600`
+- Models: `ApproveBudgetIn` (`confirm_token`), `PublishIn` (`publish_at`, refused with 422 until Stage 2); the body of `create` and `put_script` is `episode.contract.Script`
+- Routes: `create` (POST ``, 201; 503 `{missing}` when `episode.preflight.check` fails, 422 `{errors}` from the validator), `list_episodes` (GET ``), `get_episode` (GET `/{eid}`, a pure read of the `EpisodeOut` shape: the record without `budget.confirm_token` plus `progress`, `validation`, `next_action`, `last_log`), `put_script` (PUT `/{eid}/script`), `approve_script` (POST `/{eid}/approve-script`), `estimate` (GET `/{eid}/estimate`, issues the one-time token), `approve_budget` (POST `/{eid}/approve-budget`), `publish` (POST `/{eid}/publish`), `advance` (POST `/{eid}/advance`, 202), `purge` (POST `/{eid}/purge`, 202)
+- Helpers: `_episode`, `_out`, `_live`, `_enqueue_planner`, `_lines` (one estimate line per distinct clip key and take), `_estimate`
+
 ### `heygen.py`
 
-- `router` (prefix `/api/heygen`), `KEY_OK`, `ID_OK`, `GESTURE_OK`, `WORDS_PER_S = 2.5`
-- Models: `ConfigIn`, `Item` (`kind: "segment" | "gesture"`), `RenderIn` (`items`, `confirm: bool = False`)
-- Routes: `get_config` (GET `/config`), `put_config` (PUT `/config`), `account` (GET `/account`), `looks` (GET `/looks`), `render` (POST `/render`)
-- Helpers: `_public`, `_client`, `_transport` (reads `worker.handlers.HEYGEN_TRANSPORT`), `_seconds`
+- `router` (prefix `/api/heygen`), `KEY_OK`, `ID_OK`, `GESTURE_OK`
+- Models: `ConfigIn`, `Item` (`kind: "segment" | "gesture"`, `take: int = 0`), `RenderIn` (`items`, `confirm: bool = False`)
+- Routes: `get_config` (GET `/config`), `put_config` (PUT `/config`), `account` (GET `/account`), `looks` (GET `/looks`), `render` (POST `/render`; the response carries `seconds`, `usd`, `clips`, `with_motion` from `core.heygen.estimate`)
+- Helpers: `_public`, `_client`, `_transport` (reads `worker.handlers.HEYGEN_TRANSPORT`)
 
 ### `jobs.py`
 
@@ -85,6 +93,10 @@ into `streamstudio.core`, and enqueue work for the worker through
 
 ## Invariants
 
+- `[episodes.py:approve_budget]` is the only route that leads to HeyGen spending. It needs the one-time `confirm_token` from `[episodes.py:estimate]` (ten-minute expiry, cleared on use), an `Origin` header that is present and passes `core.netguard.origin_allowed(origin, s.extra_hosts)` (403 otherwise), the episode in `script_approved` (409), one resolvable YouTube channel (`core.youtube.pick_channel`, 409), and the month's total after this episode's estimate and allowance at or under `heygen_month_ceiling_usd` (409). The check, the ledger reservation, the release of any previous reservation and the status change share one `tx`, so two approvals cannot both pass against the same balance.
+- `[episodes.py:_lines]` reserves one line per distinct (clip key, take): every live `heygen_clip` job under its own key, plus every scene with no clip and no live job for its current key.
+- `[episodes.py:put_script]` is refused (409) outside `episode.record.EDITABLE` or while `outputs.upload_job_id` is queued or running; when the script hash changes it unlinks `final.mp4`, `final.srt`, `kit.json` and `final.cues.json` and clears `outputs.recording_id`, `final_mp4`, `final_srt`, `kit`.
+- `[episodes.py:get_episode]` has no side effects. `[episodes.py:publish]` works from `uploaded_private` only and rejects `publish_at` with 422 until Stage 2. `[episodes.py:purge]` works from `published` or `cancelled` and reuses a queued `episode_purge` job.
 - `[heygen.py:render]` Without `confirm: true` the response is an estimate only (`seconds`, `clips`, `with_motion`, `ready`, empty `jobs`); nothing is queued. With `confirm`, one `heygen_clip` job is enqueued per item whose MP4 does not already exist at `<assets_dir>/avatar/<clips|gestures>/<name>.mp4`; the item key comes from `core.heygen.item_key`. Requires a saved API key and `avatar_id` (400 otherwise).
 - `[heygen.py:_public]` The API key is only ever returned masked (`core.heygen.mask`). `[heygen.py:put_config]` validates keys with `KEY_OK` and ids with `ID_OK` (422 on mismatch).
 - `[agent.py:do]` 409 when no editor is connected (`BUS.listeners` empty); only the first listener receives the action; 504 after `DO_TIMEOUT_S`; a result with `ok: false` becomes 422. The pending future is always removed from `BUS.pending`.
@@ -104,6 +116,7 @@ into `streamstudio.core`, and enqueue work for the worker through
 ## Side Effects
 
 - `[agent.py:publish]` writes `<data_dir>/library-web.json` (creating `data_dir`). `[agent.py:name_artifact]` upserts `artifact_meta`. `[agent.py:stream]` keeps an SSE response open (keep-alive comment every 15 s) and adds/removes a queue in `BUS.listeners`. `[agent.py:do]` puts a message on one listener's queue. `[agent.py:post_state]` replaces `BUS.state`. `[agent.py:guide]` reads `docs/AGENT_GUIDE.md`.
+- `[episodes.py:create]` inserts a `projects` row and an `episodes` row and creates `<episodes_dir>/<id>/`. `[episodes.py:approve_budget]` writes `heygen_ledger` rows and enqueues `episode_advance`; `[episodes.py:advance]` enqueues `episode_advance`; `[episodes.py:purge]` enqueues `episode_purge`. `[episodes.py:estimate]` calls HeyGen's `/v3/users/me` for the wallet balance when a key is saved (free; `null` on failure). `[episodes.py:publish]` calls YouTube `videos.update` through `episode.publish.publish` (502 on `YouTubeError`).
 - `[heygen.py:put_config]` writes `<data_dir>/heygen.json` through `core.heygen.save_config`. `[heygen.py:account]` and `[heygen.py:looks]` call `api.heygen.com` through `core.heygen.Client` (502 on `HeyGenError`). `[heygen.py:render]` inserts `heygen_clip` rows in `jobs` inside one transaction; the paid call itself happens in the worker.
 - `[live.py:put_config]` writes `<data_dir>/live.json` with mode `0600` via a temp file and rename. `[live.py:ingest]` starts an `ffmpeg` subprocess (`ffmpeg_cmd`, VideoToolbox when `core.media.hw_encoders` lists it) that pushes RTMP to `<rtmp_url>/<stream_key>` (or `app.state.live_target_override`), pipes WebSocket bytes into it, and kills it after 15 s if it does not exit.
 - `[recordings.py:upload]` streams the body to `<recordings_dir>/<rid>.source.<ext>.part`, renames it, opens its own `sqlite3` connection and enqueues `finish_recording`. `[recordings.py:download]` calls `core.vault.fetch` to pull a missing MP4 from the vault (502 on `VaultError`). `[recordings.py:_dir]` creates `recordings_dir`.

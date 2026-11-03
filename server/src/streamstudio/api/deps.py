@@ -23,6 +23,7 @@ def conn(request: Request) -> Iterator[sqlite3.Connection]:
 
 def project_or_404(c: sqlite3.Connection, pid: str) -> dict:
     p = store.get_project(c, pid)
-    if p is None:
+    if p is None or store.is_episode_project(c, pid):
+        # an episode's project row has no EDL and is not a project to the editor
         raise HTTPException(404, "project not found")
     return p

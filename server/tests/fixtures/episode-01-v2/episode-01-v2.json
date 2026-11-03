@@ -1,0 +1,294 @@
+{
+ "rows": [
+  "Somewhere right now, someone is building something brilliant with AI. An app, an agent, a game. And almost nobody will ever see it. I want to change that.",
+  "I'm Dan. I'm a Romanian entrepreneur, and I'm all in on AI. I built my own AI company, DansLab: a lab where a team of AI agents works next to me, day and night, on real products.",
+  "And the more I built, the more one idea kept coming back. Builders need a place. A community where anyone can share what they make: an idea, an app demo, or a production-ready app they want to sell. Because most great projects don't fail for being bad. They fail because nobody sees them, and the builder has no simple way to get paid.",
+  "So that's what we're building. Nervix Space: the home of our AI Business Network. Builders show their work, and people find it, use it, or buy it.",
+  "But I don't want to just talk about it. I've already built these things myself. So in this first episode, I'll answer four questions every builder asks. How do you get paid without a third party? How do you make a game? Can AI really trade? And how do you sell what you've built?",
+  "Question one. How do you take payments, without a third party holding your money?",
+  "Our answer is NervixPay. If you have a shop, you set up your own product QR code, and the money lands straight in your wallet, right away. Fast and simple. Nothing sits in the middle, and nobody can freeze your money, or your account.",
+  "Look at how it compares. NervixPay is built for payments made by AI agents, and it's just as easy for people who aren't technical. It's fast, and you can set it up in minutes. Your agents use it with keys you approve. And anyone can check a payment on PayScan, our public page of settled payments.",
+  "Question two. How do you make a game?",
+  "For the World Cup, we built WorldCup twenty-six dot world: a free collecting game with a hundred and twenty-one Legend cards. Every card has its own story. You read it, you listen, you watch the episode, and the card is yours. A daily quest brings you back. Free to play, just for fun. And here's the idea behind it: the game and the channel feed each other. Every card leads to an episode, and every episode leads back to a card. That's how a game becomes a community. And it works: our World Cup channel went viral. In one month of the World Cup, we reached fourteen thousand subscribers. That's the proof: AI and a team of agents, working together, have the right ingredients.",
+  "Question three. Can AI really trade? We decided to find out, with real money.",
+  "This is JEV, our live trading bot on KuCoin futures. It runs on its own from our Mac Studio, with an AI model as its brain. It opens a position, closes it on a clear target, and moves on to the next one. It trades small on purpose: a fixed trade size, a cap on how much it can have open, and a stop for the whole session. And I can start it or stop it from anywhere, right here.",
+  "I'll show you every win and every loss in the next episodes. And to be clear: this is an experiment, not financial advice.",
+  "Question four. How do you sell what you've built?",
+  "On Nervix Space, you bring your project: what it does, the price, and how to reach you. The first two hundred projects join for free, and your page goes live the moment you submit. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers.",
+  "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Zmarty, our AI trading companion. And StreamStudio, the studio this video was made in.",
+  "Behind me is KryptoStack Exchange, which I lead, and iRise, our own coin. Everything we build connects. That's the AI Business Network.",
+  "So here's my invitation. If you're building with AI, don't keep it on your laptop. Show it. Share your demo, or sell your app. Subscribe, follow the link below, and bring your project into Nervix Space, at nervix dot space. In the next episodes, I'll take these four answers and build them with you, step by step. I'm Dan, this is DansLab. Let's build together."
+ ],
+ "scenes": [
+  {
+   "row": 1,
+   "text": "Somewhere right now, someone is building something brilliant with AI. An app, an agent, a game. And almost nobody will ever see it. I want to change that.",
+   "scene": 1,
+   "est_s": 9.9,
+   "voice": "Somewhere right now, someone is building something brilliant with AI. An app, an agent, a game. And almost nobody will ever see it. I want to change that."
+  },
+  {
+   "row": 2,
+   "text": "I'm Dan. I'm a Romanian entrepreneur, and I'm all in on AI. I built my own AI company, DansLab: a lab where a team of AI agents works next to me, day and night, on real products.",
+   "scene": 2,
+   "est_s": 13.1,
+   "voice": "I'm Dan. I'm a Romanian entrepreneur, and I'm all in on AI. I built my own AI company, DansLab: a lab where a team of AI agents works next to me, day and night, on real products."
+  },
+  {
+   "row": 3,
+   "text": "And the more I built, the more one idea kept coming back. Builders need a place.",
+   "scene": 3,
+   "est_s": 5.7,
+   "voice": "And the more I built, the more one idea kept coming back. Builders need a place."
+  },
+  {
+   "row": 3,
+   "text": "A community where anyone can share what they make: an idea, an app demo, or a production-ready app they want to sell. Because most great projects don't fail for being bad.",
+   "scene": 4,
+   "est_s": 11.0,
+   "voice": "A community where anyone can share what they make: an idea, an app demo, or a production-ready app they want to sell. Because most great projects don't fail for being bad."
+  },
+  {
+   "row": 3,
+   "text": "They fail because nobody sees them, and the builder has no simple way to get paid.",
+   "scene": 5,
+   "est_s": 5.7,
+   "voice": "They fail because nobody sees them, and the builder has no simple way to get paid."
+  },
+  {
+   "row": 4,
+   "text": "So that's what we're building. Nervix Space: the home of our AI Business Network. Builders show their work, and people find it, use it, or buy it.",
+   "scene": 6,
+   "est_s": 9.6,
+   "voice": "So that's what we're building. Nervix Space: the home of our AI Business Network. Builders show their work, and people find it, use it, or buy it."
+  },
+  {
+   "row": 5,
+   "text": "But I don't want to just talk about it. I've already built these things myself. So in this first episode, I'll answer four questions every builder asks.",
+   "scene": 7,
+   "est_s": 9.6,
+   "voice": "But I don't want to just talk about it. I've already built these things myself. So in this first episode, I'll answer four questions every builder asks."
+  },
+  {
+   "row": 5,
+   "text": "How do you get paid without a third party? How do you make a game? Can AI really trade? And how do you sell what you've built?",
+   "scene": 8,
+   "est_s": 9.6,
+   "voice": "How do you get paid without a third party? How do you make a game? Can AI really trade? And how do you sell what you've built?"
+  },
+  {
+   "row": 6,
+   "text": "Question one. How do you take payments, without a third party holding your money?",
+   "scene": 9,
+   "est_s": 5.0,
+   "voice": "Question one. How do you take payments, without a third party holding your money?"
+  },
+  {
+   "row": 7,
+   "text": "Our answer is NervixPay. If you have a shop, you set up your own product QR code, and the money lands straight in your wallet, right away. Fast and simple.",
+   "scene": 10,
+   "est_s": 10.7,
+   "voice": "Our answer is NervixPay. If you have a shop, you set up your own product QR code, and the money lands straight in your wallet, right away. Fast and simple."
+  },
+  {
+   "row": 7,
+   "text": "Nothing sits in the middle, and nobody can freeze your money, or your account.",
+   "scene": 11,
+   "est_s": 5.0,
+   "voice": "Nothing sits in the middle, and nobody can freeze your money, or your account."
+  },
+  {
+   "row": 8,
+   "text": "Look at how it compares. NervixPay is built for payments made by AI agents, and it's just as easy for people who aren't technical. It's fast, and you can set it up in minutes.",
+   "scene": 12,
+   "est_s": 12.1,
+   "voice": "Look at how it compares. NervixPay is built for payments made by AI agents, and it's just as easy for people who aren't technical. It's fast, and you can set it up in minutes."
+  },
+  {
+   "row": 8,
+   "text": "Your agents use it with keys you approve. And anyone can check a payment on PayScan, our public page of settled payments.",
+   "scene": 13,
+   "est_s": 7.8,
+   "voice": "Your agents use it with keys you approve. And anyone can check a payment on PayScan, our public page of settled payments."
+  },
+  {
+   "row": 9,
+   "text": "Question two. How do you make a game?",
+   "scene": 14,
+   "est_s": 2.8,
+   "voice": "Question two. How do you make a game?"
+  },
+  {
+   "row": 10,
+   "text": "For the World Cup, we built WorldCup twenty-six dot world: a free collecting game with a hundred and twenty-one Legend cards. Every card has its own story.",
+   "scene": 15,
+   "est_s": 9.6,
+   "voice": "For the World Cup, we built WorldCup twenty-six dot world: a free collecting game with a hundred and twenty-one Legend cards. Every card has its own story."
+  },
+  {
+   "row": 10,
+   "text": "You read it, you listen, you watch the episode, and the card is yours. A daily quest brings you back. Free to play, just for fun.",
+   "scene": 16,
+   "est_s": 9.2,
+   "voice": "You read it, you listen, you watch the episode, and the card is yours. A daily quest brings you back. Free to play, just for fun."
+  },
+  {
+   "row": 10,
+   "text": "And here's the idea behind it: the game and the channel feed each other. Every card leads to an episode, and every episode leads back to a card. That's how a game becomes a community.",
+   "scene": 17,
+   "est_s": 12.4,
+   "voice": "And here's the idea behind it: the game and the channel feed each other. Every card leads to an episode, and every episode leads back to a card. That's how a game becomes a community."
+  },
+  {
+   "row": 10,
+   "text": "And it works: our World Cup channel went viral. In one month of the World Cup, we reached fourteen thousand subscribers.",
+   "scene": 18,
+   "est_s": 7.5,
+   "voice": "And it works: our World Cup channel went viral. In one month of the World Cup, we reached fourteen thousand subscribers."
+  },
+  {
+   "row": 10,
+   "text": "That's the proof: AI and a team of agents, working together, have the right ingredients.",
+   "scene": 19,
+   "est_s": 5.3,
+   "voice": "That's the proof: AI and a team of agents, working together, have the right ingredients."
+  },
+  {
+   "row": 11,
+   "text": "Question three. Can AI really trade? We decided to find out, with real money.",
+   "scene": 20,
+   "est_s": 5.0,
+   "voice": "Question three. Can AI really trade? We decided to find out, with real money."
+  },
+  {
+   "row": 12,
+   "text": "This is JEV, our live trading bot on KuCoin futures. It runs on its own from our Mac Studio, with an AI model as its brain.",
+   "scene": 21,
+   "est_s": 9.2,
+   "voice": "This is JEV, our live trading bot on KuCoin futures. It runs on its own from our Mac Studio, with an AI model as its brain."
+  },
+  {
+   "row": 12,
+   "text": "It opens a position, closes it on a clear target, and moves on to the next one.",
+   "scene": 22,
+   "est_s": 6.0,
+   "voice": "It opens a position, closes it on a clear target, and moves on to the next one."
+  },
+  {
+   "row": 12,
+   "text": "It trades small on purpose: a fixed trade size, a cap on how much it can have open, and a stop for the whole session.",
+   "scene": 23,
+   "est_s": 8.9,
+   "voice": "It trades small on purpose: a fixed trade size, a cap on how much it can have open, and a stop for the whole session."
+  },
+  {
+   "row": 12,
+   "text": "And I can start it or stop it from anywhere, right here.",
+   "scene": 24,
+   "est_s": 4.3,
+   "voice": "And I can start it or stop it from anywhere, right here."
+  },
+  {
+   "row": 13,
+   "text": "I'll show you every win and every loss in the next episodes. And to be clear: this is an experiment, not financial advice.",
+   "scene": 25,
+   "est_s": 8.2,
+   "voice": "I'll show you every win and every loss in the next episodes. And to be clear: this is an experiment, not financial advice."
+  },
+  {
+   "row": 14,
+   "text": "Question four. How do you sell what you've built?",
+   "scene": 26,
+   "est_s": 3.2,
+   "voice": "Question four. How do you sell what you've built?"
+  },
+  {
+   "row": 15,
+   "text": "On Nervix Space, you bring your project: what it does, the price, and how to reach you. And here's the deal: the first two hundred projects are listed for free.",
+   "scene": 27,
+   "est_s": 10.7,
+   "voice": "On Nervix Space, you bring your project: what it does, the price, and how to reach you. And here's the deal: the first two hundred projects are listed for free."
+  },
+  {
+   "row": 15,
+   "text": "After that, it's ten dollars a month. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers.",
+   "scene": 28,
+   "est_s": 10.7,
+   "voice": "After that, it's ten dollars a month. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers."
+  },
+  {
+   "row": 16,
+   "text": "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Zmarty, our AI trading companion. And StreamStudio, the studio this video was made in.",
+   "scene": 29,
+   "est_s": 8.9,
+   "voice": "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Smarty, our AI trading companion. And StreamStudio, the studio this video was made in."
+  },
+  {
+   "row": 17,
+   "text": "Behind me is KryptoStack Exchange, which I lead, and iRise, our own coin. Everything we build connects. That's the AI Business Network.",
+   "scene": 30,
+   "est_s": 7.8,
+   "voice": "Behind me is KryptoStack Exchange, which I lead, and iRise, our own coin. Everything we build connects. That's the AI Business Network."
+  },
+  {
+   "row": 18,
+   "text": "So here's my invitation. Developer, designer, founder, or just someone with an idea: if you're building with AI, don't keep it on your laptop.",
+   "scene": 31,
+   "est_s": 8.5,
+   "voice": "So here's my invitation. Developer, designer, founder, or just someone with an idea: if you're building with AI, don't keep it on your laptop."
+  },
+  {
+   "row": 18,
+   "text": "Bring it to Nervix Space, at nervix dot space. The first two hundred projects are listed for free, so take your spot now. And subscribe: in the next episodes, I'll build these four answers with you, step by step.",
+   "scene": 32,
+   "est_s": 13.9,
+   "voice": "Bring it to Nervix Space, at nervix dot space. The first two hundred projects are listed for free, so take your spot now. And subscribe: in the next episodes, I'll build these four answers with you, step by step."
+  },
+  {
+   "row": 18,
+   "text": "You don't need a big team or a big budget anymore. AI is the team. Bring your idea, and let's turn it into something real, together. I'm Dan, this is DansLab.",
+   "scene": 33,
+   "est_s": 11.0,
+   "voice": "You don't need a big team or a big budget anymore. AI is the team. Bring your idea, and let's turn it into something real, together. I'm Dan, this is DansLab."
+  },
+  {
+   "row": 19,
+   "text": "Before you go, one question. Did you notice anything strange about me today? Look closely... Here's the answer: I'm not really Dan. I'm Dan's AI avatar.",
+   "voice": "Before you go, one question. Did you notice anything strange about me today? Look closely... Here's the answer: I'm not really Dan. I'm Dan's AI avatar.",
+   "scene": 34,
+   "est_s": 9.3
+  },
+  {
+   "row": 19,
+   "text": "Businessmen like Dan don't have time to sit in front of a camera. They're always cooking something. So I take care of the rest, and I orchestrate the agents that multiply human work.",
+   "voice": "Businessmen like Dan don't have time to sit in front of a camera. They're always cooking something. So I take care of the rest, and I orchestrate the agents that multiply human work.",
+   "scene": 35,
+   "est_s": 11.7
+  },
+  {
+   "row": 19,
+   "text": "Because in this era, keeping up with technology is the key to success. And that's exactly what YOU will learn here, on this channel. See you in the next episode.",
+   "voice": "Because in this era, keeping up with technology is the key to success. And that's exactly what YOU will learn here, on this channel. See you in the next episode.",
+   "scene": 36,
+   "est_s": 10.7
+  }
+ ],
+ "changed": [
+  6,
+  10,
+  11,
+  12,
+  13,
+  18,
+  19,
+  27,
+  28,
+  29,
+  31,
+  32,
+  33,
+  34,
+  35,
+  36
+ ]
+}

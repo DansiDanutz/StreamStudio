@@ -32,12 +32,12 @@ middleware built on Starlette types.
 
 ### `db.py`
 
-- `MIGRATIONS: list[str]` — 3 migrations creating tables `projects`, `assets`, `edl_versions`, `jobs`, `scenes`, `artifact_meta`, `vault_objects`
-- `connect(path) -> sqlite3.Connection`, `migrate(conn) -> int`, `tx(conn)` (context manager), `row(r)`, `rows(rs)`, `WAL_RETRIES`, `WAL_RETRY_S`
+- `MIGRATIONS: list[str]` — 4 migrations creating tables `projects`, `assets`, `edl_versions`, `jobs`, `scenes`, `artifact_meta`, `vault_objects`, `episodes` (id, project_id, status, title, created_at, updated_at, record_json), `heygen_ledger` (id, episode_id, approval_id, scene_id, clip_key, take, job_id, kind `reservation | charge | release`, seconds, usd, at; a charge is unique per (episode_id, clip_key))
+- `connect(path) -> sqlite3.Connection`, `migrate(conn) -> int`, `tx(conn)` (context manager), `row(r)` (decodes `probe_json`, `payload`, `result`, `edl_json`, `record_json`), `rows(rs)`, `WAL_RETRIES`, `WAL_RETRY_S`
 
 ### `store.py`
 
-- Projects: `create_project`, `list_projects`, `get_project`, `rename_project`, `delete_project`, `touch_project`
+- Projects: `create_project`, `list_projects` (episode-owned rows are excluded), `is_episode_project`, `get_project`, `rename_project`, `delete_project`, `touch_project`
 - EDL: `latest_edl`, `save_edl`, `list_edl_versions`, `VersionConflict`
 - Assets: `create_asset`, `get_asset`, `list_assets`, `update_asset`
 - Jobs: `enqueue`, `get_job`, `list_jobs`, `claim_job`, `heartbeat`, `finish_job`, `fail_job`, `find_active_job`, `cancel_job`, `requeue_stale`
@@ -71,7 +71,8 @@ middleware built on Starlette types.
 - `API`, `TIMEOUT_S`, `Transport`, `HeyGenError`
 - `config_path`, `load_config`, `save_config`, `mask`
 - `Client(api_key, transport=None)` — `me()`, `looks()`, `upload_asset(name, content, ctype)`, `create_video(spec)`, `get_video(video_id)`
-- `silence_wav(seconds, rate=24000)`, `item_key(look, voice, script, motion, silent_s)`, `video_spec(look, voice, *, script, audio_asset_id, motion, title)`
+- `USD_PER_S = 0.0385`, `WORDS_PER_S = 2.5`
+- `silence_wav(seconds, rate=24000)`, `item_key(look, voice, script, motion, silent_s, take=0)`, `estimate_seconds(script, silent_s)`, `estimate(items) -> {seconds, usd, clips, with_motion}`, `video_spec(look, voice, *, script, audio_asset_id, motion, title)`
 
 ### `youtube.py`
 
@@ -80,6 +81,7 @@ middleware built on Starlette types.
 - OAuth: `auth_url(data_dir, redirect_uri)`, `finish_auth(data_dir, state, code, transport=None)`
 - `Client(data_dir, channel_id, transport=None, token=None)` — `call()`, `json()`
 - Upload: `clean_meta`, `upload(api, mp4, meta, state_file, progress)`, `add_captions(api, video_id, srt, language)`
+- Publish: `set_status(api, video_id, privacy, publish_at=None)` (`videos.update`, part `status`; a `publish_at` makes it private with a scheduled release), `video_status(api, video_id) -> {privacy, publish_at}`
 
 ### `vault.py`
 
@@ -97,7 +99,7 @@ middleware built on Starlette types.
 - `[db.py:connect]` sets `isolation_level=None`, `busy_timeout=30000`, `journal_mode=WAL` (retried up to `WAL_RETRIES`) and `foreign_keys=ON`. `[db.py:migrate]` is forward-only, runs under `BEGIN IMMEDIATE`, re-reads `user_version` inside the lock, and sets `user_version` after each migration. `[db.py:tx]` is `BEGIN IMMEDIATE` … `COMMIT`/`ROLLBACK`.
 - `[store.py:save_edl]` Optimistic concurrency: the insert happens only when `base_version` equals `MAX(version)`; otherwise `VersionConflict`. `[store.py:claim_job]` claims the oldest queued job inside `tx` and increments `attempts`. `[store.py:fail_job]` requeues while `attempts < max_attempts`, else sets `error`. `[store.py:requeue_stale]` returns running jobs with a stale `heartbeat_at` to the queue. `[store.py:cancel_job]` only affects queued or running jobs. `[store.py:heartbeat]` clamps progress to `[0, 1]`.
 - `[ids.py:new_id]` ids are `<prefix>_<base36 ms timestamp><8 hex>`, sortable by creation time.
-- `[heygen.py:item_key]` The same `(look, voice, script, motion, silent_s)` always yields the same 16-hex key. `[heygen.py:Client.__init__]` raises `HeyGenError` without a key. `[heygen.py:Client._call]` sends the key only in `x-api-key` to `API` and replaces it with `••••` in error messages. `[heygen.py:save_config]` writes with mode `0600`. `[heygen.py:silence_wav]` is 16-bit mono PCM.
+- `[heygen.py:item_key]` The same `(look, voice, script, motion, silent_s)` always yields the same 16-hex key; `take` is hashed in only when above zero, so every existing clip keeps its name. `[heygen.py:Client.__init__]` raises `HeyGenError` without a key. `[heygen.py:Client._call]` sends the key only in `x-api-key` to `API` and replaces it with `••••` in error messages. `[heygen.py:save_config]` writes with mode `0600`. `[heygen.py:silence_wav]` is 16-bit mono PCM.
 - `[youtube.py:upload]` Resumable: the session URL is written to `state_file` before any media bytes are sent; a saved `video_id` short-circuits the call; chunks are `CHUNK` (8 MiB) and resume from Google's reported `range`. `[youtube.py:clean_meta]` enforces title 1–100 chars, description ≤ 5000 bytes, tags ≤ 500 chars total, `privacy` in `PRIVACY`, and strips `<`/`>`. `[youtube.py:finish_auth]` compares `state` with `secrets.compare_digest` and requires a refresh token. `[youtube.py:_channel_file]` validates ids with `CHANNEL_ID`. `[youtube.py:_write_private]` writes with mode `0600`. `[youtube.py:Client._token]` refreshes the access token when within `REFRESH_MARGIN_S` of expiry.
 - `[vault.py:S3Backend.__init__]` requires `endpoint`, `bucket`, `access_key`, `secret_key` and an `https://` endpoint. `[vault.py:FolderBackend._p]` rejects keys that resolve outside the folder root. `[vault.py:local_path]` only maps `assets/avatar/{clips,gestures}/<name>.{mp4,webm,json}` and `recordings/rec_*`; everything else is `None`. `[vault.py:push]` skips files whose sha256 matches the local index or the remote `head`. `[vault.py:fetch]` verifies the downloaded sha256 when the remote reports one and raises `VaultError` on mismatch. `[vault.py:public_config]` masks `access_key` and `secret_key`. `[vault.py:save_config]` writes with mode `0600`.
 - `[transcribe.py:transcribe]` writes the JSON and SRT through temp files and `replace`, so a partial transcript is never visible. `[transcribe.py:require_whisper]` raises `TranscribeError` when the binary or model is missing.

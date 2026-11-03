@@ -1,0 +1,691 @@
+{
+ "title": "In Love With AI, Episode 1: Build it. Show it. Sell it.",
+ "version": "2",
+ "tags": [
+  "AI",
+  "DansLab",
+  "builders"
+ ],
+ "scenes": [
+  {
+   "id": "s1",
+   "text": "Somewhere right now, someone is building something brilliant with AI. An app, an agent, a game. And almost nobody will ever see it. I want to change that.",
+   "voice": "Somewhere right now, someone is building something brilliant with AI. An app, an agent, a game. And almost nobody will ever see it. I want to change that.",
+   "kind": "avatar",
+   "plan": {
+    "chips": [
+     "An app",
+     "An agent",
+     "A game"
+    ],
+    "chip_at": [
+     0.451,
+     0.501,
+     0.564
+    ],
+    "chips_out": 0.841,
+    "zoom_path": [
+     [
+      0,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      0.3,
+      0.72,
+      0.42,
+      1.16
+     ],
+     [
+      0.4,
+      0.72,
+      0.42,
+      1.16
+     ],
+     [
+      0.46,
+      0.47,
+      0.5,
+      1.0
+     ]
+    ]
+   }
+  },
+  {
+   "id": "s2",
+   "text": "I'm Dan. I'm a Romanian entrepreneur, and I'm all in on AI. I built my own AI company, DansLab: a lab where a team of AI agents works next to me, day and night, on real products.",
+   "voice": "I'm Dan. I'm a Romanian entrepreneur, and I'm all in on AI. I built my own AI company, DansLab: a lab where a team of AI agents works next to me, day and night, on real products.",
+   "kind": "avatar",
+   "plan": {
+    "lowers": [
+     [
+      0.02,
+      0.42,
+      "Dan",
+      "Romanian entrepreneur · AI"
+     ]
+    ],
+    "zoom_path": [
+     [
+      0,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      0.5,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      0.72,
+      0.36,
+      0.36,
+      1.22
+     ],
+     [
+      0.92,
+      0.36,
+      0.36,
+      1.22
+     ],
+     [
+      1.0,
+      0.47,
+      0.5,
+      1.0
+     ]
+    ],
+    "card_x": 0.47
+   }
+  },
+  {
+   "id": "s3",
+   "text": "And the more I built, the more one idea kept coming back. Builders need a place.",
+   "voice": "And the more I built, the more one idea kept coming back. Builders need a place.",
+   "kind": "avatar",
+   "plan": {
+    "lowers": [
+     [
+      0.713,
+      1.0,
+      "Builders need a place",
+      null
+     ]
+    ]
+   }
+  },
+  {
+   "id": "s4",
+   "text": "A community where anyone can share what they make: an idea, an app demo, or a production-ready app they want to sell. Because most great projects don't fail for being bad.",
+   "voice": "A community where anyone can share what they make: an idea, an app demo, or a production-ready app they want to sell. Because most great projects don't fail for being bad.",
+   "kind": "avatar",
+   "plan": {
+    "chips": [
+     "An idea",
+     "An app demo",
+     "A production-ready app"
+    ],
+    "chip_at": [
+     0.299,
+     0.35,
+     0.452
+    ],
+    "chips_out": 0.799
+   }
+  },
+  {
+   "id": "s5",
+   "text": "They fail because nobody sees them, and the builder has no simple way to get paid.",
+   "voice": "They fail because nobody sees them, and the builder has no simple way to get paid.",
+   "kind": "avatar",
+   "plan": {
+    "zoom_path": [
+     [
+      0,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      0.55,
+      0.62,
+      0.44,
+      1.12
+     ],
+     [
+      0.76,
+      0.73,
+      0.36,
+      1.3
+     ],
+     [
+      1.0,
+      0.73,
+      0.36,
+      2.6
+     ]
+    ],
+    "whoosh_at": 0.76
+   }
+  },
+  {
+   "id": "s6",
+   "text": "So that's what we're building. Nervix Space: the home of our AI Business Network. Builders show their work, and people find it, use it, or buy it.",
+   "voice": "So that's what we're building. Nervix Space: the home of our AI Business Network. Builders show their work, and people find it, use it, or buy it.",
+   "kind": "card",
+   "site": "https://fake-real.live"
+  },
+  {
+   "id": "s7",
+   "text": "But I don't want to just talk about it. I've already built these things myself. So in this first episode, I'll answer four questions every builder asks.",
+   "voice": "But I don't want to just talk about it. I've already built these things myself. So in this first episode, I'll answer four questions every builder asks.",
+   "kind": "avatar",
+   "plan": {
+    "lowers": [
+     [
+      0.763,
+      1.0,
+      "4 questions",
+      "every builder asks"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "s8",
+   "text": "How do you get paid without a third party? How do you make a game? Can AI really trade? And how do you sell what you've built?",
+   "voice": "How do you get paid without a third party? How do you make a game? Can AI really trade? And how do you sell what you've built?",
+   "kind": "avatar",
+   "plan": {
+    "chips": [
+     "Pay",
+     "Play",
+     "Trade",
+     "Sell"
+    ],
+    "chip_at": [
+     0.02,
+     0.341,
+     0.526,
+     0.687
+    ]
+   }
+  },
+  {
+   "id": "s9",
+   "text": "Question one. How do you take payments, without a third party holding your money?",
+   "voice": "Question one. How do you take payments, without a third party holding your money?",
+   "kind": "avatar",
+   "question": 1,
+   "plan": {
+    "lowers": [
+     [
+      0,
+      null,
+      "1 · Get paid",
+      "without a third party"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "s10",
+   "text": "Our answer is NervixPay. If you have a shop, you set up your own product QR code, and the money lands straight in your wallet, right away. Fast and simple.",
+   "voice": "Our answer is NervixPay. If you have a shop, you set up your own product QR code, and the money lands straight in your wallet, right away. Fast and simple.",
+   "kind": "card",
+   "site": "https://nervixpay.live"
+  },
+  {
+   "id": "s11",
+   "text": "Nothing sits in the middle, and nobody can freeze your money, or your account.",
+   "voice": "Nothing sits in the middle, and nobody can freeze your money, or your account.",
+   "kind": "card",
+   "site": "https://nervixpay.live"
+  },
+  {
+   "id": "s12",
+   "text": "Look at how it compares. NervixPay is built for payments made by AI agents, and it's just as easy for people who aren't technical. It's fast, and you can set it up in minutes.",
+   "voice": "Look at how it compares. NervixPay is built for payments made by AI agents, and it's just as easy for people who aren't technical. It's fast, and you can set it up in minutes.",
+   "kind": "card",
+   "site": "https://nervixpay.live"
+  },
+  {
+   "id": "s13",
+   "text": "Your agents use it with keys you approve. And anyone can check a payment on PayScan, our public page of settled payments.",
+   "voice": "Your agents use it with keys you approve. And anyone can check a payment on PayScan, our public page of settled payments.",
+   "kind": "card",
+   "site": "https://nervixpay.live"
+  },
+  {
+   "id": "s14",
+   "text": "Question two. How do you make a game?",
+   "voice": "Question two. How do you make a game?",
+   "kind": "avatar",
+   "question": 2,
+   "plan": {
+    "lowers": [
+     [
+      0,
+      null,
+      "2 · Play",
+      "How do you make a game?"
+     ]
+    ],
+    "frame": [
+     0.47,
+     0.47,
+     1.1
+    ]
+   }
+  },
+  {
+   "id": "s15",
+   "text": "For the World Cup, we built WorldCup twenty-six dot world: a free collecting game with a hundred and twenty-one Legend cards. Every card has its own story.",
+   "voice": "For the World Cup, we built WorldCup twenty-six dot world: a free collecting game with a hundred and twenty-one Legend cards. Every card has its own story.",
+   "kind": "card",
+   "site": "https://worldcup26.world"
+  },
+  {
+   "id": "s16",
+   "text": "You read it, you listen, you watch the episode, and the card is yours. A daily quest brings you back. Free to play, just for fun.",
+   "voice": "You read it, you listen, you watch the episode, and the card is yours. A daily quest brings you back. Free to play, just for fun.",
+   "kind": "card",
+   "site": "https://worldcup26.world"
+  },
+  {
+   "id": "s17",
+   "text": "And here's the idea behind it: the game and the channel feed each other. Every card leads to an episode, and every episode leads back to a card. That's how a game becomes a community.",
+   "voice": "And here's the idea behind it: the game and the channel feed each other. Every card leads to an episode, and every episode leads back to a card. That's how a game becomes a community.",
+   "kind": "card",
+   "site": "https://worldcup26.world"
+  },
+  {
+   "id": "s18",
+   "text": "And it works: our World Cup channel went viral. In one month of the World Cup, we reached fourteen thousand subscribers.",
+   "voice": "And it works: our World Cup channel went viral. In one month of the World Cup, we reached fourteen thousand subscribers.",
+   "kind": "card",
+   "site": "https://worldcup26.world"
+  },
+  {
+   "id": "s19",
+   "text": "That's the proof: AI and a team of agents, working together, have the right ingredients.",
+   "voice": "That's the proof: AI and a team of agents, working together, have the right ingredients.",
+   "kind": "avatar",
+   "plan": {
+    "lowers": [
+     [
+      0.02,
+      0.55,
+      "AI + a team of agents",
+      "the right ingredients"
+     ]
+    ],
+    "zoom_path": [
+     [
+      0,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      0.5,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      1.0,
+      0.36,
+      0.36,
+      1.18
+     ]
+    ],
+    "card_x": 0.47
+   }
+  },
+  {
+   "id": "s20",
+   "text": "Question three. Can AI really trade? We decided to find out, with real money.",
+   "voice": "Question three. Can AI really trade? We decided to find out, with real money.",
+   "kind": "avatar",
+   "question": 3,
+   "plan": {
+    "lowers": [
+     [
+      0.212,
+      null,
+      "3 · Trade",
+      "Can AI really trade?"
+     ]
+    ],
+    "frame": [
+     0.47,
+     0.47,
+     1.1
+    ]
+   }
+  },
+  {
+   "id": "s21",
+   "text": "This is JEV, our live trading bot on KuCoin futures. It runs on its own from our Mac Studio, with an AI model as its brain.",
+   "voice": "This is JEV, our live trading bot on KuCoin futures. It runs on its own from our Mac Studio, with an AI model as its brain.",
+   "kind": "card",
+   "site": "https://danslab-jev.vercel.app"
+  },
+  {
+   "id": "s22",
+   "text": "It opens a position, closes it on a clear target, and moves on to the next one.",
+   "voice": "It opens a position, closes it on a clear target, and moves on to the next one.",
+   "kind": "card",
+   "site": "https://danslab-jev.vercel.app"
+  },
+  {
+   "id": "s23",
+   "text": "It trades small on purpose: a fixed trade size, a cap on how much it can have open, and a stop for the whole session.",
+   "voice": "It trades small on purpose: a fixed trade size, a cap on how much it can have open, and a stop for the whole session.",
+   "kind": "card",
+   "site": "https://danslab-jev.vercel.app"
+  },
+  {
+   "id": "s24",
+   "text": "And I can start it or stop it from anywhere, right here.",
+   "voice": "And I can start it or stop it from anywhere, right here.",
+   "kind": "card",
+   "site": "https://danslab-jev.vercel.app"
+  },
+  {
+   "id": "s25",
+   "text": "I'll show you every win and every loss in the next episodes. And to be clear: this is an experiment, not financial advice.",
+   "voice": "I'll show you every win and every loss in the next episodes. And to be clear: this is an experiment, not financial advice.",
+   "kind": "avatar",
+   "plan": {
+    "lowers": [
+     [
+      0.02,
+      1.0,
+      "Every win. Every loss.",
+      "An experiment, not financial advice"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "s26",
+   "text": "Question four. How do you sell what you've built?",
+   "voice": "Question four. How do you sell what you've built?",
+   "kind": "avatar",
+   "question": 4,
+   "plan": {
+    "lowers": [
+     [
+      0,
+      null,
+      "4 · Sell",
+      "How do you sell what you built?"
+     ]
+    ],
+    "frame": [
+     0.47,
+     0.47,
+     1.1
+    ]
+   }
+  },
+  {
+   "id": "s27",
+   "text": "On Nervix Space, you bring your project: what it does, the price, and how to reach you. And here's the deal: the first two hundred projects are listed for free.",
+   "voice": "On Nervix Space, you bring your project: what it does, the price, and how to reach you. And here's the deal: the first two hundred projects are listed for free.",
+   "kind": "card",
+   "site": "https://nervix.space/list"
+  },
+  {
+   "id": "s28",
+   "text": "After that, it's ten dollars a month. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers.",
+   "voice": "After that, it's ten dollars a month. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers.",
+   "kind": "card",
+   "site": "https://nervix.space/list"
+  },
+  {
+   "id": "s29",
+   "text": "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Zmarty, our AI trading companion. And StreamStudio, the studio this video was made in.",
+   "voice": "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Smarty, our AI trading companion. And StreamStudio, the studio this video was made in.",
+   "kind": "card",
+   "site": "https://nervix.space/list"
+  },
+  {
+   "id": "s30",
+   "text": "Behind me is KryptoStack Exchange, which I lead, and iRise, our own coin. Everything we build connects. That's the AI Business Network.",
+   "voice": "Behind me is KryptoStack Exchange, which I lead, and iRise, our own coin. Everything we build connects. That's the AI Business Network.",
+   "kind": "avatar",
+   "plan": {
+    "zoom_path": [
+     [
+      0,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      0.1,
+      0.26,
+      0.61,
+      1.3
+     ],
+     [
+      0.33,
+      0.26,
+      0.61,
+      1.3
+     ],
+     [
+      0.42,
+      0.2,
+      0.62,
+      1.42
+     ],
+     [
+      0.66,
+      0.2,
+      0.62,
+      1.42
+     ],
+     [
+      0.8,
+      0.47,
+      0.5,
+      1.0
+     ]
+    ],
+    "lowers": [
+     [
+      0.03,
+      0.36,
+      "KryptoStack Exchange",
+      null
+     ],
+     [
+      0.38,
+      0.7,
+      "iRise",
+      "our own coin"
+     ]
+    ],
+    "card_x": 0.3
+   }
+  },
+  {
+   "id": "s31",
+   "text": "So here's my invitation. Developer, designer, founder, or just someone with an idea: if you're building with AI, don't keep it on your laptop.",
+   "voice": "So here's my invitation. Developer, designer, founder, or just someone with an idea: if you're building with AI, don't keep it on your laptop.",
+   "kind": "avatar",
+   "plan": {
+    "frame": [
+     0.47,
+     0.47,
+     1.1
+    ],
+    "chips": [
+     "Developer",
+     "Designer",
+     "Founder",
+     "Someone with an idea"
+    ],
+    "chip_at": [
+     0.181,
+     0.256,
+     0.324,
+     0.406
+    ]
+   }
+  },
+  {
+   "id": "s32",
+   "text": "Bring it to Nervix Space, at nervix dot space. The first two hundred projects are listed for free, so take your spot now. And subscribe: in the next episodes, I'll build these four answers with you, step by step.",
+   "voice": "Bring it to Nervix Space, at nervix dot space. The first two hundred projects are listed for free, so take your spot now. And subscribe: in the next episodes, I'll build these four answers with you, step by step.",
+   "kind": "avatar",
+   "plan": {
+    "endcard": [
+     "nervix.space",
+     "The first 200 projects are listed free",
+     "then 10 USD a month · USDT or USDC via NervixPay"
+    ],
+    "end_at": 0.02,
+    "end_until": 0.568,
+    "lowers": [
+     [
+      0.568,
+      1.0,
+      "Subscribe",
+      "new episodes: we build it with you"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "s33",
+   "text": "You don't need a big team or a big budget anymore. AI is the team. Bring your idea, and let's turn it into something real, together. I'm Dan, this is DansLab.",
+   "voice": "You don't need a big team or a big budget anymore. AI is the team. Bring your idea, and let's turn it into something real, together. I'm Dan, this is DansLab.",
+   "kind": "avatar",
+   "plan": {
+    "frame": [
+     0.47,
+     0.47,
+     1.1
+    ],
+    "lowers": [
+     [
+      0.323,
+      0.847,
+      "AI is the team",
+      "you bring the idea"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "s34",
+   "text": "Before you go, one question. Did you notice anything strange about me today? Look closely... Here's the answer: I'm not really Dan. I'm Dan's AI avatar.",
+   "voice": "Before you go, one question. Did you notice anything strange about me today? Look closely... Here's the answer: I'm not really Dan. I'm Dan's AI avatar.",
+   "kind": "avatar",
+   "reveal": true,
+   "plan": {
+    "zoom_path": [
+     [
+      0,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      0.501,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      0.603,
+      0.47,
+      0.34,
+      1.45
+     ],
+     [
+      0.86,
+      0.47,
+      0.34,
+      1.45
+     ],
+     [
+      0.9,
+      0.47,
+      0.5,
+      1.0
+     ],
+     [
+      1.0,
+      0.47,
+      0.5,
+      1.0
+     ]
+    ],
+    "glitch": [
+     [
+      0.725,
+      0.55
+     ],
+     [
+      0.852,
+      0.35
+     ]
+    ],
+    "lowers": [
+     [
+      0.882,
+      1.0,
+      "Dan · AI avatar",
+      "the real Dan is busy building"
+     ]
+    ],
+    "card_x": 0.47
+   }
+  },
+  {
+   "id": "s35",
+   "text": "Businessmen like Dan don't have time to sit in front of a camera. They're always cooking something. So I take care of the rest, and I orchestrate the agents that multiply human work.",
+   "voice": "Businessmen like Dan don't have time to sit in front of a camera. They're always cooking something. So I take care of the rest, and I orchestrate the agents that multiply human work.",
+   "kind": "avatar",
+   "plan": {
+    "frame": [
+     0.47,
+     0.47,
+     1.1
+    ],
+    "chips": [
+     "Always cooking something",
+     "The agents: orchestrated"
+    ],
+    "chip_at": [
+     0.404,
+     0.714
+    ]
+   }
+  },
+  {
+   "id": "s36",
+   "text": "Because in this era, keeping up with technology is the key to success. And that's exactly what YOU will learn here, on this channel. See you in the next episode.",
+   "voice": "Because in this era, keeping up with technology is the key to success. And that's exactly what YOU will learn here, on this channel. See you in the next episode.",
+   "kind": "avatar",
+   "plan": {
+    "endcard": [
+     "Keep up with technology",
+     "Subscribe · DansLab",
+     "new episodes: we build it together"
+    ],
+    "end_at": 0.388,
+    "end_until": 1.0
+   }
+  }
+ ]
+}
