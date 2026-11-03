@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import Field
 
 from ...core import netguard, youtube
@@ -113,6 +113,20 @@ def fetch_file(digest: str, s: Settings = Depends(settings)):
         raise HTTPException(404, "channel file not found")
     return FileResponse(path, media_type=channel_files.FORMATS[path.suffix][1],
                         headers={"X-Content-Type-Options": "nosniff"})
+
+
+@router.post("/preview", dependencies=[Depends(owner)])
+def preview(body: profiles.Profile, s: Settings = Depends(settings),
+            c: sqlite3.Connection = Depends(conn)):
+    from ...episode import channel_preview
+
+    try:
+        jpeg, cached = channel_preview.preview(c, s, body)
+    except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return Response(jpeg, media_type="image/jpeg", headers={
+        "Cache-Control": "no-store", "X-Presenter-Preview": "cached" if cached else "silhouette",
+    })
 
 
 @router.get("/{slug}")

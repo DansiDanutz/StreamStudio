@@ -35,10 +35,12 @@ export function ChannelsPage() {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [role, setRole] = useState('image')
+  const [preview, setPreview] = useState<{url: string; cached: boolean} | null>(null)
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url) }, [preview])
   const [uploaded, setUploaded] = useState('')
 
   function display(v: Version) {
-    setVersion(v); setDraft(v.profile); setDirty(false); setUploaded('')
+    setPreview(null); setVersion(v); setDraft(v.profile); setDirty(false); setUploaded('')
     setMedia(JSON.stringify({ look: v.profile.look ?? null, sound: v.profile.sound ?? null }, null, 2))
   }
   useEffect(() => {
@@ -59,17 +61,30 @@ export function ChannelsPage() {
     finally { setBusy(false) }
   }
   function edit(change: Partial<Profile>) {
-    if (draft) { setDraft({ ...draft, ...change }); setDirty(true) }
+    if (draft) { setPreview(null); setDraft({ ...draft, ...change }); setDirty(true) }
   }
-  async function save() {
-    if (!draft || !version) return
+  function draftProfile() {
+    if (!draft) throw new Error('Select a channel first.')
     const assets = JSON.parse(media)
     if (!assets || typeof assets !== 'object' || Array.isArray(assets) ||
         Object.keys(assets).some(k => k !== 'look' && k !== 'sound')) {
       throw new Error('Media settings must contain only look and sound.')
     }
+    return { ...draft, look: assets.look ?? null, sound: assets.sound ?? null }
+  }
+  async function previewDraft() {
+    const r = await fetch('/api/channels/preview', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draftProfile()) })
+    if (!r.ok) {
+      const { detail } = await r.json()
+      throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+    }
+    setPreview({ url: URL.createObjectURL(await r.blob()), cached: r.headers.get('X-Presenter-Preview') === 'cached' })
+  }
+  async function save() {
+    if (!draft || !version) return
     const v = await request<Version>('/' + draft.slug, 'PUT',
-      { base_version: version.version, profile: { ...draft, look: assets.look ?? null, sound: assets.sound ?? null } })
+      { base_version: version.version, profile: draftProfile() })
     display(v); setRows(await request<Summary[]>()); setMessage('Saved version ' + v.version)
   }
   return <main className="channels-page">
@@ -113,8 +128,12 @@ export function ChannelsPage() {
           })
         }} /></label>
         {uploaded && <label>Uploaded file SHA-256<input readOnly value={uploaded} onFocus={e => e.target.select()} /></label>}
-        <label>Media settings (JSON)<textarea rows={12} value={media} onChange={e => { setMedia(e.target.value); setDirty(true) }} /></label>
+        <label>Media settings (JSON)<textarea rows={12} value={media} onChange={e => { setPreview(null); setMedia(e.target.value); setDirty(true) }} /></label>
       </details>
+      <button onClick={() => void run(previewDraft)}>Preview draft look</button>
+      {preview && <figure><img width="1920" height="540" style={{width: '100%', height: 'auto'}}
+        src={preview.url} alt="Draft presenter layout and sample card side by side" />
+        <figcaption>{preview.cached ? 'Cached presenter frame' : 'Silhouette · no matching presenter frame available'}</figcaption></figure>}
       <button disabled={!dirty} onClick={() => void run(save)}>Save new version</button>
       <button onClick={() => void run(async () => display(await request<Version>('/' + draft.slug)))}>Discard edits and reload</button>
     </fieldset>}

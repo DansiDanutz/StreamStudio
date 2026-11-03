@@ -605,3 +605,35 @@ def test_pinned_font_and_palette_draw_the_card(env, tmp_path):
     rgb, _, pad = renderer.table_card("test", lines, 400, 120)
     assert tuple(rgb[pad+20, pad+20]) == (255, 0, 0)
     assert (rgb[pad:pad+120, :, 1] == 255).any()
+
+def test_channel_preview_renders_unsaved_profile_without_jobs_or_saving(env):
+    from io import BytesIO
+
+    from PIL import Image
+
+    client, s, _, _ = env
+    saved = client.get("/api/channels/danslab").json()
+    draft = {**saved["profile"], "name": "Unpublished look"}
+    before = store.list_jobs(connection(s))
+    r = client.post("/api/channels/preview", json=draft, headers=ORIGIN)
+    assert r.status_code == 200, r.text[:100] if not r.is_success else ""
+    assert r.headers["x-presenter-preview"] == "silhouette"
+    image = Image.open(BytesIO(r.content))
+    assert image.format == "JPEG" and image.size == (1920, 540)
+    assert store.list_jobs(connection(s)) == before
+    assert client.get("/api/channels/danslab").json() == saved
+
+    # Exercise the actual VP9 alpha decoder with the repository's Dan cut-out.
+    key = "0123456789abcdef"
+    c = connection(s)
+    job = store.enqueue(c, "heygen_clip", payload={"look": "look1", "key": key})
+    c.execute("UPDATE jobs SET status='done' WHERE id=?", (job["id"],))
+    folder = s.assets_dir / "avatar" / "clips"
+    folder.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / "assets/avatar/cutout/dan-landscape-test.cutout.webm",
+                 folder / f"{key}.cutout.webm")
+    matched = client.post("/api/channels/preview", json=draft, headers=ORIGIN)
+    assert matched.headers["x-presenter-preview"] == "cached" and matched.content != r.content
+    draft["presenter"]["avatar_id"] = "different-look"
+    other = client.post("/api/channels/preview", json=draft, headers=ORIGIN)
+    assert other.headers["x-presenter-preview"] == "silhouette"
