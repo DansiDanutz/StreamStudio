@@ -488,7 +488,7 @@
    "text": "After that, it's ten dollars a month. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers.",
    "voice": "After that, it's ten dollars a month. Every project gets its own page, people search by category, and they come straight to you. No middleman between you and your buyers.",
    "kind": "card",
-   "site": "https://nervix.space/list",
+   "site": "https://nervix.space/l/nervixpay",
    "plan": {
     "card_template": "generic"
    }
@@ -498,7 +498,7 @@
    "text": "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Zmarty, our AI trading companion. And StreamStudio, the studio this video was made in.",
    "voice": "Our own projects are already there. Fake-Real, the link fact-checker. NervixPay. Smarty, our AI trading companion. And StreamStudio, the studio this video was made in.",
    "kind": "card",
-   "site": "https://nervix.space/list",
+   "site": "https://nervix.space/#explore",
    "plan": {
     "card_template": "generic"
    }
