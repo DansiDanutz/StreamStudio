@@ -183,7 +183,8 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
         return {**done, "waiting": "qa"}
 
     if ep.record.get("reference") is None:
-        ep.record["reference"] = qa.cohort_reference(list(reports.values()))
+        ep.record["reference"] = {**qa.cohort_reference(list(reports.values())),
+                                  "presenter": [script.look, script.voice_id, script.motion]}
     for sid, report in reports.items():
         st = states[sid]
         verdict, st["qa_issues"] = qa.compare(report, ep.record["reference"])

@@ -569,6 +569,22 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env, tmp_p
     assert {j["kind"] for j in second_run}.isdisjoint({"heygen_clip", "scene_qa", "youtube_upload"})
     assert asset_path(record.episode_dir(s, eid), scene) == card
 
+    base = f"/api/episodes/{eid}"
+    assert client.get(base).json()["profile_latest_version"] == changed.json()["version"]
+    assert client.post(base + "/repin", json={}).status_code == 403
+    draft = client.post(base + "/repin", json={}, headers=ORIGIN).json()
+    assert draft["status"] == "draft" and "recording_id" not in draft["outputs"]
+    assert client.post(base + "/upload", headers=ORIGIN).status_code == 409
+    approve(client, eid)
+    repinned_run = drain(s)
+    updated = client.get(base).json()
+    assert updated["status"] == "ready"
+    assert updated["profile"]["version"] == changed.json()["version"]
+    assert updated["outputs"]["recording_id"] != revised["outputs"]["recording_id"]
+    assert not {"heygen_clip", "scene_qa", "youtube_upload"} & {j["kind"] for j in repinned_run}
+    assert "scene_compose" in {j["kind"] for j in repinned_run}
+
+
 def test_partial_library_registration_keeps_source_and_recovers(env, tmp_path, monkeypatch):
     client, s, _, _ = env
     movie = tmp_path / "final.mp4"

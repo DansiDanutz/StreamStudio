@@ -76,6 +76,12 @@ export function EpisodePage({ id }: { id: string }) {
         </div>
       </header>
 
+      {ep.profile && (ep.profile_latest_version ?? 0) > ep.profile.version &&
+        ['draft', 'script_approved', 'budget_approved', 'in_progress', 'ready', 'needs_dan'].includes(ep.status) &&
+        <section><p>Profile changed since approval. Version {ep.profile.version} is pinned.
+          Using the latest version returns this episode to draft for review.</p>
+          <button disabled={busy} onClick={() => run(() => api.repin(ep.id))}>Use latest profile</button>
+        </section>}
       {error && <p className="episode-error">{error}</p>}
 
       {ep.status === 'needs_dan' && (

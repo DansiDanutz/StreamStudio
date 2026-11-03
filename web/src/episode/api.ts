@@ -18,6 +18,8 @@ export interface SceneIn {
 }
 
 export interface Episode {
+  profile?: { version: number } | null
+  profile_latest_version?: number
   id: string
   title: string
   status: EpisodeStatus
@@ -70,6 +72,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 export const getEpisode = (id: string) => call<Episode>('GET', `/${id}`)
 export const listEpisodes = () => call<{ id: string; title: string; status: EpisodeStatus; scenes: number }[]>('GET', '')
 export const createEpisode = (script: Episode['script']) => call<Episode>('POST', '', script)
+export const repin = (id: string) => call<Episode>('POST', `/${id}/repin`, {})
 export const putScript = (id: string, script: Episode['script']) => call<Episode>('PUT', `/${id}/script`, script)
 export const approveScript = (id: string) => call<Episode>('POST', `/${id}/approve-script`)
 export const estimate = (id: string) => call<Estimate>('GET', `/${id}/estimate`)

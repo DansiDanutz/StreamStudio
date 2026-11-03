@@ -112,10 +112,32 @@ def workflows():
 @router.get("/{eid}")
 def get_episode(eid: str, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)):
     """A pure read: the record without the confirm token, plus progress and validation."""
-    return _out(s, _episode(c, eid))
+    ep = _episode(c, eid)
+    result = _out(s, ep)
+    latest = profiles.get(c, ep.record.get("profile_slug", "danslab"))
+    if latest and ep.record.get("profile"):
+        result["profile_latest_version"] = latest["version"]
+    return result
 
 
 # ---------------------------------------------------------------- script
+
+
+def _invalidate_final(c, s, ep):
+    outputs = ep.record["outputs"]
+    # These jobs write shared scene/final paths. Let them finish before invalidation.
+    active_outputs = [outputs.get(field) for field in
+                      ("assemble_job_id", "kit_job_id", "register_job_id")]
+    active_outputs.extend(st.get("compose_job_id")
+                          for st in ep.record["scenes_state"].values())
+    if any(_live(c, jid) for jid in active_outputs):
+        raise HTTPException(409, "the current scene or Library render is finishing")
+    ep.record["revision"] = ep.record.get("revision", 0) + 1
+    d = record.episode_dir(s, ep.id)
+    for name in ("final.mp4", "final.srt", "kit.json", "final.cues.json"):
+        (d / name).unlink(missing_ok=True)
+    for key in ("recording_id", "final_mp4", "final_srt", "kit"):
+        ep.record["outputs"].pop(key, None)
 
 
 @router.put("/{eid}/script")
@@ -145,19 +167,8 @@ def put_script(
         ep.record["script"] = {**body.model_dump(exclude_none=True), "hash": new_hash}
         ep.title = body.title
         if new_hash != old_hash:
-            # These jobs write shared scene/final paths. Let them finish before invalidation.
-            active_outputs = [outputs.get(field) for field in
-                              ("assemble_job_id", "kit_job_id", "register_job_id")]
-            active_outputs.extend(st.get("compose_job_id")
-                                  for st in ep.record["scenes_state"].values())
-            if any(_live(c, jid) for jid in active_outputs):
-                raise HTTPException(409, "the current scene or Library render is finishing")
-            ep.record["revision"] = ep.record.get("revision", 0) + 1
+            _invalidate_final(c, s, ep)
             d = record.episode_dir(s, ep.id)
-            for name in ("final.mp4", "final.srt", "kit.json", "final.cues.json"):
-                (d / name).unlink(missing_ok=True)
-            for key in ("recording_id", "final_mp4", "final_srt", "kit"):
-                ep.record["outputs"].pop(key, None)
             states = ep.record["scenes_state"]
             render_script = ep.render_script()
             for sc in body.scenes:
@@ -171,6 +182,39 @@ def put_script(
         record.set_status(ep, "draft")
         record.save(c, ep)
     return record.to_out(s, ep, v)
+
+
+class RepinIn(BaseModel):
+    profile: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{0,47}$")
+
+
+@router.post("/{eid}/repin")
+def repin(eid: str, body: RepinIn, origin: str | None = Header(default=None),
+          s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)):
+    if not origin or not netguard.origin_allowed(origin, s.extra_hosts):
+        raise HTTPException(403, "change the pinned profile from the Episode page")
+    with tx(c):
+        ep = _episode(c, eid)
+        out = ep.record["outputs"]
+        if (ep.status not in record.EDITABLE or out.get("upload_requested")
+                or _live(c, out.get("upload_job_id"))):
+            raise HTTPException(409, f"cannot change profile while the episode is {ep.status}")
+        slug = body.profile or ep.record.get("profile_slug", "danslab")
+        if not profiles.get(c, slug):
+            raise HTTPException(422, "channel profile not found")
+        _invalidate_final(c, s, ep)
+        if body.profile:
+            script = ep.script.model_copy(update={"profile": slug})
+            ep.record["script"] = {**script.model_dump(exclude_none=True),
+                                   "hash": record.script_hash(script)}
+        ep.record["profile_slug"] = slug
+        ep.record.pop("profile", None)
+        ep.record.pop("presenter_defaults", None)
+        out.pop("channel", None)
+        ep.record["budget"].update(confirm_token=None, token_expires_at=None)
+        record.set_status(ep, "draft", "Repinned")
+        record.save(c, ep)
+    return _out(s, ep)
 
 
 @router.post("/{eid}/approve-script")
@@ -197,6 +241,10 @@ def approve_script(
         resolved = ep.render_script()
         if not resolved.look or not resolved.voice_id:
             raise HTTPException(409, "choose the presenter and voice before approving the script")
+        reference = ep.record.get("reference")
+        identity = [resolved.look, resolved.voice_id, resolved.motion]
+        if reference and reference.get("presenter") != identity:
+            ep.record["reference"] = None
         record.set_status(ep, "script_approved", "script approved")
         record.save(c, ep)
     return record.to_out(s, ep, v)
