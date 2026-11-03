@@ -37,6 +37,7 @@ class Levels(Strict):
 
 
 class Sound(Strict):
+    intro: Digest | None = None
     bed: Digest | None = None
     sfx: dict[Effect, Digest] = {}
     levels: Levels = Field(default_factory=Levels)
@@ -44,6 +45,8 @@ class Sound(Strict):
 
 def verify_sound(s, sound: Sound | None):
     if sound:
+        if sound.intro:
+            channel_files.verify(s, sound.intro, kind="intro")
         digests = set(sound.sfx.values())
         if sound.bed:
             digests.add(sound.bed)

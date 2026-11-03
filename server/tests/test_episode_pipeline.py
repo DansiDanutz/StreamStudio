@@ -514,9 +514,28 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env, tmp_p
     assert client.put(image_url, content=bed.read_bytes(), headers=ORIGIN).status_code == 422
     uploaded = client.put(image_url, content=photo.read_bytes(), headers=ORIGIN).json()
     plate = {"image": uploaded["sha256"], "seat": {"scale": .6, "hands_y": .7, "x": .47}}
+    from array import array
+
+    intro = tmp_path / "intro.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=red:s=320x180:r=30:d=1",
+                    "-f", "lavfi", "-i", "sine=frequency=440:d=1", "-c:v", "libx264", "-c:a",
+                    "aac", "-shortest", str(intro)], check=True)
+    result = client.put("/api/channels/files?role=intro&name=intro.mp4",
+                        content=intro.read_bytes(), headers=ORIGIN)
+    assert result.status_code == 200, result.text
+    intro_hash = result.json()["sha256"]
+    normalized = tmp_path / "normalized.mp4"
+    normalized.write_bytes(client.get(f"/api/channels/files/{intro_hash}").content)
+    streams = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-show_streams",
+                                                  "-of", "json", str(normalized)]))["streams"]
+    assert streams[0]["r_frame_rate"] == "25/1" and streams[0]["width"] == 1920
+    audio = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(normalized), "-vn",
+                                     "-ac", "1", "-ar", "16000", "-f", "s16le", "-"])
+    assert max(array("h", audio)) > 1000
     profile = client.get("/api/channels/danslab").json()
     profile["profile"]["look"] = {"plate": plate}
-    profile["profile"].update(language="en-GB", sound={"bed": digest}, publish={
+    profile["profile"]["sound"] = {"bed": digest, "intro": intro_hash}
+    profile["profile"].update(language="en-GB", publish={
         "description_footer": "Engineering at DansLab", "default_tags": ["walkthrough"]})
     saved = client.put("/api/channels/danslab", headers=ORIGIN, json={
         "base_version": profile["version"], "profile": profile["profile"]})
@@ -536,6 +555,8 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env, tmp_p
     original = client.get(f"/api/episodes/{eid}").json()["outputs"]["recording_id"]
     metadata = json.loads((record.episode_dir(s, eid) / "kit.json").read_text())
     assert metadata["description"].endswith("Engineering at DansLab")
+    timing_file = record.episode_dir(s, eid) / "assemble.json"
+    assert 0.96 <= json.loads(timing_file.read_text())["intro_s"] <= 1.08
     assert "walkthrough" in metadata["tags"]
     assert json.loads((s.recordings_dir / f"{original}.transcript.json").read_text())[
         "language"] == "en-GB"
@@ -579,6 +600,7 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env, tmp_p
     repinned_run = drain(s)
     updated = client.get(base).json()
     assert updated["status"] == "ready"
+    assert json.loads(timing_file.read_text())["intro_s"] == 0
     assert updated["profile"]["version"] == changed.json()["version"]
     assert updated["outputs"]["recording_id"] != revised["outputs"]["recording_id"]
     assert not {"heygen_clip", "scene_qa", "youtube_upload"} & {j["kind"] for j in repinned_run}

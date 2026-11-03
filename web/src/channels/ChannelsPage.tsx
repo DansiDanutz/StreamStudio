@@ -117,7 +117,7 @@ export function ChannelsPage() {
       <details><summary>Visual and sound settings</summary>
         <p>Upload a file, then use its SHA-256 in the appropriate look or sound field.</p>
         <label>File type<select value={role} onChange={e => setRole(e.target.value)}>
-          {['image', 'font', 'audio'].map(r => <option key={r}>{r}</option>)}</select></label>
+          {['image', 'font', 'audio', 'intro'].map(r => <option key={r}>{r}</option>)}</select></label>
         <label>Upload file<input type="file" onChange={e => {
           const f = e.target.files?.[0]; if (!f) return
           void run(async () => {

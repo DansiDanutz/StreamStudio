@@ -21,8 +21,9 @@ AUDIO = {
 IMAGE = {".png": ("PNG", "image/png"), ".jpg": ("JPEG", "image/jpeg"),
          ".jpeg": ("JPEG", "image/jpeg"), ".webp": ("WEBP", "image/webp")}
 FONT = {".otf": (b"OTTO", "font/otf"), ".ttf": (b"\x00\x01\x00\x00", "font/ttf")}
-KINDS = {"audio": AUDIO, "image": IMAGE, "font": FONT}
-FORMATS = {**AUDIO, **IMAGE, **FONT}
+VIDEO = {".mp4": ("mov", "video/mp4"), ".mov": ("mov", "video/quicktime")}
+KINDS = {"audio": AUDIO, "image": IMAGE, "font": FONT, "intro": VIDEO}
+FORMATS = {**AUDIO, **IMAGE, **FONT, **VIDEO}
 
 
 def install_font(s: Settings, staged: Path, ext: str, digest: str) -> Path:
@@ -58,6 +59,37 @@ def resolve(s: Settings, digest: str) -> Path | None:
         return None
     root = s.data_dir / "channels" / "files"
     return next((p for ext in FORMATS if (p := root / (digest + ext)).is_file()), None)
+
+
+def install_intro(s: Settings, staged: Path) -> Path:
+    probe = subprocess.run(
+        [s.ffprobe_bin, "-v", "error", "-protocol_whitelist", "file", "-show_format",
+         "-show_streams", "-of", "json", str(staged)], capture_output=True, timeout=30,
+    )
+    if probe.returncode:
+        raise ValueError("unreadable intro video")
+    info = json.loads(probe.stdout)
+    streams = info.get("streams", [])
+    if ("mov" not in info["format"]["format_name"].split(",")
+            or not any(st["codec_type"] == "video" and not st["disposition"]["attached_pic"]
+                       for st in streams)):
+        raise ValueError("expected a QuickTime or MP4 movie with a video track")
+    silent = not any(st["codec_type"] == "audio" for st in streams)
+    generated = staged.parent / "normalized.mp4"
+    args = [s.ffmpeg_bin, "-v", "error", "-nostdin", "-protocol_whitelist", "file",
+            "-i", str(staged)]
+    if silent:
+        args += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
+    args += ["-map", "0:V:0", "-map", "1:a:0" if silent else "0:a:0", "-vf",
+             "fps=25,scale=1920:1080:force_original_aspect_ratio=decrease,"
+             "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1", "-c:v", "libx264", "-crf", "18",
+             "-preset", "fast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000",
+             "-ac", "2", "-af", "apad", "-shortest", "-movflags", "+faststart", str(generated)]
+    if subprocess.run(args, capture_output=True, timeout=300).returncode:
+        raise ValueError("could not normalize the channel intro")
+    with generated.open("rb") as stream:
+        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    return _store(s, generated, ".mp4", digest)
 
 
 def install_audio(s: Settings, staged: Path, ext: str, digest: str) -> Path:

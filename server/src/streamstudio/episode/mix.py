@@ -111,7 +111,7 @@ def assemble(
     s: Settings,
     scenes: list[Scene],
     scene_files: list[Path],
-    intro: Path,
+    intro: Path | None,
     out_mp4: Path,
     extra_cues: list[dict] | None = None,
     *, sound: Sound | None = None,
@@ -125,7 +125,7 @@ def assemble(
         frames = _frame_count(s, p)
         if abs(frames - round(d * FPS)) > 1:
             raise RuntimeError(f"{p.name}: {frames} frames for {d:.2f} s is not {FPS} fps")
-    intro_d = probe_duration(s.ffprobe_bin, intro)
+    intro_d = probe_duration(s.ffprobe_bin, intro) if intro else 0.0
     starts: list[float] = []
     t = 0.0
     for d in durations:
@@ -153,7 +153,8 @@ def assemble(
          "-c", "copy", "-movflags", "+faststart", str(main)],
         check=True,
     )  # fmt: skip
-    put(_load(s, intro, levels["intro"]), 0)
+    if intro:
+        put(_load(s, intro, levels["intro"]), 0)
     put(_load(s, main, levels["voice"]), intro_d)
     notes: list[str] = []
     bed = bed_path(s) if sound is None else None
@@ -208,12 +209,16 @@ def assemble(
         json.dumps({"cues": cues, "notes": notes}, indent=1)
     )
     tmp = out_mp4.with_name(out_mp4.stem + ".tmp.mp4")
+    video_inputs = ["-i", str(main)]
+    graph = f"[0:v]fps={FPS},format=yuv420p,setsar=1[v];[1:a]{FINAL}[au]"
+    if intro:
+        video_inputs = ["-i", str(intro), *video_inputs]
+        graph = (f"[0:v]fps={FPS},scale=1920:1080,format=yuv420p,setsar=1[a];"
+                 f"[1:v]fps={FPS},format=yuv420p,setsar=1[b];"
+                 f"[a][b]concat=n=2:v=1:a=0[v];[2:a]{FINAL}[au]")
     subprocess.run(
-        [s.ffmpeg_bin, "-v", "error", "-y", "-i", str(intro), "-i", str(main),
-         "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", str(wav),
-         "-filter_complex",
-         f"[0:v]fps={FPS},scale={1920}:{1080},format=yuv420p,setsar=1[a];"
-         f"[1:v]fps={FPS},format=yuv420p,setsar=1[b];[a][b]concat=n=2:v=1:a=0[v];[2:a]{FINAL}[au]",
+        [s.ffmpeg_bin, "-v", "error", "-y", *video_inputs,
+         "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", str(wav), "-filter_complex", graph,
          "-map", "[v]", "-map", "[au]", "-c:v", "libx264", "-preset", "medium", "-crf", "18",
          "-r", str(FPS), "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart",
          "-shortest", str(tmp)],

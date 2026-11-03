@@ -123,8 +123,13 @@ def episode_assemble(ctx: JobContext) -> dict[str, Any]:
         raise ValueError(f"composed scenes missing: {', '.join(missing)}")
     ctx.progress(0.1, "assembling")
     sound = ep.channel_settings.get("sound")
+    intro = s.assets_dir / "brand" / "danslab-intro.mp4"
+    if sound is not None and "intro" in sound:
+        from .channel_files import verify
+
+        intro = verify(s, sound["intro"], kind="intro") if sound["intro"] else None
     result = mix.assemble(
-        s, script.scenes, files, s.assets_dir / "brand" / "danslab-intro.mp4", final,
+        s, script.scenes, files, intro, final,
         sound=mix.Sound.model_validate(sound) if sound is not None else None,
     )
     (d / "assemble.json").write_text(json.dumps(result, indent=1))

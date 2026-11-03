@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import Field
+from starlette.concurrency import run_in_threadpool
 
 from ...core import netguard, youtube
 from ...core.config import Settings
@@ -94,6 +95,10 @@ async def upload_file(name: str, request: Request, role: str = "audio",
                 digest.update(chunk)
                 stream.write(chunk)
         try:
+            if role == "intro":
+                normalized = await run_in_threadpool(channel_files.install_intro, s, staged)
+                return {"sha256": normalized.stem, "kind": "video",
+                        "bytes": normalized.stat().st_size, "media_type": "video/mp4"}
             if role == "audio":
                 channel_files.install_audio(s, staged, ext, digest.hexdigest())
             elif role == "font":
