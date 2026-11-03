@@ -24,8 +24,10 @@ CATALOG = {
     "callout": "Without an explicit label, show the page address and scene text at the reveal.",
     "manual": "For a manual host, upload a screenshot and supply its sha256 and focal point.",
     "capture": "Playwright Chromium viewport and a camera move to the labeled feature",
-    "editable_without_capture": ["side", "reveal_at"],
+    "editable_without_capture": ["side", "reveal_at", "focus_cues"],
     "reveal_at": "Fraction of the first scene duration when the camera starts moving.",
+    "focus_cues": "Timed outlines on the held opening viewport, in normalized coordinates. "
+                  "Times are seconds from the start of this scene.",
     "continuity": "Adjacent scenes with the same site and direction share one camera move.",
 }
 
@@ -301,9 +303,16 @@ def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path,
     offset, reveal = track or (0, min(length-1, round(length * spec.reveal_at)))
     x = "60" if spec.side == "left" else "W-w-60"
     color = bytes(outline).hex()
-    filters = (f"[1:v]scale=1180:-2,format=yuva420p,pad=iw+8:ih+8:4:4:color=0x{color},"
-               f"tpad=start={reveal}:start_mode=clone:stop_mode=clone:stop=-1,"
-               f"trim=start_frame={offset}:end_frame={offset+length},setpts=PTS-STARTPTS[c];"
+    motion = (f"tpad=start={reveal}:start_mode=clone:stop_mode=clone:stop=-1,"
+              f"trim=start_frame={offset}:end_frame={offset+length},setpts=PTS-STARTPTS")
+    if spec.focus_cues:
+        # Cue coordinates refer to the opening viewport, before the prepared camera zoom.
+        motion = f"trim=end_frame=1,tpad=stop_mode=clone:stop={length-1},setpts=PTS-STARTPTS"
+        for cue in spec.focus_cues:
+            motion += (f",drawbox=x=iw*{cue.x}:y=ih*{cue.y}:w=iw*{cue.width}:h=ih*{cue.height}"
+                       f":color=0x76efd2:t=5:enable='gte(t,{cue.start_s})*lt(t,{cue.end_s})'")
+    filters = (f"[1:v]{motion},scale=1180:-2,format=yuva420p,"
+               f"pad=iw+8:ih+8:4:4:color=0x{color}[c];"
                f"[0:v][c]overlay=x={x}:y=(H-h)/2:eof_action=repeat[v]")
     out.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=out.parent) as temp:

@@ -30,6 +30,21 @@ class ManualCapture(Strict):
     focus_y: float = Field(default=.5, ge=0, le=1)
 
 
+class WebsiteFocusCue(Strict):
+    start_s: float = Field(ge=0, allow_inf_nan=False)
+    end_s: float = Field(gt=0, allow_inf_nan=False)
+    x: float = Field(ge=0, lt=1)
+    y: float = Field(ge=0, lt=1)
+    width: float = Field(gt=0, le=1)
+    height: float = Field(gt=0, le=1)
+
+    @model_validator(mode="after")
+    def within_viewport(self):
+        if self.end_s <= self.start_s or self.x + self.width > 1 or self.y + self.height > 1:
+            raise ValueError("focus cue needs a positive interval and a box inside the viewport")
+        return self
+
+
 class WebsiteDemo(Strict):
     """website-demo/v1: immutable capture inputs and editable scene direction."""
 
@@ -38,6 +53,7 @@ class WebsiteDemo(Strict):
     focus_label: str | None = Field(default=None, min_length=1, max_length=160)
     side: Literal["left", "right"] = "right"
     reveal_at: float = Field(default=0.30, ge=0, lt=1)
+    focus_cues: list[WebsiteFocusCue] = Field(default_factory=list, max_length=32)
 
 
 class ConnectedCard(Strict):
