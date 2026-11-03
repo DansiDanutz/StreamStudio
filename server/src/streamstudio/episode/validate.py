@@ -80,6 +80,9 @@ def validate(script: Script, s: Settings) -> dict[str, dict[str, list[str]]]:
         if sc.kind == "card" and not connected and not (sc.site or "").strip():
             err(sc.id, "a card scene needs a site")
         if sc.plan and sc.plan.website_demo:
+            switch = sc.plan.website_demo.page_switch
+            if switch and capture_mode(s, switch.site) != "auto":
+                err(sc.id, "the second website page requires an allowed automatic host")
             manual = sc.plan.website_demo.manual
             mode = capture_mode(s, sc.site or "")
             if sc.kind != "card" or mode != ("manual" if manual else "auto"):

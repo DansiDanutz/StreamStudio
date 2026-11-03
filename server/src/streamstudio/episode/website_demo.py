@@ -5,6 +5,7 @@ import contextlib
 import hashlib
 import http.client
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -28,6 +29,7 @@ CATALOG = {
     "reveal_at": "Fraction of the first scene duration when the camera starts moving.",
     "focus_cues": "Timed outlines on the held opening viewport, in normalized coordinates. "
                   "Times are seconds from the start of this scene.",
+    "page_switch": "Switch to another allowed automatic page at scene-local at_s seconds.",
     "continuity": "Adjacent scenes with the same site and direction share one camera move.",
 }
 
@@ -80,6 +82,8 @@ def asset_path(folder: Path, scene: Scene) -> Path | None:
     if not spec:
         return None
     key = json.dumps([spec.workflow, scene.site, spec.focus_label], ensure_ascii=True)
+    if spec.page_switch:
+        key += spec.page_switch.model_dump_json()
     if spec.manual:
         key += spec.manual.model_dump_json()
     return folder / "cards" / (hashlib.sha256(key.encode()).hexdigest() + ".mp4")
@@ -115,6 +119,28 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
     manual = scene.plan.website_demo.manual if dst else None
     if dst is None or scene.kind != "card" or mode != ("manual" if manual else "auto"):
         raise ValueError("capture method must match the allowed host mode")
+    switch = scene.plan.website_demo.page_switch
+    if switch:
+        if not auto_site(s, switch.site):
+            raise ValueError("the second page needs an allowed automatic capture host")
+        if dst.is_file():
+            return dst
+        first = scene.model_copy(deep=True)
+        first.plan.website_demo.page_switch = None
+        second = first.model_copy(deep=True)
+        second.site = switch.site
+        second.plan.website_demo = WebsiteDemo(focus_label=switch.focus_label)
+        sources = [prepare(s, page, folder) for page in (first, second)]
+        frames = max(1, math.ceil(switch.at_s * FPS))
+        with TemporaryDirectory(dir=dst.parent) as temp:
+            movie = Path(temp) / "sequence.mp4"
+            graph = (f"[0:v]tpad=stop_mode=clone:stop={frames},trim=end_frame={frames},"
+                     "setpts=PTS-STARTPTS[a];[a][1:v]concat=n=2:v=1:a=0[v]")
+            subprocess.run([s.ffmpeg_bin, "-loglevel", "error", "-i", str(sources[0]),
+                            "-i", str(sources[1]), "-filter_complex", graph, "-map", "[v]",
+                            "-c:v", "libx264", "-crf", "16", str(movie)], check=True)
+            movie.replace(dst)
+        return dst
     if dst.is_file():
         return dst
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -306,6 +332,8 @@ def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path,
     duration = probe_duration(s.ffprobe_bin, base)
     length = max(1, round(duration * FPS))
     offset, reveal = track or (0, min(length-1, round(length * spec.reveal_at)))
+    if spec.page_switch:
+        offset = reveal = 0
     x = "60" if spec.side == "left" else "W-w-60"
     color = bytes(outline).hex()
     motion = (f"tpad=start={reveal}:start_mode=clone:stop_mode=clone:stop=-1,"

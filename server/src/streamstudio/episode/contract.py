@@ -45,6 +45,12 @@ class WebsiteFocusCue(Strict):
         return self
 
 
+class WebsitePageSwitch(Strict):
+    at_s: float = Field(gt=0, le=300)
+    site: str = Field(min_length=1, max_length=500)
+    focus_label: str | None = Field(default=None, min_length=1, max_length=160)
+
+
 class WebsiteDemo(Strict):
     """website-demo/v1: immutable capture inputs and editable scene direction."""
 
@@ -53,7 +59,15 @@ class WebsiteDemo(Strict):
     focus_label: str | None = Field(default=None, min_length=1, max_length=160)
     side: Literal["left", "right"] = "right"
     reveal_at: float = Field(default=0.30, ge=0, lt=1)
+    page_switch: WebsitePageSwitch | None = None
     focus_cues: list[WebsiteFocusCue] = Field(default_factory=list, max_length=32)
+
+
+    @model_validator(mode="after")
+    def compatible_directions(self):
+        if self.page_switch and self.focus_cues:
+            raise ValueError("use separate scenes for a page switch and timed focus outlines")
+        return self
 
 
 class ConnectedCard(Strict):
