@@ -506,7 +506,16 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env, tmp_p
     assert upload.status_code == 200, upload.text
     digest = upload.json()["sha256"]
     assert client.get(f"/api/channels/files/{digest}").content == bed.read_bytes()
+    from PIL import Image
+
+    photo = tmp_path / "plate.png"
+    Image.new("RGB", (64, 36), (15, 230, 40)).save(photo)
+    image_url = "/api/channels/files?role=image&name=plate.png"
+    assert client.put(image_url, content=bed.read_bytes(), headers=ORIGIN).status_code == 422
+    uploaded = client.put(image_url, content=photo.read_bytes(), headers=ORIGIN).json()
+    plate = {"image": uploaded["sha256"], "seat": {"scale": .6, "hands_y": .7, "x": .47}}
     profile = client.get("/api/channels/danslab").json()
+    profile["profile"]["look"] = {"plate": plate}
     profile["profile"].update(language="en-GB", sound={"bed": digest}, publish={
         "description_footer": "Engineering at DansLab", "default_tags": ["walkthrough"]})
     saved = client.put("/api/channels/danslab", headers=ORIGIN, json={
@@ -539,6 +548,7 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env, tmp_p
     approve(client, eid)
     latest = client.get("/api/channels/danslab").json()
     latest["profile"]["sound"] = {}
+    latest["profile"]["look"] = None
     changed = client.put("/api/channels/danslab", headers=ORIGIN, json={
         "base_version": latest["version"], "profile": latest["profile"]})
     assert changed.status_code == 200
@@ -546,6 +556,13 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env, tmp_p
     revised = client.get(f"/api/episodes/{eid}").json()
     assert revised["status"] == "ready"
     assert revised["profile"]["profile"]["sound"]["bed"] == digest
+    assert revised["profile"]["profile"]["look"]["plate"]["image"] == uploaded["sha256"]
+    # The corner lies outside the foreground presenter and card in either revision.
+    for content in (response.content, client.get(preview).content):
+        pixel = subprocess.check_output(["ffmpeg", "-v", "error", "-i", "pipe:0", "-frames:v", "1",
+                                        "-vf", "crop=4:4:0:0,scale=1:1", "-f", "rawvideo",
+                                        "-pix_fmt", "rgb24", "-"], input=content)
+        assert pixel[1] > max(pixel[0], pixel[2]) + 35
     assert revised["outputs"]["recording_id"] != original
     assert (s.recordings_dir / f"{original}.mp4").exists()
     assert client.get(preview).content != response.content

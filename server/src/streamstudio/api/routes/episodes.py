@@ -48,13 +48,16 @@ def _episode(c: sqlite3.Connection, eid: str) -> record.Episode:
     return ep
 
 
-def _check_pinned_sound(s: Settings, ep: record.Episode) -> None:
-    sound = ep.channel_settings.get("sound")
-    if sound:
-        try:
+def _check_pinned_files(s: Settings, ep: record.Episode) -> None:
+    try:
+        sound = ep.channel_settings.get("sound")
+        look = ep.channel_settings.get("look")
+        if sound:
             profiles.verify_sound(s, profiles.Sound.model_validate(sound))
-        except ValueError as e:
-            raise HTTPException(409, str(e)) from e
+        if look:
+            profiles.verify_look(s, profiles.Look.model_validate(look))
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from e
 
 
 def _out(s: Settings, ep: record.Episode) -> dict[str, Any]:
@@ -190,7 +193,7 @@ def approve_script(
                 "avatar_id": cfg["avatar_id"] or ep.script.look,
                 "voice_id": cfg["voice_id"] or ep.script.voice_id,
             }
-        _check_pinned_sound(s, ep)
+        _check_pinned_files(s, ep)
         resolved = ep.render_script()
         if not resolved.look or not resolved.voice_id:
             raise HTTPException(409, "choose the presenter and voice before approving the script")
@@ -327,7 +330,7 @@ def approve_budget(
             or (b.get("token_expires_at") or 0) < time.time()
         ):
             raise HTTPException(409, "the estimate expired: open the cost screen again")
-        _check_pinned_sound(s, ep)
+        _check_pinned_files(s, ep)
         est = _estimate(s, c, ep)
         if s.heygen_cache_only and any(
             not record.clip_paths(s, line["clip_key"])[0].exists() for line in est["_lines"]

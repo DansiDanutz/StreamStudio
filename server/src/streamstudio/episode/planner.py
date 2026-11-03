@@ -203,7 +203,10 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
             from .website_demo import asset_path
 
             card = asset_path(d, sc)
-        current = record.inputs_hash(sc, mp4, webm, card, degraded=st.get("qa") == "degraded")
+        current = record.inputs_hash(
+            sc, mp4, webm, card, degraded=st.get("qa") == "degraded",
+            look=ep.channel_settings.get("look"),
+        )
         st["inputs_hash"] = current
         if st.get("composed_hash") == current:
             continue

@@ -1,4 +1,4 @@
-"""Validate and store local channel audio by SHA-256."""
+"""Validate and store channel media by SHA-256."""
 from __future__ import annotations
 
 import contextlib
@@ -11,11 +11,31 @@ from pathlib import Path
 
 from ..core.config import Settings
 
-FORMATS = {
+AUDIO = {
     ".wav": ("wav", "audio/wav"), ".mp3": ("mp3", "audio/mpeg"),
     ".flac": ("flac", "audio/flac"), ".ogg": ("ogg", "audio/ogg"),
     ".aac": ("aac", "audio/aac"), ".m4a": ("mov", "audio/mp4"),
 }
+
+
+IMAGE = {".png": ("PNG", "image/png"), ".jpg": ("JPEG", "image/jpeg"),
+         ".jpeg": ("JPEG", "image/jpeg"), ".webp": ("WEBP", "image/webp")}
+FORMATS = {**AUDIO, **IMAGE}
+
+
+def install_image(s: Settings, staged: Path, ext: str, digest: str) -> Path:
+    from PIL import Image
+
+    try:
+        with Image.open(staged) as img:
+            if img.format != IMAGE[ext][0] or img.width * img.height > 40_000_000:
+                raise ValueError("unsupported image format or dimensions")
+            img.verify()
+        with Image.open(staged) as img:
+            img.load()
+    except (OSError, Image.DecompressionBombError, SyntaxError) as e:
+        raise ValueError("unreadable channel image") from e
+    return _store(s, staged, ext, digest)
 
 
 def resolve(s: Settings, digest: str) -> Path | None:
@@ -38,6 +58,10 @@ def install_audio(s: Settings, staged: Path, ext: str, digest: str) -> Path:
             or not all(stream["codec_type"] == "audio" for stream in streams)
             or float(info["format"].get("duration", 0)) <= 0):
         raise ValueError("audio contents do not match the selected format")
+    return _store(s, staged, ext, digest)
+
+
+def _store(s: Settings, staged: Path, ext: str, digest: str) -> Path:
     root = s.data_dir / "channels" / "files"
     root.mkdir(parents=True, exist_ok=True)
     target = root / (digest + ext)
@@ -46,11 +70,11 @@ def install_audio(s: Settings, staged: Path, ext: str, digest: str) -> Path:
     return target
 
 
-def verify(s: Settings, digest: str) -> Path:
+def verify(s: Settings, digest: str, *, kind: str = "audio") -> Path:
     path = resolve(s, digest)
-    if path is None:
-        raise ValueError(f"channel audio is missing: {digest}")
+    if path is None or path.suffix not in (IMAGE if kind == "image" else AUDIO):
+        raise ValueError(f"missing channel {kind}: {digest}")
     with path.open("rb") as source:
         if hashlib.file_digest(source, "sha256").hexdigest() != digest:
-            raise ValueError(f"channel audio failed its integrity check: {digest}")
+            raise ValueError(f"channel file failed its integrity check: {digest}")
     return path

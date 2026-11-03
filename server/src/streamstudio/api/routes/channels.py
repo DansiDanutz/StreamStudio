@@ -78,8 +78,9 @@ def set_default(body: Selection, s: Settings = Depends(settings),
 async def upload_file(name: str, request: Request, role: str = "audio",
                       s: Settings = Depends(settings)):
     ext = Path(name).suffix.lower()
-    if role != "audio" or ext not in channel_files.FORMATS:
-        raise HTTPException(415, "expected a supported audio file")
+    formats = {"audio": channel_files.AUDIO, "image": channel_files.IMAGE}
+    if ext not in formats.get(role, {}):
+        raise HTTPException(415, "unsupported channel file role or extension")
     root = s.data_dir / "channels" / "tmp"
     root.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=root) as tmp:
@@ -94,10 +95,13 @@ async def upload_file(name: str, request: Request, role: str = "audio",
                 digest.update(chunk)
                 stream.write(chunk)
         try:
-            channel_files.install_audio(s, staged, ext, digest.hexdigest())
+            if role == "audio":
+                channel_files.install_audio(s, staged, ext, digest.hexdigest())
+            else:
+                channel_files.install_image(s, staged, ext, digest.hexdigest())
         except (ValueError, subprocess.TimeoutExpired) as e:
             raise HTTPException(422, str(e)) from e
-    return {"sha256": digest.hexdigest(), "kind": "audio", "bytes": count,
+    return {"sha256": digest.hexdigest(), "kind": role, "bytes": count,
             "media_type": channel_files.FORMATS[ext][1]}
 
 
@@ -137,6 +141,7 @@ def save(slug: str, body: Save, s: Settings = Depends(settings),
             raise HTTPException(422, "choose a presenter and voice")
         try:
             profiles.verify_sound(s, body.profile.sound)
+            profiles.verify_look(s, body.profile.look)
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
         target = body.profile.youtube_channel

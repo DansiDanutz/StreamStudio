@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from ..core.config import Settings
-from . import FPS
+from . import FPS, channel_files
 from .contract import Plan, Scene
 
 W, H = 1920, 1080
@@ -58,7 +58,7 @@ def guard(scene: Scene, clip_url: str, degraded: bool) -> str:
 class Compositor:
     """Plate, desk, fonts and caches, built once per process. Call `frame(...)` per frame."""
 
-    def __init__(self, s: Settings) -> None:
+    def __init__(self, s: Settings, look: dict | None = None) -> None:
         import cv2
         import numpy as np
         from PIL import Image
@@ -66,14 +66,24 @@ class Compositor:
         self.s = s
         self.np, self.cv2 = np, cv2
         studio = s.assets_dir / "studio"
-        self.plate = np.asarray(
-            self._cover(Image.open(studio / "plate-landscape-final.png").convert("RGB"))
-        ).astype(np.float32)
-        desk = np.asarray(
-            self._cover(Image.open(studio / "plate-landscape-final.desk.png").convert("RGBA"))
-        ).astype(np.float32)
-        self.desk, self.desk_a = desk, desk[..., 3:4] / 255.0
-        seat = json.loads((studio / "plate-landscape-final.json").read_text())["seat"]
+        if look:
+            plate = look["plate"]
+            image = channel_files.verify(s, plate["image"], kind="image")
+            desk = None
+            if plate.get("desk"):
+                desk = channel_files.verify(s, plate["desk"], kind="image")
+            seat = plate["seat"]
+        else:
+            image = studio / "plate-landscape-final.png"
+            desk = studio / "plate-landscape-final.desk.png"
+            seat = json.loads((studio / "plate-landscape-final.json").read_text())["seat"]
+        with Image.open(image) as source:
+            self.plate = np.asarray(self._cover(source.convert("RGB"))).astype(np.float32)
+        self.desk = None
+        if desk:
+            with Image.open(desk) as source:
+                self.desk = np.asarray(self._cover(source.convert("RGBA"))).astype(np.float32)
+            self.desk_a = self.desk[..., 3:4] / 255.0
         self.scale, self.hands_y, self.sx = seat["scale"], seat["hands_y"], seat["x"]
         self.blurred = (
             cv2.GaussianBlur(self.plate, (0, 0), 18) * 0.38
@@ -118,6 +128,8 @@ class Compositor:
             sub_fg = fg[ys - y0 : ye - y0, xs - x0 : xe - x0]
             sub_m = ma[ys - y0 : ye - y0, xs - x0 : xe - x0]
             out[ys:ye, xs:xe] = out[ys:ye, xs:xe] * (1 - sub_m) + sub_fg * sub_m
+        if self.desk is None:
+            return out
         return out * (1 - self.desk_a) + self.desk[..., :3] * self.desk_a
 
     def zoom(self, img, cx: float, cy: float, z: float):

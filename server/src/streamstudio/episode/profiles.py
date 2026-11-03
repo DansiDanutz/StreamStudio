@@ -51,12 +51,36 @@ def verify_sound(s, sound: Sound | None):
             channel_files.verify(s, digest)
 
 
+class Seat(Strict):
+    scale: float = Field(gt=.01, le=2)
+    hands_y: float = Field(ge=0, le=1)
+    x: float = Field(ge=0, le=1)
+
+
+class Plate(Strict):
+    image: Digest
+    desk: Digest | None = None
+    seat: Seat
+
+
+class Look(Strict):
+    plate: Plate
+
+
+def verify_look(s, look: Look | None):
+    if look:
+        channel_files.verify(s, look.plate.image, kind="image")
+        if look.plate.desk:
+            channel_files.verify(s, look.plate.desk, kind="image")
+
+
 class Profile(Strict):
     slug: str = Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")
     name: str = Field(min_length=1)
     language: str = Field(default="en", pattern=r"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$")
     youtube_channel: str | None = Field(default=None, pattern=r"^UC[0-9A-Za-z_-]{22}$")
     presenter: Presenter
+    look: Look | None = None
     sound: Sound | None = None
     publish: Publish = Field(default_factory=Publish)
 

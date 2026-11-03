@@ -78,13 +78,17 @@ def scene_compose(ctx: JobContext) -> dict[str, Any]:
     card = d / "cards" / f"{st['card_id']}.mp4" if st.get("card_id") else None
     if scene.plan and scene.plan.website_demo:
         card = website_demo.prepare(s, scene, d)
-    current = record.inputs_hash(scene, mp4, webm, card, degraded=st.get("qa") == "degraded")
+    current = record.inputs_hash(
+        scene, mp4, webm, card, degraded=st.get("qa") == "degraded",
+        look=ep.channel_settings.get("look"),
+    )
     if out.exists() and hash_file.exists() and hash_file.read_text().strip() == current:
         result = {"scene": scene.id, "skipped": True}
     else:
         ctx.progress(0.05, f"composing {scene.id}")
         result = compose.compose_scene(
             s, scene, mp4, webm, out, card_mp4=card, degraded=st.get("qa") == "degraded",
+            compositor=compose.Compositor(s, ep.channel_settings.get("look")),
             progress=lambda f, m: ctx.progress(0.05 + 0.9 * f, m),
         )  # fmt: skip
         hash_file.write_text(current)
