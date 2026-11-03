@@ -22,3 +22,20 @@ def test_website_card_direction_reuses_capture(tmp_path):
     for url in ("https://other.test", "http://nervixpay.live", "https://nervixpay.live:bad"):
         scene.site = url
         assert validate.validate(script, s)["errors"]["s10"]
+
+
+def test_focus_cues_reuse_capture_and_reset_the_next_camera_track(tmp_path):
+    base = Scene(id="s1", kind="card", site="https://nervix.space/#directory",
+                 text="Explore our projects.", plan={"website_demo": {}})
+    data = base.model_dump()
+    data["id"] = "s2"
+    data["plan"]["website_demo"]["focus_cues"] = [
+        {"start_s": 1.2, "end_s": 2.4, "x": 0.1, "y": 0.25, "width": 0.3, "height": 0.2}
+    ]
+    focus = Scene.model_validate(data)
+    after = base.model_copy(update={"id": "s3"})
+    continued = base.model_copy(update={"id": "s4"})
+    assert website_demo.asset_path(tmp_path, focus) == website_demo.asset_path(tmp_path, base)
+    assert website_demo.card_timeline([base, focus, after, continued], [4, 3, 2, 5]) == {
+        "s1": (0, 30), "s2": (0, 22), "s3": (0, 15), "s4": (50, 15),
+    }
