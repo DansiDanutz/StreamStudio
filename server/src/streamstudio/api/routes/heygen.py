@@ -23,7 +23,6 @@ router = APIRouter(prefix="/api/heygen", tags=["heygen"])
 KEY_OK = re.compile(r"^[A-Za-z0-9_\-=.]{16,256}$")
 ID_OK = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 GESTURE_OK = re.compile(r"^[a-z-]{3,32}$")
-WORDS_PER_S = 2.5  # ~150 wpm, for the estimate
 
 
 class ConfigIn(BaseModel):
@@ -40,6 +39,7 @@ class Item(BaseModel):
     motion: str | None = Field(default=None, max_length=400)
     gesture: str | None = None
     segment_id: str | None = Field(default=None, max_length=80)
+    take: int = Field(default=0, ge=0, le=99)
 
 
 class RenderIn(BaseModel):
@@ -127,12 +127,6 @@ def looks(s: Settings = Depends(settings)) -> list[dict[str, Any]]:
         raise HTTPException(502, str(e)) from e
 
 
-def _seconds(it: Item) -> float:
-    if it.silent_s:
-        return it.silent_s
-    return max(2.0, len((it.script or "").split()) / WORDS_PER_S + 0.6)
-
-
 @router.post("/render")
 def render(
     body: RenderIn, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)
@@ -148,31 +142,33 @@ def render(
             raise HTTPException(422, "a segment item needs a script")
         silent = it.silent_s if it.kind == "gesture" else None
         script = None if silent else (it.script or "").strip()
-        key = heygen.item_key(cfg["avatar_id"], cfg["voice_id"], script, it.motion, silent)
+        key = heygen.item_key(
+            cfg["avatar_id"], cfg["voice_id"], script, it.motion, silent, it.take
+        )
         name = it.gesture if it.kind == "gesture" else key
         folder = "gestures" if it.kind == "gesture" else "clips"
         entry = {
             "key": key, "kind": it.kind, "gesture": it.gesture, "segment_id": it.segment_id,
-            "clip": f"/avatar/{folder}/{name}.mp4", "seconds": round(_seconds(it), 1),
+            "clip": f"/avatar/{folder}/{name}.mp4",
+            "seconds": round(heygen.estimate_seconds(script, silent), 1),
         }  # fmt: skip
         if (s.assets_dir / "avatar" / folder / f"{name}.mp4").exists():
             ready.append(entry)
         else:
             payload = {
                 **entry, "script": script, "silent_s": silent, "motion": it.motion,
-                "look": cfg["avatar_id"], "voice": cfg["voice_id"],
+                "look": cfg["avatar_id"], "voice": cfg["voice_id"], "take": it.take,
             }  # fmt: skip
             planned.append((entry, payload))
-    seconds = round(sum(e["seconds"] for e, _ in planned), 1)
     out: dict[str, Any] = {
-        "seconds": seconds,
-        "clips": len(planned),
-        "with_motion": sum(1 for _, p in planned if p["motion"]),
+        **heygen.estimate([p for _, p in planned]),
         "ready": ready,
         "jobs": [],
     }
     if not body.confirm or not planned:
         return out
+    if s.heygen_cache_only:
+        raise HTTPException(409, "cache-only production: a matching avatar clip is missing")
     with tx(c):
         for entry, payload in planned:
             job = store.enqueue(c, "heygen_clip", payload=payload)

@@ -147,12 +147,46 @@ def silence_wav(seconds: float, rate: int = 24000) -> bytes:
     )  # fmt: skip
 
 
+#: HeyGen API pricing per rendered second (the number the editor's HeyGen panel shows).
+USD_PER_S = 0.0385
+#: About 150 words a minute, for the length estimate.
+WORDS_PER_S = 2.5
+
+
 def item_key(
-    look: str, voice: str, script: str | None, motion: str | None, silent_s: float | None
+    look: str,
+    voice: str,
+    script: str | None,
+    motion: str | None,
+    silent_s: float | None,
+    take: int = 0,
 ) -> str:
-    """Stable id for a clip: the same request never renders (or bills) twice."""
-    raw = json.dumps([look, voice, script or "", motion or "", silent_s or 0], ensure_ascii=False)
+    """Stable id for a clip: the same request never renders (or bills) twice. A re-render is a
+    new take, hashed in only when above zero so every existing clip keeps its name."""
+    parts: list[Any] = [look, voice, script or "", motion or "", silent_s or 0]
+    if take > 0:
+        parts.append(take)
+    raw = json.dumps(parts, ensure_ascii=False)
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
+
+
+def estimate_seconds(script: str | None, silent_s: float | None) -> float:
+    """Expected clip length: a silent gesture's seconds, else the words at WORDS_PER_S plus a
+    lead-in, never under two seconds."""
+    if silent_s:
+        return float(silent_s)
+    return max(2.0, len((script or "").split()) / WORDS_PER_S + 0.6)
+
+
+def estimate(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Cost of rendering `items` (dicts with `script`, `silent_s`, `motion`)."""
+    seconds = round(sum(estimate_seconds(i.get("script"), i.get("silent_s")) for i in items), 1)
+    return {
+        "seconds": seconds,
+        "usd": round(seconds * USD_PER_S, 2),
+        "clips": len(items),
+        "with_motion": sum(1 for i in items if i.get("motion")),
+    }
 
 
 def video_spec(

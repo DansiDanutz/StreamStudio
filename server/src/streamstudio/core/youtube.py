@@ -378,3 +378,47 @@ def add_captions(api: Client, video_id: str, srt: Path, language: str) -> str:
     if code >= 300:
         raise YouTubeError(f"captions: YouTube {code}: {_reason(raw)}")
     return json.loads(raw)["id"]
+
+
+# ------------------------------------------------------------------ publish
+
+
+def rfc3339_future(value: str) -> str:
+    """`publish_at` as YouTube wants it: RFC 3339, in the future."""
+    import datetime as dt
+
+    try:
+        when = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as e:
+        raise YouTubeError("publish_at must be an RFC 3339 time") from e
+    if when.tzinfo is None:
+        raise YouTubeError("publish_at needs a time zone")
+    if when <= dt.datetime.now(dt.UTC):
+        raise YouTubeError("publish_at must be in the future")
+    return when.astimezone(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def set_status(
+    api: Client, video_id: str, privacy: str, publish_at: str | None = None
+) -> dict[str, Any]:
+    """`videos.update` (part `status`): public now, or private with a scheduled release."""
+    if privacy not in PRIVACY:
+        raise YouTubeError(f"privacy must be one of {', '.join(PRIVACY)}")
+    status: dict[str, Any] = {"privacyStatus": privacy}
+    if publish_at:
+        status = {"privacyStatus": "private", "publishAt": rfc3339_future(publish_at)}
+    out = api.json(
+        "PUT", "/youtube/v3/videos?part=status", {"id": video_id, "status": status}
+    )
+    st = out.get("status") or status
+    return {"privacy": st.get("privacyStatus"), "publish_at": st.get("publishAt")}
+
+
+def video_status(api: Client, video_id: str) -> dict[str, Any]:
+    """`{privacy, publish_at}` as YouTube reports them now."""
+    out = api.json("GET", f"/youtube/v3/videos?part=status&id={video_id}")
+    items = out.get("items") or []
+    if not items:
+        raise YouTubeError(f"video {video_id} not found")
+    st = items[0].get("status") or {}
+    return {"privacy": st.get("privacyStatus"), "publish_at": st.get("publishAt")}

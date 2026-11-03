@@ -86,6 +86,48 @@ MIGRATIONS: list[str] = [
         pushed_at TEXT NOT NULL
     );
     """,
+    # 4 — the episode factory: one record per episode, and the HeyGen cost ledger
+    """
+    CREATE TABLE episodes (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        status TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        record_json TEXT NOT NULL
+    );
+    CREATE INDEX episodes_status ON episodes(status);
+    CREATE TABLE heygen_ledger (
+        id TEXT PRIMARY KEY,
+        episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+        approval_id TEXT,                -- reservation/release rows: the approval that made them
+        scene_id TEXT,                   -- NULL on the allowance line
+        clip_key TEXT,
+        take INTEGER,
+        job_id TEXT,
+        kind TEXT NOT NULL,              -- reservation | charge | release
+        seconds REAL NOT NULL,
+        usd REAL NOT NULL,
+        at TEXT NOT NULL
+    );
+    CREATE INDEX heygen_ledger_at ON heygen_ledger(at);
+    CREATE INDEX heygen_ledger_episode ON heygen_ledger(episode_id, kind);
+    CREATE UNIQUE INDEX heygen_ledger_charge_once ON heygen_ledger(episode_id, clip_key)
+        WHERE kind = 'charge';
+    """,
+    """
+    CREATE TABLE channel_profiles (
+        slug TEXT NOT NULL, version INTEGER NOT NULL, hash TEXT NOT NULL,
+        profile_json TEXT NOT NULL, PRIMARY KEY (slug, version)
+    );
+    CREATE TABLE channel_default (singleton INTEGER PRIMARY KEY CHECK(singleton=1), slug TEXT);
+    INSERT INTO channel_default(singleton, slug) VALUES(1, 'danslab');
+    """,
+    """
+    CREATE TABLE channel_seeds (slug TEXT PRIMARY KEY);
+    INSERT INTO channel_seeds SELECT DISTINCT slug FROM channel_profiles WHERE slug='danslab';
+    """,
 ]
 
 
@@ -161,7 +203,7 @@ def row(r: sqlite3.Row | None) -> dict[str, Any] | None:
     if r is None:
         return None
     d = dict(r)
-    for k in ("probe_json", "payload", "result", "edl_json"):
+    for k in ("probe_json", "payload", "result", "edl_json", "record_json"):
         if k in d and isinstance(d[k], str):
             d[k] = json.loads(d[k])
     return d

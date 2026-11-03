@@ -25,9 +25,7 @@ def list_jobs(project_id: str | None = None, c: sqlite3.Connection = Depends(con
 
 @router.post("", status_code=201)
 def create_job(body: JobIn, c: sqlite3.Connection = Depends(conn)) -> dict:
-    from ...worker.handlers import HANDLERS
-
-    if body.kind not in HANDLERS:
+    if body.kind not in ("noop", "probe", "transcribe"):
         raise HTTPException(400, f"unknown job kind: {body.kind}")
     return store.enqueue(
         c, body.kind, project_id=body.project_id, asset_id=body.asset_id, payload=body.payload

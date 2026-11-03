@@ -19,6 +19,8 @@ export class Recorder {
   private rec: MediaRecorder | null = null
   private stream: MediaStream | null = null
   private chunks: Blob[] = []
+  private completed: Promise<Take> | null = null
+  onTake: ((take: Take) => void) | null = null
   private t0 = 0
   private header: Blob | null = null
   cropped = false
@@ -32,10 +34,10 @@ export class Recorder {
   get recording() { return !!this.rec && this.rec.state === 'recording' }
   get seconds() { return this.recording ? Math.floor((performance.now() - this.t0) / 1000) : 0 }
 
-  async start(target: Element, timeslice = 1000, streamable = true): Promise<void> {
+  async start(target: Element, timeslice = 1000, streamable = true, frameRate: 30 | 60 = 30): Promise<void> {
     const md = navigator.mediaDevices as MediaDevices & { getDisplayMedia: (o: object) => Promise<MediaStream> }
     this.stream = await md.getDisplayMedia({
-      video: { frameRate: 30, displaySurface: 'browser' },
+      video: { frameRate, displaySurface: 'browser' },
       audio: { suppressLocalAudioPlayback: false },
       preferCurrentTab: true, selfBrowserSurface: 'include', surfaceSwitching: 'exclude', systemAudio: 'include',
     })
@@ -55,29 +57,36 @@ export class Recorder {
       this.chunks.push(e.data)
       this.tap?.(e.data)
     }
-    track.addEventListener('ended', () => { if (this.recording) this.rec!.stop() })
-    this.rec.start(timeslice)
+    const rec = this.rec
+    const stream = this.stream
+    this.completed = new Promise((resolve) => {
+      rec.onstop = () => {
+        const seconds = Math.floor((performance.now() - this.t0) / 1000)
+        stream.getTracks().forEach((t) => t.stop())
+        const mime = (rec.mimeType || 'video/webm').split(';')[0]
+        const take = { blob: new Blob(this.chunks, { type: mime }), mime, seconds }
+        this.rec = null
+        this.completed = null
+        resolve(take)
+        this.onTake?.(take)
+      }
+    })
+    track.addEventListener('ended', () => { if (rec.state === 'recording') rec.stop() })
+    rec.start(timeslice)
     this.t0 = performance.now()
   }
 
   stop(): Promise<Take> {
-    const rec = this.rec
-    if (!rec) return Promise.reject(new Error('not recording'))
-    const seconds = this.seconds
-    return new Promise((resolve) => {
-      rec.onstop = () => {
-        this.stream?.getTracks().forEach((t) => t.stop())
-        const mime = (rec.mimeType || 'video/webm').split(';')[0]
-        resolve({ blob: new Blob(this.chunks, { type: mime }), mime, seconds })
-        this.rec = null
-      }
-      if (rec.state !== 'inactive') rec.stop(); else rec.onstop?.(new Event('stop'))
-    })
+    const completed = this.completed
+    if (!completed) return Promise.reject(new Error('not recording'))
+    if (this.rec?.state === 'recording') this.rec.stop()
+    return completed
   }
 }
 
 /** Upload a take to the Mac Studio (queues the MP4 job). Returns the recording id, or null offline. */
 export async function uploadTake(take: Take): Promise<string | null> {
+  if (!take.blob.size) return null
   try {
     const r = await fetch('/api/recordings', { method: 'POST', headers: { 'content-type': take.mime }, body: take.blob })
     if (!r.ok) return null

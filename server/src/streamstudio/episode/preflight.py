@@ -79,6 +79,7 @@ def tools(s: Settings) -> dict[str, str | bool | None]:
     return {
         "opencv": _pkg("cv2"),
         "rembg": _pkg("rembg"),
+        "onnxruntime": _pkg("onnxruntime"),
         "playwright_chromium": str(chromium) if chromium else None,
         "hyperframes": str(workspace) if workspace else None,
         "fonts": str(a / "brand" / "fonts") if fonts_ok else None,
@@ -102,7 +103,7 @@ def check(s: Settings, stage: int = 1) -> dict:
         missing.append("ffmpeg")
     if not shutil.which(s.ffprobe_bin):
         missing.append("ffprobe")
-    for name in ("rembg", "fonts", "intro", "plate", "music_manifest"):
+    for name in ("rembg", "onnxruntime", "fonts", "intro", "plate", "music_manifest"):
         if not t[name]:
             missing.append(name)
     if stage >= 2:

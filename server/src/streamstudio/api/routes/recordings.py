@@ -3,6 +3,7 @@ MP4 (VideoToolbox on the Mac Studio, x264 elsewhere). Files live in <data_dir>/r
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import time
@@ -74,7 +75,7 @@ def list_recordings(
     s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)
 ) -> list[dict]:
     out = []
-    for src in sorted(_dir(s).glob("rec_*.source.*"), reverse=True):
+    for src in _dir(s).glob("rec_*.source.*"):
         if src.name.endswith(".part"):
             continue
         rid = src.name.split(".source")[0]
@@ -86,7 +87,25 @@ def list_recordings(
             "mp4_bytes": mp4.stat().st_size if mp4.exists() else None,
             "transcript": (src.parent / f"{rid}.transcript.json").exists(),
         })  # fmt: skip
-    return out
+    # episodes registered by the factory have no upload source, only the sidecar
+    for side in _dir(s).glob("rec_*.episode.json"):
+        rid = side.name[: -len(".episode.json")]
+        mp4 = side.parent / f"{rid}.mp4"
+        if not mp4.is_file():
+            continue
+        try:
+            episode = json.loads(side.read_text()).get("episode")
+        except (json.JSONDecodeError, OSError):
+            episode = None
+        out.append({
+            "id": rid,
+            "source_bytes": None,
+            "mp4": mp4.exists(),
+            "mp4_bytes": mp4.stat().st_size if mp4.exists() else None,
+            "transcript": (side.parent / f"{rid}.transcript.json").exists(),
+            "episode": episode,
+        })  # fmt: skip
+    return sorted(out, key=lambda r: r["id"], reverse=True)
 
 
 @router.get("/{rid}.mp4")

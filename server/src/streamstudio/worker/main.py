@@ -16,6 +16,7 @@ import traceback
 
 from ..core import db, store
 from ..core.config import Settings, get_settings
+from ..episode import handlers as _episode_handlers  # noqa: F401  (registers the episode handlers)
 from .handlers import HANDLERS, JobContext
 
 log = logging.getLogger("streamstudio.worker")
@@ -51,10 +52,20 @@ def run_one(conn, settings: Settings, worker_id: str) -> bool:
             store.finish_job(conn, job["id"], result)
             log.info("job %s done", job["id"])
     except Exception as e:  # noqa: BLE001 — every failure is recorded on the job
+        payload = job.get("payload") or {}
+        max_attempts = payload.get("max_attempts") if isinstance(payload, dict) else None
         status = store.fail_job(
-            conn, job["id"], f"{e}\n{traceback.format_exc()}", settings.job_max_attempts
-        )
+            conn, job["id"], f"{e}\n{traceback.format_exc()}",
+            int(max_attempts) if max_attempts else settings.job_max_attempts,
+        )  # fmt: skip
         log.warning("job %s failed (%s): %s", job["id"], status, e)
+        episode_id = payload.get("episode_id") if isinstance(payload, dict) else None
+        if status == "error" and episode_id and job["kind"] != "episode_advance":
+            # the planner decides what a failed stage means; it never re-renders on its own
+            store.enqueue(
+                conn, "episode_advance", project_id=job.get("project_id"),
+                payload={"episode_id": episode_id},
+            )  # fmt: skip
     finally:
         stop.set()
     return True

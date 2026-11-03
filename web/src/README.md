@@ -1,15 +1,16 @@
 # src
 
 ## Overview
-The StreamStudio web app entry: `main.tsx` mounts `App`, and `App.tsx` picks one of three views from the query string: the headless render view (`?render=1`), the Program window (`?program=1`, see [output](./output/README.md)) or the editor. The editor composes the stage, the scene strip or timeline, and the Library or Script side panel, wires the hotkeys, and starts scene sync, the Program link and the agent bridge.
+The StreamStudio web app entry: `main.tsx` mounts `App`, and `App.tsx` picks one of four views from the query string: the Episode page (`?episode=<id>`, see [episode](./episode/README.md)), the headless render view (`?render=1`), the Program window (`?program=1`, see [output](./output/README.md)) or the editor. The editor composes the stage, the scene strip or timeline, and the Library or Script side panel, wires the hotkeys, and starts scene sync, the Program link and the agent bridge.
 
 ## Interface
-- `App.tsx`: default export `App()`; private `RenderView` and `Editor`; `RENDER` and `AUTOPLAY` flags from the query string.
+- `App.tsx`: default export `App()`; private `RenderView` and `Editor`; `RENDER`, `AUTOPLAY` and `EPISODE` (`?episode=<id>`, rendered as the Episode page before the render and program branches) from the query string.
 - `health.ts`: `staleServerWarning(health)` → message or null.
 - `main.tsx`: mounts `<App />` in `StrictMode` into `#root` and imports `index.css`.
 - Subdirectories:
   - [stage](./stage/README.md): scene model, stage store, Base card and cards.
   - [director](./director/README.md): script, cues, lip-sync guard, timeline, workflows, HeyGen panel.
+  - [episode](./episode/README.md): the episode factory's page and API client.
   - [agent](./agent/README.md): artifact catalog and action bridge for agents.
   - [avatar](./avatar/README.md): gesture definitions and clip manifest.
   - [library](./library/README.md): Library and Vault panels.

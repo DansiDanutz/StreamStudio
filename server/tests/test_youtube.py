@@ -94,7 +94,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(youtube, "_urlopen", google)
     monkeypatch.setattr(handlers, "YOUTUBE_TRANSPORT", google)
     monkeypatch.setattr(youtube, "CHUNK", 256 * 1024)
-    client = TestClient(create_app(s))
+    client = TestClient(create_app(s), headers={"Origin": "http://localhost"})
     return client, s, downloads, google
 
 

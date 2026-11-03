@@ -1,0 +1,14 @@
+[
+  {
+    "text": "Here's how I use Stream Studio. I start with a script. When a line mentions a product QR code, the agent can choose a website card, capture the real page, and focus the camera on the code.",
+    "id": "workflow"
+  },
+  {
+    "text": "Under the hood, the editor is built with React. A Python API saves the scene plan. A worker uses F F mpeg to put the layers together, so I can open a preview and see exactly what changed.",
+    "id": "architecture"
+  },
+  {
+    "text": "For DansLab, the advantage is in the second edit. Watch the same card move left. The reveal comes later, but the website capture and my voice stay the same. Another team can pick up that scene and keep working from the same materials.",
+    "id": "reuse"
+  }
+]

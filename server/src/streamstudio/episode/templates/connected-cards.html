@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>DansLab · StreamStudio workflow</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b161c;color:#f0f7f6;font:20px system-ui}main{width:1280px;height:720px;position:relative;overflow:hidden;background:radial-gradient(ellipse at 70% 55%,#20494a 0,transparent 54%),linear-gradient(140deg,#112831,#0c1820 70%)}header,footer{position:absolute;left:72px;right:72px;display:flex;justify-content:space-between;align-items:center}header{top:46px;color:#96ddc9;font-weight:650;font-size:16px;letter-spacing:2px}h1{position:absolute;top:98px;left:72px;margin:0;font-size:52px;font-weight:630;letter-spacing:-2px}svg{position:absolute;inset:0;width:100%;height:100%}.card{position:absolute;top:275px;width:300px;height:210px;padding:25px;background:linear-gradient(130deg,#27454d,#162b32);border:1px solid #88b8ad;border-radius:16px;box-shadow:5px 6px #152830,7px 8px #547774,12px 17px 30px #061015;transform-origin:center;will-change:transform}.num{font-size:15px;color:#a2e3d0;letter-spacing:2px}.card h2{font-size:32px;margin:21px 0 9px}.card p{margin:0;color:#d0dfdc;font-size:21px;line-height:1.3}footer{bottom:48px;border-top:1px solid #476061;padding-top:16px;color:#abc8c1;font-size:16px}
+</style>
+<main><header><span>DANSLAB / ENGINEERING</span><span>STREAMSTUDIO</span></header><h1></h1><svg viewBox="0 0 1280 720" aria-hidden="true"></svg><section></section><footer><span id="caption"></span><span id="index"></span></footer></main>
+<script>
+const chapters=[
+ ["From a script to a scene","Episode factory",[
+ ["Script","A line of narration and a visible source."],["Direction","Choose a workflow and set the reveal."],["Preview","Watch the composed scene before assembly."]]],
+ ["How the studio is built","Architecture",[
+ ["Editor","React shows the stage and its controls."],["API","FastAPI records the plan and queues jobs."],["Worker","FFmpeg composes the picture and sound."]]],
+ ["What DansLab can reuse","Production",[
+ ["Capture once","Keep the website capture and Dan’s clip."],["Edit the scene","Move the card or retime the reveal."],["Review together","Compare previews in the Library workflow."]]]
+];
+const section=document.querySelector("section"),svg=document.querySelector("svg");
+function showChapter(i){const [title,caption,cards]=chapters[i];
+document.querySelector("h1").textContent=title;document.querySelector("#caption").textContent=caption;
+document.querySelector("#index").textContent="FIELD NOTES    /    0"+(i+1);
+section.replaceChildren();cards.forEach(([name,description],j)=>{const c=document.createElement("article");c.className="card";c.style.left=(76+j*410)+"px";
+for(const [tag,text] of [["small","0"+(j+1)],["h2",name],["p",description]]){const e=document.createElement(tag);e.textContent=text;if(tag==="small")e.className="num";c.append(e)}section.append(c)});
+}
+let current=-1;
+window.seekScene=function(time){const i=Math.min(chapters.length-1,Math.floor(time/6)),t=time-i*6;if(i!==current){showChapter(i);current=i}
+svg.replaceChildren();const ns=svg.namespaceURI;function line(d,color,w){const p=document.createElementNS(ns,"path");for(const [k,v] of Object.entries({d,fill:"none",stroke:color,"stroke-width":w}))p.setAttribute(k,v);svg.append(p);return p}
+for(let j=0;j<2;j++){const x=369+j*410;for(const k of [-1,0,1]){const y=367+k*15;const d="M "+x+" "+y+" C "+(x+43)+" "+(y-30*k)+", "+(x+58)+" "+(y+30*k)+", "+(x+126)+" "+y;line(d,k?"#426b66":"#649c89",2);const signal=line(d,"#a9ffdd",3);signal.setAttribute("stroke-dasharray","12 150");signal.setAttribute("stroke-dashoffset",String(-((t*65+j*49+k*4)%162)))}}
+Array.from(section.children).forEach((c,j)=>{const a=Math.min(1,Math.max(0,(t-j*.17)/.7)),ease=1-(1-a)**3;c.style.opacity=String(ease);c.style.transform="perspective(850px) translateY("+((1-ease)*28+Math.sin(t*1.3+j)*3)+"px) rotateY("+(-7+Math.sin(t*.8+j)*2)+"deg) rotateX(3deg)";});};
+window.configureCards = function(spec) {
+  chapters.splice(0, chapters.length, [spec.title, spec.caption, spec.cards.map(c => [c.title, c.body])]);
+  document.querySelector("header span").textContent = spec.channel;
+  current = -1;
+  window.seekScene(1);
+  for (const card of section.children) {
+    for (const [selector, min] of [["h2", 20], ["p", 16]]) {
+      const el = card.querySelector(selector);
+      el.style.overflowWrap = "anywhere";
+      let size = parseFloat(getComputedStyle(el).fontSize);
+      while (card.scrollHeight > card.clientHeight && size > min) el.style.fontSize = --size + "px";
+    }
+    if (card.scrollHeight > card.clientHeight) throw new Error("Card copy exceeds the available space");
+  }
+};
+window.seekScene(1);
+</script></html>

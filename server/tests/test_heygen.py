@@ -135,3 +135,15 @@ def test_a_retried_job_resumes_instead_of_paying_twice(env):
     assert run_one(db.connect(s.db_path), s, "w")
     assert ("POST", "/v3/videos") not in fake.calls
     assert (s.assets_dir / "avatar" / "clips" / f"{key}.mp4").exists()
+
+def test_cache_only_blocks_confirmation_and_previously_queued_paid_jobs(env):
+    client, s, fake = env
+    client.put("/api/heygen/config", json={"api_key": KEY, "avatar_id": "look1", "voice_id": "v1"})
+    body = {"items": [{"kind": "segment", "script": "An uncached line."}], "confirm": True}
+    queued = client.post("/api/heygen/render", json=body).json()["jobs"][0]["job_id"]
+    s.heygen_cache_only = True
+    assert client.post("/api/heygen/render", json=body).status_code == 409
+    c = db.connect(s.db_path)
+    assert run_one(c, s, "w")
+    assert "cache-only" in c.execute("select error from jobs where id=?", (queued,)).fetchone()[0]
+    assert fake.calls == []

@@ -6,17 +6,9 @@ Site cards are never still images: each is a HyperFrames composition (HTML + GSA
 real site is browsed — a browser bar with the URL, the page scrolling and zooming, a cursor that moves and
 clicks, neon highlight rings with a spotlight, typed form input, and explanation callouts timed to Dan's words.
 
-1. Capture the sites (Claude in Chrome, `zoom` with `scale: 1, save_to_disk: true`, a 16:9 region around the content),
-   scrolling in steps with sticky/fixed elements neutralised. Never capture private dashboards, balances or P&L.
-2. `stitch.py`: stitch the scroll captures into tall pages (`pages/`), from the known scroll offsets.
-3. `cards.py`: one storyboard per card. Times come from HeyGen's captions (see `../cuts.py`), coordinates are page pixels.
-   Building blocks (`build.py` `Comp`): `page`, `show`, `url`, `cam` (scroll / focus+zoom), `ring`, `cursor` (moves, clicks),
-   `typed`, `call` (title + line), `chips`.
-4. `python build.py [seg..] [--draft]` → `out/segNN.mp4` (1400x788, 25 fps).
-   Needs `npm i hyperframes gsap` next to build.py. The Chromium used for rendering is the path hard-coded in
-   `build.py:render` (see Invariants); setting `HYPERFRAMES_BROWSER_PATH` in the shell does not change it.
-5. Copy the MP4s to `WORKDIR/cards/` and set `"video": "segNN.mp4"` on the plan's card segments; `render.py` plays them
-   inside the neon card (frame-accurate to the segment).
+These storyboards are retained to compare existing Episode 1 work with the episode factory.
+They use prepared page images and the original timing data. New captures are managed by the
+episode worker and can be reviewed through the Episode page.
 
 `cards_v2.py` is the Episode 1 v2 storyboard set: one card per group of consecutive scenes, with beats placed on
 Dan's words through `T(off, scene, phrase)`. Select it with `CARDS=cards_v2` (see Interface).
@@ -75,12 +67,6 @@ rendered the same way.
 - `T(off, s, phrase) -> seconds`: time of `phrase` inside scene `s`, proportional to its position in the scene's text.
 - `g06`, `g10`, `g15`, `g21`, `g27`: one card per scene group; `CARDS` dict as in `cards.py`.
 
-### `stitch.py` — scroll-capture stitching
-
-- `build(files, ys, out)`: stack captures at the given vertical offsets into one tall image (width = narrowest capture).
-- `match(a, b) -> (score, dy)`: template-match the vertical offset between two consecutive captures.
-- The rest of the file is module-level code that stitches the Episode 1 captures from `caps/` into `pages/`
-  (`market-home`, `market-list`, `pay-compare`, `jev-control`, `wc`); it runs on import as well as on execution.
 
 ## Invariants
 
@@ -109,8 +95,6 @@ rendered the same way.
   as a subprocess with `cwd=HERE`; writes `out/<cid>.mp4` when called from `__main__` (`build.py:render`).
 - `cards_v2.py`: reads `EP_SCRIPT` and `EP_DURATIONS` JSON files at import time (`json.load(open(...))`); importing
   it with those files missing raises.
-- `stitch.py`: reads `caps/*.png` and writes `pages/*.png` at module level (`cv2.imwrite` in `stitch.build`); it
-  prints each output path, shape and offsets.
 - `../mix.py` reads `comps/<card>/index.html` written here with regular expressions to find tab-change and counter
   cues (`mix.py:comp_times`), so the tween strings emitted by `Comp.navigate` (`tl.to('.blank',{opacity:1,...})`)
   and `Comp.counter` (`textContent='13.5K'`) are part of this directory's output contract.

@@ -12,6 +12,7 @@ const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${Str
 
 /** The Program window: clean output that mirrors the editor, plays the sound, and records itself. */
 export function ProgramView() {
+  const [frameRate, setFrameRate] = useState<30 | 60>(30)
   const [recording, setRecording] = useState(false)
   const [secs, setSecs] = useState(0)
   const [last, setLast] = useState<{ take: Take; url: string; id: string | null; mp4: boolean } | null>(null)
@@ -30,9 +31,21 @@ export function ProgramView() {
     const off = startProgram(() => ({ recording: rec.recording, seconds: rec.seconds, live: live.on }))
     fetch('/api/live/config').then((r) => (r.ok ? r.json() : null)).then(setLiveCfg).catch(() => setLiveCfg(null))
     live.onEnd = (reason) => { setOnAir(false); rec.setTap(null); if (reason) setErr(reason) }
+    rec.onTake = async (take) => {
+      if (live.on) { rec.setTap(null); await live.close(); setOnAir(false) }
+      setRecording(false)
+      if (!take.blob.size) {
+        setErr('The browser encoder returned an empty recording. Start a new take and check the tab capture.')
+        return
+      }
+      const url = URL.createObjectURL(take.blob)
+      setLast({ take, url, id: null, mp4: false })
+      const id = await uploadTake(take)
+      setLast({ take, url, id, mp4: false })
+    }
     const unsub = useStage.subscribe(() => setLinked(true))
     const t = setInterval(() => setSecs(rec.seconds), 500)
-    return () => { off(); unsub(); clearInterval(t) }
+    return () => { rec.onTake = null; off(); unsub(); clearInterval(t) }
   }, [])
 
   // Poll the server until the MP4 is ready.
@@ -51,7 +64,7 @@ export function ProgramView() {
     setErr(null)
     const base = root.current?.querySelector('.base')
     if (!base) return
-    try { await rec.start(base, timeslice, !!liveCfg); setRecording(true) } catch { setErr('Recording needs permission to capture this tab: pick "This tab" and allow audio.') }
+    try { await rec.start(base, timeslice, !!liveCfg, frameRate); setRecording(true) } catch { setErr('Recording needs permission to capture this tab: pick "This tab" and allow audio.') }
   }
   const goLive = async () => {
     setErr(null)
@@ -74,12 +87,8 @@ export function ProgramView() {
   }
   const stop = async () => {
     if (live.on) await endLive()
-    const take = await rec.stop()
-    setRecording(false)
-    const url = URL.createObjectURL(take.blob)
-    setLast({ take, url, id: null, mp4: false })
-    const id = await uploadTake(take)
-    setLast({ take, url, id, mp4: false })
+    await rec.stop()
+
   }
 
   return (
@@ -87,6 +96,10 @@ export function ProgramView() {
       <div className="program-bar">
         <b>Program</b>
         <span className={`dot ${linked ? 'on' : ''}`}>{linked ? 'linked to the editor' : 'waiting for the editor…'}</span>
+        <label>Capture rate <select value={frameRate} disabled={recording}
+          onChange={e => setFrameRate(e.target.value === '60' ? 60 : 30)}>
+          <option value="30">30 fps</option><option value="60">60 fps</option>
+        </select></label>
         {recording
           ? <button className="rec on" onClick={stop}>■ Stop · {fmt(secs)}</button>
           : <button className="rec" onClick={() => start(500)} disabled={!linked}>● Record</button>}

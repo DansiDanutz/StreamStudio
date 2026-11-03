@@ -14,9 +14,12 @@ import { fileToItem } from './stage/Library'
 import { useDirector } from './director/store'
 import { staleServerWarning } from './health'
 import { guardCue, lipsMatch, type Cue } from './director/types'
+import { ChannelsPage } from './channels/ChannelsPage'
+import { EpisodePage } from './episode/EpisodePage'
 
 const RENDER = new URLSearchParams(location.search).get('render') === '1'
 const AUTOPLAY = new URLSearchParams(location.search).get('autoplay') === '1'
+const EPISODE = new URLSearchParams(location.search).get('episode')
 
 /** Output-clean view used by the headless renderer and (later) the live compositor. */
 function RenderView() {
@@ -36,6 +39,8 @@ function RenderView() {
 }
 
 export default function App() {
+  if (new URLSearchParams(location.search).has('channels')) return <ChannelsPage />
+  if (EPISODE) return <EpisodePage id={EPISODE} />
   if (RENDER) return <RenderView />
   if (IS_PROGRAM) return <ProgramView />
   return <Editor />
@@ -137,7 +142,7 @@ function Editor() {
             {bottom === 'scenes' ? <SceneStrip /> : <Timeline />}
           </div>
         </div>
-        <aside className="side">
+        <aside className="side"><a href="?channels">Channels</a>
           <div className="tabs" role="tablist">
             <button role="tab" aria-selected={tab === 'library'} className={tab === 'library' ? 'on' : ''} onClick={() => setTab('library')}>Library</button>
             <button role="tab" aria-selected={tab === 'script'} className={tab === 'script' ? 'on' : ''} onClick={() => setTab('script')}>Script</button>

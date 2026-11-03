@@ -12,7 +12,19 @@ from .. import __version__
 from ..core import db, vault
 from ..core.config import Settings, get_settings
 from ..core.netguard import NetGuardMiddleware
-from .routes import agent, heygen, jobs, live, projects, recordings, scenes, system, youtube
+from .routes import (
+    agent,
+    channels,
+    episodes,
+    heygen,
+    jobs,
+    live,
+    projects,
+    recordings,
+    scenes,
+    system,
+    youtube,
+)
 from .routes import vault as vault_routes
 
 REPO = Path(__file__).resolve().parents[4]
@@ -42,6 +54,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(agent.router)
     app.include_router(vault_routes.router)
     app.include_router(youtube.router)
+    app.include_router(channels.router)
+    app.include_router(episodes.router)
 
     if WEB_DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="web-assets")

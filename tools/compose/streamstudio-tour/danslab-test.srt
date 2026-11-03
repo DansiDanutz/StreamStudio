@@ -1,0 +1,71 @@
+1
+00:00:00,200 --> 00:00:01,320
+Welcome to Dan's Lab.
+
+2
+00:00:01,720 --> 00:00:04,820
+I'm Dan, and this is where we explore artificial
+
+3
+00:00:04,880 --> 00:00:08,540
+intelligence, test new tools, and turn ideas into
+
+4
+00:00:08,560 --> 00:00:09,320
+things that work.
+
+5
+00:00:09,600 --> 00:00:11,600
+Here's how I use Stream Studio.
+
+6
+00:00:11,600 --> 00:00:13,600
+I start with a script.
+
+7
+00:00:13,600 --> 00:00:15,600
+When a line mentions a product QR code,
+
+8
+00:00:15,600 --> 00:00:17,600
+the agent can choose a website card,
+
+9
+00:00:17,600 --> 00:00:19,600
+capture the real page,
+
+10
+00:00:19,600 --> 00:00:21,480
+and focus the camera on the code.
+
+11
+00:00:21,480 --> 00:00:24,480
+Under the hood, the editor is built with React.
+
+12
+00:00:24,480 --> 00:00:27,480
+A Python API saves the scene plan.
+
+13
+00:00:27,480 --> 00:00:30,480
+A worker uses FFmpeg to put the layers together
+
+14
+00:00:30,480 --> 00:00:33,480
+so I can open a preview and see exactly what changed.
+
+15
+00:00:33,520 --> 00:00:36,880
+For DansLab, the advantage is in the second edit.
+
+16
+00:00:36,880 --> 00:00:39,280
+Watch the same card move left.
+
+17
+00:00:39,280 --> 00:00:44,080
+The reveal comes later, but the website capture and my voice stay the same.
+
+18
+00:00:44,080 --> 00:00:48,440
+Another team can pick up that scene and keep working from the same materials.

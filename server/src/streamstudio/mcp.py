@@ -22,8 +22,13 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from .episode.contract import EPISODE_ID, Script
+
 BASE = os.environ.get("STREAMSTUDIO_URL", "http://127.0.0.1:8787").rstrip("/")
 PROTOCOL = "2025-06-18"
+
+SCRIPT_SCHEMA = Script.model_json_schema()
+SCRIPT_DEFINITIONS = SCRIPT_SCHEMA.pop("$defs", {})
 
 TOOLS: list[dict[str, Any]] = [
     {
@@ -162,29 +167,44 @@ TOOLS: list[dict[str, Any]] = [
         "description": "Which YouTube channels are connected (id and title).",
         "inputSchema": {"type": "object", "properties": {}},
     },
+
     {
-        "name": "youtube_upload",
-        "description": (
-            "Upload a finished take to the connected YouTube channel as a PRIVATE video (captions "
-            "are added if the take was transcribed). Agents cannot publish: Dan makes it public "
-            "in YouTube Studio. Returns a job id; the job result has the video and Studio links."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "id": {"type": "string", "description": "recording id (rec_...)"},
-                "title": {"type": "string"},
-                "description": {"type": "string"},
-                "tags": {"type": "array", "items": {"type": "string"}},
-                "channel": {
-                    "type": "string",
-                    "description": "channel id (UC...) from youtube_status; needed when several "
-                    "are connected",
-                },
-            },
-            "required": ["id", "title"],
-        },
+        "name": "episode_create",
+        "description": "Create a draft script. Dan reviews and approves it on the Episode page.",
+        "inputSchema": {"type": "object", "$defs": SCRIPT_DEFINITIONS,
+                        "properties": {"script": SCRIPT_SCHEMA},
+                        "required": ["script"]},
     },
+    {
+        "name": "episode_edit",
+        "description": "Revise a pre-upload episode. Use the script hash from episode_status.",
+        "inputSchema": {"type": "object", "$defs": SCRIPT_DEFINITIONS,
+                        "properties": {"script": SCRIPT_SCHEMA, "expected_hash": {"type": "string"},
+                                       "id": {"type": "string", "pattern": EPISODE_ID.pattern}},
+                        "required": ["id", "script", "expected_hash"]},
+    },
+    {
+        "name": "episode_list",
+        "description": "List episodes and their production status.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "episode_workflows",
+        "description": "Discover supported episode workflows, selection rules and parameters.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    *[
+        {
+            "name": name, "description": description,
+            "inputSchema": {"type": "object", "properties": {
+                "id": {"type": "string", "pattern": EPISODE_ID.pattern}}, "required": ["id"]},
+        }
+        for name, description in (
+            ("episode_status", "Read a saved episode, scene progress, warnings and next action."),
+            ("episode_estimate", "Read projected costs without starting or approving a render."),
+            ("episode_refresh", "Check an uploaded video's status once per five minutes."),
+        )
+    ],
 ]
 
 
@@ -250,16 +270,27 @@ def call(name: str, args: dict[str, Any]) -> Any:
         return _http("GET", f"/api/recordings/{_seg(args['id'])}/transcript")
     if name == "youtube_status":
         return _http("GET", "/api/youtube")
-    if name == "youtube_upload":
-        body = {
-            "title": args["title"],
-            "description": args.get("description", ""),
-            "tags": args.get("tags") or [],
-            "privacy": "private",  # agents never publish
-        }
-        if args.get("channel"):
-            body["channel"] = args["channel"]
-        return _http("POST", f"/api/recordings/{_seg(args['id'])}/youtube", body)
+    if name == "episode_create":
+        return _http("POST", "/api/episodes", args["script"])
+    if name == "episode_edit":
+        if not EPISODE_ID.fullmatch(args["id"]):
+            raise ValueError("invalid episode id")
+        query = urllib.parse.urlencode({"expected_hash": args["expected_hash"]})
+        return _http("PUT", f"/api/episodes/{args['id']}/script?{query}", args["script"])
+    if name == "episode_list":
+        return _http("GET", "/api/episodes")
+    if name == "episode_workflows":
+        return _http("GET", "/api/episodes/workflows")
+    if name in ("episode_status", "episode_estimate", "episode_refresh"):
+        eid = args["id"]
+        if not EPISODE_ID.fullmatch(eid):
+            raise ValueError("invalid episode id")
+        path = f"/api/episodes/{eid}"
+        if name == "episode_estimate":
+            return _http("GET", path + "/cost")
+        if name == "episode_refresh":
+            return _http("POST", path + "/refresh")
+        return _http("GET", path)
     raise ValueError(f"unknown tool {name}")
 
 

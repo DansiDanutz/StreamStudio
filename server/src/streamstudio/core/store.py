@@ -31,12 +31,20 @@ def create_project(conn: sqlite3.Connection, name: str) -> dict[str, Any]:
 
 
 def list_projects(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Projects the editor owns. An episode's project row (no EDL) is excluded."""
     return rows(
         conn.execute(
             "SELECT p.*, (SELECT COUNT(*) FROM assets a WHERE a.project_id = p.id) AS asset_count"
-            " FROM projects p ORDER BY updated_at DESC"
+            " FROM projects p"
+            " WHERE NOT EXISTS (SELECT 1 FROM episodes e WHERE e.project_id = p.id)"
+            " ORDER BY updated_at DESC"
         ).fetchall()
     )
+
+
+def is_episode_project(conn: sqlite3.Connection, pid: str) -> bool:
+    r = conn.execute("SELECT 1 FROM episodes WHERE project_id = ?", (pid,)).fetchone()
+    return r is not None
 
 
 def get_project(conn: sqlite3.Connection, pid: str) -> dict[str, Any] | None:
