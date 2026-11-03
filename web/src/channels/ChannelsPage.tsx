@@ -35,6 +35,9 @@ export function ChannelsPage() {
   const [message, setMessage] = useState('')
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
+  const [captureSite, setCaptureSite] = useState('')
+  const [captureFile, setCaptureFile] = useState<File | null>(null)
+  const [capturePlan, setCapturePlan] = useState('')
   const [role, setRole] = useState('image')
   const [preview, setPreview] = useState<{url: string; cached: boolean} | null>(null)
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url) }, [preview])
@@ -193,6 +196,24 @@ export function ChannelsPage() {
           })
         }}>Remove channel</button>}
     </fieldset>}
+    <fieldset disabled={busy}><legend>Manual website capture</legend>
+      <p>For an allowed manual site, take a screenshot in your signed-in browser. The worker uses the image locally.</p>
+      <Field label="Exact page URL" value={captureSite} change={v => { setCaptureSite(v); setCapturePlan('') }} />
+      <label>Screenshot<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => {
+        setCaptureFile(e.target.files?.[0] ?? null); setCapturePlan('')
+      }} /></label>
+      <button disabled={!captureFile || !captureSite} onClick={() => void run(async () => {
+        const query = new URLSearchParams({url: captureSite})
+        const response = await fetch('/api/episodes/captures/manual?' + query, { method: 'PUT', body: captureFile })
+        const data = await response.json()
+        if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
+        setCapturePlan(JSON.stringify({site: data.site, plan: {website_demo: {
+          focus_label: 'Screenshot detail', manual: data.manual }}}, null, 2))
+      })}>Prepare capture for a scene</button>
+      {capturePlan && <label>Scene fields · focal coordinates range from 0 to 1
+        <textarea rows={10} value={capturePlan} readOnly onFocus={e => e.target.select()} />
+      </label>}
+    </fieldset>
     <fieldset disabled={busy || dirty || !draft}>
       <legend>Create from selected channel</legend>
       <Field label="New channel name" value={name} change={setName} />

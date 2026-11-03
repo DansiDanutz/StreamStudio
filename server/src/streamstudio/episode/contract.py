@@ -24,10 +24,17 @@ class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ManualCapture(Strict):
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    focus_x: float = Field(default=.5, ge=0, le=1)
+    focus_y: float = Field(default=.5, ge=0, le=1)
+
+
 class WebsiteDemo(Strict):
     """website-demo/v1: immutable capture inputs and editable scene direction."""
 
     workflow: Literal["website-demo/v1"] = "website-demo/v1"
+    manual: ManualCapture | None = None
     focus_label: str = Field(min_length=1, max_length=160)
     side: Literal["left", "right"] = "right"
     reveal_at: float = Field(default=0.30, ge=0, lt=1)

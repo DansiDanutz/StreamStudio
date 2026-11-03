@@ -11,11 +11,14 @@ from __future__ import annotations
 import secrets
 import sqlite3
 import time
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from ...core import heygen, netguard, store, youtube
 from ...core.config import Settings
@@ -111,6 +114,34 @@ def workflows():
             {"id": "connected-cards/v1", "choose_when": "Explain three linked steps or components.",
              "requires": ["approved narration", "three cards with titles and explanations"],
              "schema": ConnectedCards.model_json_schema()}]
+
+
+@router.put("/captures/manual", status_code=201)
+async def upload_manual_capture(url: str, request: Request, origin: str | None = Header(None),
+                                s: Settings = Depends(settings)):
+    from PIL import Image
+
+    from ...episode import website_demo
+
+    if not origin or not netguard.origin_allowed(origin, s.extra_hosts):
+        raise HTTPException(403, "submit the capture from the studio")
+    if website_demo.capture_mode(s, url) != "manual":
+        raise HTTPException(422, "this URL is not on a manual capture host")
+    s.sites_dir.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=s.sites_dir) as tmp:
+        source = Path(tmp) / "upload"
+        size = 0
+        with source.open("wb") as stream:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > 25 * 1024 * 1024:
+                    raise HTTPException(413, "manual screenshot exceeds 25 MiB")
+                stream.write(chunk)
+        try:
+            digest = await run_in_threadpool(website_demo.store_manual, s, url, source)
+        except (OSError, Image.DecompressionBombError, ValueError) as exc:
+            raise HTTPException(422, "invalid screenshot") from exc
+    return {"site": url, "manual": {"sha256": digest, "focus_x": .5, "focus_y": .5}}
 
 
 @router.get("/{eid}")

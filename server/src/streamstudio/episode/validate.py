@@ -14,7 +14,7 @@ from pathlib import Path
 from ..core import heygen
 from ..core.config import Settings
 from .contract import Script
-from .website_demo import auto_site
+from .website_demo import capture_mode, manual_folder
 
 #: Scenes shorter or longer than this are flagged (DESIGN rule 1), from Stage 2.
 MIN_S, MAX_S = 3.0, 13.0
@@ -79,9 +79,13 @@ def validate(script: Script, s: Settings) -> dict[str, dict[str, list[str]]]:
             err(sc.id, "connected cards need a card scene with one visual workflow")
         if sc.kind == "card" and not connected and not (sc.site or "").strip():
             err(sc.id, "a card scene needs a site")
-        if (sc.plan and sc.plan.website_demo
-                and (sc.kind != "card" or not auto_site(s, sc.site or ""))):
-            err(sc.id, "website demo needs a card on an auto-allowed HTTPS site")
+        if sc.plan and sc.plan.website_demo:
+            manual = sc.plan.website_demo.manual
+            mode = capture_mode(s, sc.site or "")
+            if sc.kind != "card" or mode != ("manual" if manual else "auto"):
+                err(sc.id, "website demo needs an allowed HTTPS site and matching capture method")
+            elif manual and not (manual_folder(s, sc.site) / (manual.sha256 + ".png")).is_file():
+                err(sc.id, "upload the manual screenshot for this page first")
         if not sc.spoken:
             err(sc.id, "both voice and text are empty")
     return {"errors": errors, "warnings": warnings}

@@ -711,3 +711,37 @@ def test_visual_failure_retries_once_then_uses_degraded_layout(env):
     assert state["qa"] == "degraded" and state["take"] == 1
     assert len(state["rejected_takes"]) == 1 and len(ep["budget"]["retries"]) == 1
     assert ep["budget"]["spent"]["renders"] == 2
+
+
+def test_manual_capture_is_scoped_to_page_and_worker_uses_it_offline(env, tmp_path, monkeypatch):
+    from PIL import Image, ImageDraw
+
+    from streamstudio.core.config import CaptureSite
+    from streamstudio.episode import website_demo
+
+    client, s, _, _ = env
+    s.capture_allowlist = [CaptureSite(host="private.example", mode="manual")]
+    site = "https://private.example/dashboard"
+    endpoint = "/api/episodes/captures/manual"
+    pic = tmp_path / "screen.png"
+    shot = Image.new("RGB", (900, 600), "navy")
+    ImageDraw.Draw(shot).rectangle((620, 140, 840, 320), fill="orange")
+    shot.save(pic)
+    image = pic.read_bytes()
+    assert client.put(endpoint, params={"url": site}, content=image).status_code == 403
+    saved = client.put(endpoint, params={"url": site}, content=image, headers=ORIGIN)
+    assert saved.status_code == 201
+    manual = {**saved.json()["manual"], "focus_x": .8, "focus_y": .4}
+    scene = Scene.model_validate({"id": "s1", "kind": "card", "text": "Inspect the new report.",
+                                  "site": site, "plan": {"website_demo": {
+                                      "focus_label": "Report", "manual": manual}}})
+    import playwright.sync_api as pw
+    monkeypatch.setattr(pw, "sync_playwright", lambda: pytest.fail("unexpected browser"))
+    invalid = {**scene.model_dump(), "site": site + "/other"}
+    assert client.post("/api/episodes", json=small_script(scenes=[invalid])).status_code == 422
+    eid = client.post("/api/episodes", json=small_script(scenes=[scene.model_dump()])).json()["id"]
+    approve(client, eid)
+    jobs = drain(s)
+    assert all(j["status"] == "done" for j in jobs), [(j["kind"], j["error"]) for j in jobs]
+    assert client.get(f"/api/episodes/{eid}").json()["status"] == "ready"
+    assert website_demo.asset_path(record.episode_dir(s, eid), scene).is_file()
