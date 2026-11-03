@@ -508,3 +508,20 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env):
     response = client.get(preview)
     assert response.headers["content-type"] == "video/mp4" and b"ftyp" in response.content[:32]
     assert tube.inits == 0
+
+    original = client.get(f"/api/episodes/{eid}").json()["outputs"]["recording_id"]
+    scene.plan.website_demo.side = "left"
+    scene.plan.website_demo.reveal_at = .55
+    body = small_script(scenes=[scene.model_dump()])
+    edited = client.put(f"/api/episodes/{eid}/script", json=body)
+    assert edited.status_code == 200 and edited.json()["status"] == "draft"
+    assert client.get(preview).status_code == 404
+    approve(client, eid)
+    second_run = drain(s)
+    revised = client.get(f"/api/episodes/{eid}").json()
+    assert revised["status"] == "ready"
+    assert revised["outputs"]["recording_id"] != original
+    assert (s.recordings_dir / f"{original}.mp4").exists()
+    assert client.get(preview).content != response.content
+    assert {j["kind"] for j in second_run}.isdisjoint({"heygen_clip", "scene_qa", "youtube_upload"})
+    assert asset_path(record.episode_dir(s, eid), scene) == card

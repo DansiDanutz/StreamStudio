@@ -510,6 +510,11 @@ def test_agent_episode_workflow_preserves_browser_approval(env, monkeypatch):
     assert mcp.call("episode_workflows", {})[0]["id"] == "website-demo/v1"
     ep = mcp.call("episode_create", {"script": small_script()})
     args = {"id": ep["id"]}
+    rev = {**args, "expected_hash": ep["script"]["hash"], "script": small_script(title="Edited")}
+    assert mcp.call("episode_edit", rev)["title"] == "Edited"
+    stale = client.put(f"/api/episodes/{ep['id']}/script",
+                       params={"expected_hash": rev["expected_hash"]}, json=small_script())
+    assert stale.status_code == 409
     assert mcp.call("episode_status", args)["status"] == "draft"
     assert mcp.call("episode_list", {})[0]["id"] == ep["id"]
     assert "confirm_token" not in mcp.call("episode_estimate", args)

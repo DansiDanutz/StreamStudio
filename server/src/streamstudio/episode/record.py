@@ -35,7 +35,7 @@ STATES = (
     "cancelled",
 )
 #: Editing the script is allowed before the upload only.
-EDITABLE = ("draft", "script_approved", "budget_approved", "in_progress", "needs_dan")
+EDITABLE = ("draft", "script_approved", "budget_approved", "in_progress", "needs_dan", "ready")
 #: The planner's working states.
 WORKING = ("budget_approved", "in_progress")
 

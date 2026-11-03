@@ -63,7 +63,7 @@ def test_mcp_speaks_json_rpc_and_never_renders(monkeypatch):
         "library_list", "library_get", "library_name", "vault_status", "vault_backup",
         "vault_fetch", "studio_state", "studio_guide", "studio_timeline", "studio_do",
         "heygen_estimate", "recording_transcribe", "recording_transcript", "youtube_status",
-        "episode_create", "episode_list", "episode_workflows", "episode_status",
+        "episode_create", "episode_edit", "episode_list", "episode_workflows", "episode_status",
         "episode_estimate", "episode_refresh",
     ]  # fmt: skip
     do = {"name": "studio_do", "arguments": {"action": "point.at", "args": {"target": "main"}}}

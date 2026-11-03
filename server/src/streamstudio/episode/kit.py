@@ -153,7 +153,8 @@ def build_kit(
 
 
 def register(
-    s: Settings, episode_id: str, final_mp4: Path, final_srt: Path, kit: dict[str, Any]
+    s: Settings, episode_id: str, final_mp4: Path, final_srt: Path, kit: dict[str, Any],
+    *, revision: int = 0,
 ) -> dict[str, str]:
     """Move the final video into the recordings library as a take named `rec_<stamp>-ep`, with
     its captions, a minimal transcript file naming the language, and the episode sidecar."""
@@ -171,6 +172,7 @@ def register(
         json.dumps(
             {
                 "episode": episode_id,
+                "revision": revision,
                 "title": kit.get("title"),
                 "registered_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             }
@@ -179,12 +181,13 @@ def register(
     return {"recording_id": rid, "mp4": str(d / f"{rid}.mp4"), "srt": str(d / f"{rid}.srt")}
 
 
-def registered_recording(s: Settings, episode_id: str) -> str | None:
+def registered_recording(s: Settings, episode_id: str, revision: int = 0) -> str | None:
     """The recording id an episode was registered under, found from the sidecar files."""
     best = None
     for p in sorted(s.recordings_dir.glob("rec_*-ep.episode.json")):
         try:
-            if json.loads(p.read_text()).get("episode") == episode_id:
+            sidecar = json.loads(p.read_text())
+            if sidecar.get("episode") == episode_id and sidecar.get("revision", 0) == revision:
                 best = p.name[: -len(".episode.json")]
         except (json.JSONDecodeError, OSError):
             continue

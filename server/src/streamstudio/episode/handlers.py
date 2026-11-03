@@ -166,7 +166,7 @@ def episode_register(ctx: JobContext) -> dict[str, Any]:
     ep = record.load(ctx.conn, p["episode_id"])
     if ep is None:
         raise ValueError("episode no longer exists")
-    existing = kit.registered_recording(s, ep.id)
+    existing = kit.registered_recording(s, ep.id, ep.record.get("revision", 0))
     d = record.episode_dir(s, ep.id)
     if existing and (s.recordings_dir / f"{existing}.mp4").exists():
         _enqueue_planner(ctx, ep.id)
@@ -175,7 +175,8 @@ def episode_register(ctx: JobContext) -> dict[str, Any]:
     if not final.exists():
         raise ValueError("final.mp4 is missing")
     k = json.loads((d / "kit.json").read_text())
-    result = kit.register(s, ep.id, final, d / "final.srt", k)
+    revision = ep.record.get("revision", 0)
+    result = kit.register(s, ep.id, final, d / "final.srt", k, revision=revision)
     _enqueue_planner(ctx, ep.id)
     return result
 

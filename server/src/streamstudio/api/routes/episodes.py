@@ -102,7 +102,8 @@ def get_episode(eid: str, s: Settings = Depends(settings), c: sqlite3.Connection
 
 @router.put("/{eid}/script")
 def put_script(
-    eid: str, body: Script, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)
+    eid: str, body: Script, expected_hash: str | None = None,
+    s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn),
 ):
     """Replace the script; the episode returns to `draft`. Outputs downstream of the scenes go
     stale when the hash changes. Refused once the upload is live or done."""
@@ -116,20 +117,36 @@ def put_script(
             or _live(c, outputs.get("upload_job_id"))
         ):
             raise HTTPException(409, f"the script cannot change while the episode is {ep.status}")
+        previous_scenes = {sc.id: sc for sc in ep.script.scenes}
         old_hash = ep.record["script"].get("hash")
+        if expected_hash is not None and expected_hash != old_hash:
+            raise HTTPException(409, "the script changed; reload it before editing")
         new_hash = record.script_hash(body)
         ep.record["script"] = {**body.model_dump(exclude_none=True), "hash": new_hash}
         ep.title = body.title
         if new_hash != old_hash:
+            # These jobs write shared scene/final paths. Let them finish before invalidation.
+            active_outputs = [outputs.get(field) for field in
+                              ("assemble_job_id", "kit_job_id", "register_job_id")]
+            active_outputs.extend(st.get("compose_job_id")
+                                  for st in ep.record["scenes_state"].values())
+            if any(_live(c, jid) for jid in active_outputs):
+                raise HTTPException(409, "the current scene or Library render is finishing")
+            ep.record["revision"] = ep.record.get("revision", 0) + 1
             d = record.episode_dir(s, ep.id)
             for name in ("final.mp4", "final.srt", "kit.json", "final.cues.json"):
                 (d / name).unlink(missing_ok=True)
             for key in ("recording_id", "final_mp4", "final_srt", "kit"):
                 ep.record["outputs"].pop(key, None)
             states = ep.record["scenes_state"]
+            render_script = ep.render_script()
             for sc in body.scenes:
                 st = states.setdefault(sc.id, {"take": 0})
-                st["clip_key"] = record.scene_key(s, sc, ep.render_script(), st.get("take", 0))
+                key = record.scene_key(s, sc, render_script, st.get("take", 0))
+                if st.get("clip_key") != key or previous_scenes.get(sc.id) != sc:
+                    (d / "scenes" / f"{sc.id}.hash").unlink(missing_ok=True)
+                    st["composed_hash"] = None
+                st["clip_key"] = key
             record.log(ep, "script", "script edited; downstream outputs will be rebuilt")
         record.set_status(ep, "draft")
         record.save(c, ep)
@@ -431,7 +448,7 @@ def scene_preview(eid: str, sid: str, s: Settings = Depends(settings),
     if not SCENE_ID.fullmatch(sid) or not any(sc.id == sid for sc in ep.script.scenes):
         raise HTTPException(404, "scene not found")
     path = record.episode_dir(s, eid) / "scenes" / f"{sid}.mp4"
-    if not path.is_file():
+    if not path.is_file() or not path.with_suffix(".hash").is_file():
         raise HTTPException(404, "scene preview is not ready")
     return FileResponse(path, media_type="video/mp4", headers={"Cache-Control": "no-store"})
 

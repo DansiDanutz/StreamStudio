@@ -176,6 +176,14 @@ TOOLS: list[dict[str, Any]] = [
                         "required": ["script"]},
     },
     {
+        "name": "episode_edit",
+        "description": "Revise a pre-upload episode. Use the script hash from episode_status.",
+        "inputSchema": {"type": "object", "$defs": SCRIPT_DEFINITIONS,
+                        "properties": {"script": SCRIPT_SCHEMA, "expected_hash": {"type": "string"},
+                                       "id": {"type": "string", "pattern": EPISODE_ID.pattern}},
+                        "required": ["id", "script", "expected_hash"]},
+    },
+    {
         "name": "episode_list",
         "description": "List episodes and their production status.",
         "inputSchema": {"type": "object", "properties": {}},
@@ -264,6 +272,11 @@ def call(name: str, args: dict[str, Any]) -> Any:
         return _http("GET", "/api/youtube")
     if name == "episode_create":
         return _http("POST", "/api/episodes", args["script"])
+    if name == "episode_edit":
+        if not EPISODE_ID.fullmatch(args["id"]):
+            raise ValueError("invalid episode id")
+        query = urllib.parse.urlencode({"expected_hash": args["expected_hash"]})
+        return _http("PUT", f"/api/episodes/{args['id']}/script?{query}", args["script"])
     if name == "episode_list":
         return _http("GET", "/api/episodes")
     if name == "episode_workflows":

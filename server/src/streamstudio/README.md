@@ -14,7 +14,7 @@ in `server/pyproject.toml`: `streamstudio-api`, `streamstudio-worker`,
 
 - `__init__.__version__ = "0.1.0"`
 - `mcp.BASE` (from `STREAMSTUDIO_URL`, default `http://127.0.0.1:8787`), `mcp.PROTOCOL = "2025-06-18"`
-- `mcp.TOOLS` — tool list served to agents: `library_list`, `library_get`, `library_name`, `vault_status`, `vault_backup`, `vault_fetch`, `studio_state`, `studio_guide`, `studio_timeline`, `studio_do`, `heygen_estimate`, `recording_transcribe`, `recording_transcript`, `youtube_status`, `episode_create`, `episode_list`, `episode_workflows`, `episode_status`, `episode_estimate`, `episode_refresh`
+- `mcp.TOOLS` — tool list served to agents: `library_list`, `library_get`, `library_name`, `vault_status`, `vault_backup`, `vault_fetch`, `studio_state`, `studio_guide`, `studio_timeline`, `studio_do`, `heygen_estimate`, `recording_transcribe`, `recording_transcript`, `youtube_status`, `episode_create`, `episode_edit`, `episode_list`, `episode_workflows`, `episode_status`, `episode_estimate`, `episode_refresh`
 - `mcp.call(name, args)` — maps a tool to one HTTP call on the API; `mcp.handle(msg)` — JSON-RPC dispatch (`initialize`, `tools/list`, `tools/call`, `ping`); `mcp.main()` — stdio loop
 - `mcp._http(method, path, body=None)`, `mcp._seg(value)`
 - Subdirectories:

@@ -219,7 +219,8 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
     # ---- rows 7 to 9: assemble, kit, register
     final = d / "final.mp4"
     kit_json = d / "kit.json"
-    rid = out.get("recording_id") or kit.registered_recording(s, ep.id)
+    revision = ep.record.get("revision", 0)
+    rid = out.get("recording_id") or kit.registered_recording(s, ep.id, revision)
     if rid and not out.get("recording_id"):
         out["recording_id"] = rid
         out["final_mp4"] = str(s.recordings_dir / f"{rid}.mp4")
