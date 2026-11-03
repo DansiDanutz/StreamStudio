@@ -22,7 +22,8 @@ from .profiles import Sound
 
 SR = 48000
 LEVELS = {"intro": -18, "voice": -16, "bed": -36, "sfx": -26}
-FINAL = "loudnorm=I=-14:TP=-1.5:LRA=11"
+# Leave headroom for intersample peaks introduced by the final AAC encode.
+FINAL = "loudnorm=I=-14:TP=-2.5:LRA=11"
 
 #: Cue kind → (sound file stem, offset in seconds, gain dB). Offsets are relative to the moment
 #: the plan names (a scene start for `question` and `reveal`, a fraction for the others).
