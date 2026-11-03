@@ -71,5 +71,7 @@ def convert() -> dict:
 
 if __name__ == "__main__":
     out = convert()
-    (FIX / "script.json").write_text(json.dumps(out, indent=1, ensure_ascii=False) + "\n")
+    (FIX / "script.json").write_text(
+        json.dumps(out, indent=1, ensure_ascii=False) + "\n", encoding="utf8"
+    )
     print(FIX / "script.json", len(out["scenes"]), "scenes")
