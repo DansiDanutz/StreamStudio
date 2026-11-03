@@ -27,6 +27,7 @@ def main():
     for key in ("narration", "original", "revised", "output"):
         parser.add_argument(key, type=Path)
     parser.add_argument("--browser", type=Path)
+    parser.add_argument("--captions", type=Path, help="Timed SRT matching the supplied voice takes")
     args = parser.parse_args()
     here = Path(__file__).resolve().parent
     root = here.parents[2]
@@ -82,8 +83,13 @@ def main():
         browser.close()
         listing = d/"list.txt"
         listing.write_text("".join(f"file '{i}.mp4'\n" for i in range(len(chapters)+1)))
-        encode("-f", "concat", "-safe", "0", "-i", listing, "-c", "copy",
-               "-movflags", "+faststart", args.output)
+        inputs = ["-f", "concat", "-safe", "0", "-i", listing]
+        streams = ["-c", "copy"]
+        if args.captions:
+            inputs += ["-i", args.captions]
+            streams += ["-map", "0:v", "-map", "0:a", "-map", "1:s", "-c:s", "mov_text",
+                        "-metadata:s:s:0", "language=eng"]
+        encode(*inputs, *streams, "-movflags", "+faststart", args.output)
 
 
 if __name__ == "__main__":
