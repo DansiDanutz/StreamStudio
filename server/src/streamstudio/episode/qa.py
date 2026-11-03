@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from statistics import median
 from tempfile import TemporaryDirectory
 
 from ..core.config import Settings
@@ -94,6 +95,33 @@ def check_clip(path: Path, s: Settings, sheet: Path) -> dict:
             "frames": count, "face_found": len(faces)/count,
             "face": np.median(faces, axis=0).tolist() if faces else None,
             "lip_ratio": talking/quiet if quiet else None}
+
+
+def cohort_reference(reports: list[dict]) -> dict:
+    """Freeze the first complete set of measurements so a replacement take has a baseline."""
+    faces = [r["face"] for r in reports if r.get("face")]
+    ratios = [r["lip_ratio"] for r in reports if r.get("lip_ratio") is not None]
+    return {"face": [median(axis) for axis in zip(*faces, strict=True)] if faces else None,
+            "lip_ratio": median(ratios) if ratios else None}
+
+
+def compare(report: dict, reference: dict) -> tuple[str, list[str]]:
+    """Apply the hand-run QA thresholds without mutating cached source measurements."""
+    verdict = report["status"]
+    issues = list(report["issues"])
+    face, base = report.get("face"), reference.get("face")
+    if face and base and base[2] > 0:
+        shift = abs(face[0] + face[2]/2 - base[0] - base[2]/2) / base[2]
+        scale = abs(face[2]/base[2] - 1)
+        if shift > .15 or scale > .12:
+            issues.append(f"presenter framing differs: shift {shift:.0%}, size {scale:.0%}")
+            verdict = "FAIL"
+    ratio, baseline = report.get("lip_ratio"), reference.get("lip_ratio")
+    if ratio is not None and baseline and ratio < .7 * baseline:
+        issues.append(f"inspect lip motion against other scenes ({ratio:.2f} vs {baseline:.2f})")
+        if verdict == "ok":
+            verdict = "LOOK"
+    return verdict, issues
 
 
 def inspect(folder: Path, key: str, clip: Path, s: Settings) -> dict:

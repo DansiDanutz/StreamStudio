@@ -20,7 +20,7 @@ from typing import Any
 from ..core import heygen, store, youtube
 from ..core.config import Settings
 from ..core.db import tx
-from . import kit, ledger, record
+from . import kit, ledger, qa, record
 from .contract import Scene, Script
 
 LIVE = ("queued", "running")
@@ -163,30 +163,33 @@ def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str
     if ep.status == "budget_approved":
         record.set_status(ep, "in_progress")
 
-    qa_pending = False
+    reports = {}
     for sc in script.scenes:
         st = states[sc.id]
         key = st["clip_key"]
         report_path = d / "qa" / sc.id / f"{key}.json"
         if report_path.exists():
-            report = json.loads(report_path.read_text())
-            st["qa_issues"] = report["issues"]
-            verdict = report["status"]
-            if verdict == "FAIL":
-                if st.get("qa_key") != key or st.get("qa") != "degraded":
-                    record.log(ep, "qa", "using the small presenter layout", scene=sc.id)
-                verdict = "degraded"
-            st.update(qa=verdict, qa_key=key)
+            reports[sc.id] = json.loads(report_path.read_text())
             continue
         st.pop("qa", None)
         st.pop("qa_issues", None)
-        qa_pending = True
         if not _live(conn, st.get("qa_job_id")):
             st["qa_job_id"] = _enqueue(conn, ep, "scene_qa", {"scene_id": sc.id, "key": key})
             st["qa_job_id_seen_error"] = False
             done["enqueued"].append(("scene_qa", sc.id))
-    if qa_pending:
+    if len(reports) != len(script.scenes):
         return {**done, "waiting": "qa"}
+
+    if ep.record.get("reference") is None:
+        ep.record["reference"] = qa.cohort_reference(list(reports.values()))
+    for sid, report in reports.items():
+        st = states[sid]
+        verdict, st["qa_issues"] = qa.compare(report, ep.record["reference"])
+        if verdict == "FAIL":
+            if st.get("qa_key") != st["clip_key"] or st.get("qa") != "degraded":
+                record.log(ep, "qa", "using the small presenter layout", scene=sid)
+            verdict = "degraded"
+        st.update(qa=verdict, qa_key=st["clip_key"])
 
     # ---- row 6: compose scenes whose inputs changed
     composed_ready = True
