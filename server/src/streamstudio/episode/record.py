@@ -55,6 +55,17 @@ class Episode:
         raw = {k: v for k, v in self.record["script"].items() if k != "hash"}
         return Script.model_validate(raw)
 
+    def render_script(self) -> Script:
+        """Apply the presenter defaults captured at approval to the writer's script."""
+        script = self.script
+        pin = self.record.get("presenter_defaults")
+        if pin is None:
+            return script
+        return script.model_copy(update={
+            "look": script.look or pin["avatar_id"],
+            "voice_id": script.voice_id or pin["voice_id"],
+        })
+
     def scene_state(self, scene_id: str) -> dict[str, Any]:
         return self.record["scenes_state"].setdefault(scene_id, {"take": 0})
 
@@ -265,7 +276,7 @@ NEXT_ACTION = {
 
 
 def progress(s: Settings, episode: Episode) -> dict[str, int]:
-    script = episode.script
+    script = episode.render_script()
     clips = qa = composed = 0
     d = episode_dir(s, episode.id)
     for sc in script.scenes:

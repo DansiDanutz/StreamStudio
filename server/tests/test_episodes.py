@@ -519,3 +519,26 @@ def test_agent_episode_workflow_preserves_browser_approval(env, monkeypatch):
     assert "confirm_token" not in mcp.call("episode_estimate", args)
     response = client.post(base + "/approve-budget", json={"confirm_token": token}, headers=ORIGIN)
     assert response.status_code == 200, response.text
+
+def test_approval_keeps_dans_presenter_when_global_voice_changes(env):
+    client, s, _, _ = env
+    eid = client.post("/api/episodes", json=small_script()).json()["id"]
+    base = f"/api/episodes/{eid}"
+    approval = client.post(base + "/approve-script").json()
+    assert approval["presenter_defaults"] == {"avatar_id": "look1", "voice_id": "v1"}
+    before = client.get(base + "/cost").json()["lines"]
+    client.put("/api/heygen/config", json={"api_key": KEY, "avatar_id": "other", "voice_id": "v2"})
+    assert client.get(base + "/cost").json()["lines"] == before
+    client.put(base + "/script", json=small_script(title="New title"))
+    assert client.post(base + "/approve-script").json()["presenter_defaults"] == approval[
+        "presenter_defaults"
+    ]
+    est = client.get(base + "/estimate").json()
+    body = {"confirm_token": est["confirm_token"]}
+    assert client.post(base + "/approve-budget", json=body, headers=ORIGIN).status_code == 200
+    c = connection(s)
+    from streamstudio.episode import planner
+    planner.advance(c, s, eid)
+    jobs = [job for job in store.list_jobs(c) if job["kind"] == "heygen_clip"]
+    assert jobs and all(j["payload"]["voice"] == "v1" and j["payload"]["look"] == "look1"
+                        for j in jobs)

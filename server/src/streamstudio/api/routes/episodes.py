@@ -129,7 +129,7 @@ def put_script(
             states = ep.record["scenes_state"]
             for sc in body.scenes:
                 st = states.setdefault(sc.id, {"take": 0})
-                st["clip_key"] = record.scene_key(s, sc, body, st.get("take", 0))
+                st["clip_key"] = record.scene_key(s, sc, ep.render_script(), st.get("take", 0))
             record.log(ep, "script", "script edited; downstream outputs will be rebuilt")
         record.set_status(ep, "draft")
         record.save(c, ep)
@@ -147,6 +147,15 @@ def approve_script(
         v = validate.validate(ep.script, s)
         if v["errors"]:
             raise HTTPException(422, {"errors": v["errors"]})
+        if ep.record.get("presenter_defaults") is None:
+            cfg = heygen.load_config(s.data_dir)
+            ep.record["presenter_defaults"] = {
+                "avatar_id": cfg["avatar_id"] or ep.script.look,
+                "voice_id": cfg["voice_id"] or ep.script.voice_id,
+            }
+        resolved = ep.render_script()
+        if not resolved.look or not resolved.voice_id:
+            raise HTTPException(409, "choose the presenter and voice before approving the script")
         record.set_status(ep, "script_approved", "script approved")
         record.save(c, ep)
     return record.to_out(s, ep, v)
@@ -158,7 +167,7 @@ def approve_script(
 def _lines(s: Settings, c: sqlite3.Connection, ep: record.Episode) -> list[dict[str, Any]]:
     """One estimate line per distinct (clip key, take) that still costs money: every live render
     job under its own key, plus every scene with no clip and no live job for its current key."""
-    script = ep.script
+    script = ep.render_script()
     lines: list[dict[str, Any]] = []
     seen: set[str] = set()
     for sc in script.scenes:
@@ -434,7 +443,7 @@ def scene_qa_sheet(eid: str, sid: str, s: Settings = Depends(settings),
     if scene is None or not SCENE_ID.fullmatch(sid):
         raise HTTPException(404, "scene not found")
     st = ep.record["scenes_state"].get(sid, {})
-    key = record.scene_key(s, scene, ep.script, int(st.get("take", 0)))
+    key = record.scene_key(s, scene, ep.render_script(), int(st.get("take", 0)))
     sheet = record.episode_dir(s, eid) / "qa" / sid / f"{key}.jpg"
     if not sheet.is_file():
         raise HTTPException(404, "review sheet is not ready for this take")

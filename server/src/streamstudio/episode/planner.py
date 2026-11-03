@@ -71,7 +71,7 @@ def advance(conn: sqlite3.Connection, s: Settings, episode_id: str) -> dict[str,
 
 
 def _pass(conn: sqlite3.Connection, s: Settings, ep: record.Episode) -> dict[str, Any]:
-    script = ep.script
+    script = ep.render_script()
     d = record.episode_dir(s, ep.id)
     out = ep.record["outputs"]
     states = ep.record["scenes_state"]

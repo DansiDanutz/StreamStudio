@@ -48,7 +48,7 @@ def scene_qa(ctx: JobContext) -> dict[str, Any]:
     scene = next(sc for sc in ep.script.scenes if sc.id == p["scene_id"])
     key = p["key"]
     clip, _ = record.clip_paths(s, key)
-    first_key = record.scene_key(s, scene, ep.script, 0)
+    first_key = record.scene_key(s, scene, ep.render_script(), 0)
     report = qa.inspect(record.episode_dir(s, ep.id) / "qa" / scene.id, key, clip, s,
                         scene.spoken, first_key)
     _enqueue_planner(ctx, ep.id)
@@ -65,7 +65,7 @@ def scene_compose(ctx: JobContext) -> dict[str, Any]:
     ep = record.load(ctx.conn, p["episode_id"])
     if ep is None:
         raise ValueError("episode no longer exists")
-    script = ep.script
+    script = ep.render_script()
     scene = next(sc for sc in script.scenes if sc.id == p["scene_id"])
     st = ep.record["scenes_state"].get(scene.id, {})
     key = st.get("clip_key") or record.scene_key(s, scene, script, int(st.get("take", 0)))
@@ -103,7 +103,7 @@ def episode_assemble(ctx: JobContext) -> dict[str, Any]:
     ep = record.load(ctx.conn, p["episode_id"])
     if ep is None:
         raise ValueError("episode no longer exists")
-    script = ep.script
+    script = ep.render_script()
     d = record.episode_dir(s, ep.id)
     final = d / "final.mp4"
     if final.exists():
