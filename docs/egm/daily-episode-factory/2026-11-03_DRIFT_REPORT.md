@@ -5,12 +5,12 @@
 
 ### Website storyboard acceptance
 
-Comparing the approved offline Episode 1 scene plans against the authored `tools/compose/motion/cards_v2.py` reveals three source mismatches before final composition. These are release checks for the factory renderer.
+The Episode 1 fixture now includes the following storyboard directions. Frame indices start at zero at 25 fps.
 
-| Scene | Authored behavior | Current offline scene |
+| Scene | Direction | Individual preview evidence |
 | --- | --- | --- |
-| s6 | Hold Fake-Real, switch to Nervix Space at 1.05 seconds, then introduce the network. | The plan selects only Fake-Real. |
-| s28 | Open the Nervix Space home page, then show the NervixPay listing when Dan says “Every project”. | The plan selects the submission form at /list. |
-| s29 | Open the directory at /#explore and focus each named project as Dan lists it. | The plan still selects /list. |
+| s6 | Hold Fake-Real, then introduce Nervix Space. | Frames 26 and 27 match the two captures on either side of the 1.05-second cue. |
+| s28 | Show membership pricing, then open the NervixPay listing. | Dan begins “Every project” at 2.34 seconds. Frames 73 and 74 match the pricing page and listing after the authored 0.6-second delay. |
+| s29 | Focus each founding project as Dan names it. | The live directory anchor is /#directory. Frames 63, 109, 139 and 205 begin the four outlines. The preview audio stream matches the original take. |
 
-Acceptance requires a rendered preview for each scene showing the page and focus changes at the scripted beats. Page changes should reuse separately prepared captures so an editor can retime a beat without recapturing the site.
+Retiming s28 to 3.50 seconds produced a new sequence with browser capture disabled and preserved all capture files. The fixture retains the 2.94-second switch. Full-episode acceptance still requires inspecting these changes in the assembled output, including callouts and transitions to adjacent shots.
