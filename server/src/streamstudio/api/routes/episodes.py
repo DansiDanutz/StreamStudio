@@ -219,6 +219,32 @@ def put_script(
     return record.to_out(s, ep, v)
 
 
+class WriterFeedback(BaseModel):
+    note: str = Field(min_length=1, max_length=2000)
+    expected_hash: str = Field(min_length=1, max_length=128)
+
+
+@router.post("/{eid}/writer-feedback")
+def writer_feedback(eid: str, body: WriterFeedback, origin: str | None = Header(default=None),
+                    s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)):
+    if not origin or not netguard.origin_allowed(origin, s.extra_hosts):
+        raise HTTPException(403, "send feedback from the Episode page")
+    note = body.note.strip()
+    if not note:
+        raise HTTPException(422, "write a note for the script writer")
+    with tx(c):
+        ep = _episode(c, eid)
+        if ep.status not in ("draft", "script_approved"):
+            raise HTTPException(409, "feedback is available before budget approval")
+        if ep.record["script"]["hash"] != body.expected_hash:
+            raise HTTPException(409, "the script changed; review it before sending feedback")
+        ep.record["budget"].update(confirm_token=None, token_expires_at=None)
+        record.set_status(ep, "draft")
+        record.log(ep, "writer_feedback", note)
+        record.save(c, ep)
+    return _out(s, ep)
+
+
 class RepinIn(BaseModel):
     profile: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{0,47}$")
 

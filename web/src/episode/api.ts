@@ -73,6 +73,8 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 export const getEpisode = (id: string) => call<Episode>('GET', `/${id}`)
 export const listEpisodes = () => call<{ id: string; title: string; status: EpisodeStatus; scenes: number }[]>('GET', '')
 export const createEpisode = (script: Episode['script']) => call<Episode>('POST', '', script)
+export const sendWriterFeedback = (id: string, note: string, expectedHash: string) =>
+  call<Episode>('POST', `/${id}/writer-feedback`, {note, expected_hash: expectedHash})
 export const repin = (id: string) => call<Episode>('POST', `/${id}/repin`, {})
 export function putScript(id: string, script: Episode['script']) {
   const { hash, ...body } = script

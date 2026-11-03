@@ -743,3 +743,24 @@ def test_intro_font_upload_is_validated_and_pinned(env):
     pin = client.post(f"/api/episodes/{eid}/approve-script").json()["profile"]
     assert pin["profile"]["intro"]["fonts"]["serif"] == digest
     assert client.get(f"/api/channels/files/{digest}").headers["content-type"] == "font/woff2"
+
+
+def test_writer_feedback_returns_to_draft_before_spending(env):
+    client, s, _, _ = env
+    ep = client.post("/api/episodes", json=small_script()).json()
+    base = "/api/episodes/" + ep["id"]
+    client.post(base + "/approve-script")
+    token = client.get(base + "/estimate").json()["confirm_token"]
+    note = {"note": "Show the capture before the reveal.", "expected_hash": ep["script"]["hash"]}
+    url = base + "/writer-feedback"
+    assert client.post(url, json=note).status_code == 403
+    stale = {**note, "expected_hash": "stale"}
+    assert client.post(url, json=stale, headers=ORIGIN).status_code == 409
+    r = client.post(url, json=note, headers=ORIGIN)
+    assert r.status_code == 200 and r.json()["status"] == "draft"
+    entry = client.get(base).json()["log"][-1]
+    assert entry["stage"] == "writer_feedback" and entry["message"] == note["note"]
+    client.post(base + "/approve-script")
+    assert client.post(base + "/approve-budget", json={"confirm_token": token},
+                       headers=ORIGIN).status_code == 409
+    assert store.list_jobs(connection(s)) == []

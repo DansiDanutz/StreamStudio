@@ -12,6 +12,7 @@ const POLL_MS = 5_000
 const BUSY: api.EpisodeStatus[] = ['budget_approved', 'in_progress']
 
 export function EpisodePage({ id }: { id: string }) {
+  const [writerNote, setWriterNote] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [ep, setEp] = useState<Episode | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -32,8 +33,7 @@ export function EpisodePage({ id }: { id: string }) {
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true)
-    try { await fn(); setError(null) } catch (e) { setError(String((e as Error).message)) } finally { setBusy(false) }
-    await load()
+    try { await fn(); await load() } catch (e) { setError(String((e as Error).message)) } finally { setBusy(false) }
   }
 
   if (error && !ep) return <div className="episode"><p className="episode-error">{error}</p></div>
@@ -85,6 +85,15 @@ export function EpisodePage({ id }: { id: string }) {
         </div>
       </header>
 
+      {(ep.status === 'draft' || ep.status === 'script_approved') && ep.script.hash &&
+        <details><summary>Send back to writer</summary>
+          <label>Revision request<textarea maxLength={2000} value={writerNote}
+            onChange={e => setWriterNote(e.target.value)} /></label>
+          <button disabled={busy || !writerNote.trim()} onClick={() => run(async () => {
+            await api.sendWriterFeedback(ep.id, writerNote.trim(), ep.script.hash!)
+            setWriterNote(''); setEst(null)
+          })}>Send revision request</button>
+        </details>}
       {ep.profile && (ep.profile_latest_version ?? 0) > ep.profile.version &&
         ['draft', 'script_approved', 'budget_approved', 'in_progress', 'ready', 'needs_dan'].includes(ep.status) &&
         <section><p>Profile changed since approval. Version {ep.profile.version} is pinned.
