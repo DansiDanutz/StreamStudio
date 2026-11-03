@@ -8,6 +8,7 @@ unsourced numbers, names spelled for the screen, long runs of plain avatar scene
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from ..core import heygen
@@ -39,8 +40,37 @@ def validate(script: Script, s: Settings) -> dict[str, dict[str, list[str]]]:
     def err(sid: str, msg: str) -> None:
         errors.setdefault(sid, []).append(msg)
 
+    def warn(sid: str, message: str) -> None:
+        warnings.setdefault(sid, []).append(message)
+
+    if not any(sc.question for sc in script.scenes):
+        warn("*", "no scene introduces a question")
+    if not any(sc.reveal for sc in script.scenes):
+        warn("*", "no scene marks the reveal")
+    names = [n for n in voice_names(s) if n["screen"] != n["voice"]]
+    plain_seconds = 0.0
+    plain_count = 0
     seen: set[str] = set()
     for sc in script.scenes:
+        seconds = heygen.estimate_seconds(sc.spoken, None)
+        if not MIN_S <= seconds <= MAX_S:
+            warn(sc.id, f"estimated {seconds:.1f}s falls outside the 3–13s scene range")
+        if not sc.sources and re.search(
+            r"\d|[$€£%]|\b(first|largest|fastest|cheapest|best|top[- ]ranked)\b",
+            sc.text + " " + sc.spoken, re.I,
+        ):
+            warn(sc.id, "add a source for the numerical or ranking claim")
+        for name in names:
+            if re.search(r"(?<!\w)" + re.escape(name["screen"]) + r"(?!\w)", sc.spoken, re.I):
+                warn(sc.id, f"use {name['voice']} in the spoken line for {name['screen']}")
+        if sc.kind == "avatar" and not (sc.plan and sc.plan.model_dump(exclude_defaults=True)):
+            plain_seconds += seconds
+            plain_count += 1
+            if plain_count >= 2 and plain_seconds > 8:
+                warn(sc.id, "consecutive plain presenter scenes exceed 8s")
+        else:
+            plain_seconds = 0.0
+            plain_count = 0
         if sc.id in seen:
             err(sc.id, "duplicate scene id")
         seen.add(sc.id)

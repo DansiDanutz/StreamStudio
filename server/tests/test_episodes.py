@@ -152,7 +152,7 @@ def test_validator_error_rows(tmp_path):
     assert sorted(v["errors"]["s1"]) == sorted(
         ["duplicate scene id", "a card scene needs a site", "both voice and text are empty"]
     )
-    assert "s2" not in v["errors"] and v["warnings"] == {}
+    assert "s2" not in v["errors"] and "s2" in v["warnings"]
 
 
 # ---------------------------------------------------------------- create, read, list
@@ -170,7 +170,7 @@ def test_create_read_and_list(env):
         "composed": 0,
         "total": 3,
     }
-    assert ep["validation"] == {"errors": {}, "warnings": {}}
+    assert ep["validation"]["errors"] == {}
     assert (s.episodes_dir / ep["id"]).is_dir()
     got = client.get(f"/api/episodes/{ep['id']}").json()
     assert got == ep  # a pure read
@@ -448,3 +448,16 @@ def test_record_helpers(env):
     p = record.export(s, ep)
     assert json.loads(p.read_text())["id"] == eid
     assert now_iso() <= record.load(c, eid).updated_at or True
+
+def test_script_warnings_explain_claims_voice_pacing_and_structure(tmp_path):
+    s = Settings(data_dir=tmp_path, assets_dir=ROOT / "assets")
+    script = Script(title="Tour", scenes=[
+        Scene(id="s1", text="StreamStudio has the fastest setup with 12 steps in all."),
+        Scene(id="s2", text="Here is how to use the editor and the preview together."),
+    ])
+    report = validate.validate(script, s)
+    assert not report["errors"]
+    assert len(report["warnings"]["*"]) == 2
+    assert any("source" in w for w in report["warnings"]["s1"])
+    assert any("Stream Studio" in w for w in report["warnings"]["s1"])
+    assert any("8s" in w for w in report["warnings"]["s2"])

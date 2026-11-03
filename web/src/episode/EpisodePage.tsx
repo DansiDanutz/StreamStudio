@@ -110,6 +110,7 @@ export function EpisodePage({ id }: { id: string }) {
 
       <section className="episode-scenes">
         <h2>Scenes <span className="episode-muted">{ep.script.scenes.length}{errorCount ? ` · ${errorCount} error${errorCount === 1 ? '' : 's'}` : ''}</span></h2>
+        {ep.validation.warnings["*"]?.map(w => <p key={w} className="episode-muted">{w}</p>)}
         <ol>
           {ep.script.scenes.map((sc) => {
             const st = ep.scenes_state[sc.id] ?? {}
@@ -125,6 +126,7 @@ export function EpisodePage({ id }: { id: string }) {
                 {sc.voice && sc.text && sc.voice !== sc.text && <div className="scene-voice">voice: {sc.voice}</div>}
                 {st.composed_hash && <video controls preload="none" style={{ width: '100%' }}
                   aria-label={`Preview ${sc.id}`} src={`/api/episodes/${ep.id}/scenes/${sc.id}/preview?v=${st.composed_hash}`} />}
+                {ep.validation.warnings[sc.id]?.map(w => <div key={w} className="episode-muted">{w}</div>)}
                 {errs.map((e) => <div key={e} className="scene-error">{e}</div>)}
               </li>
             )
