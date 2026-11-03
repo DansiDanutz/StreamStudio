@@ -23,6 +23,7 @@ from ...core.db import tx
 from ...core.ids import now_iso
 from ...episode import ledger, preflight, profiles, record, validate
 from ...episode.contract import EPISODE_ID, SCENE_ID, ConnectedCards, Script, WebsiteDemo
+from ...episode.planner import settle_cancelled
 from ...episode.website_demo import CATALOG
 from ..deps import conn, settings
 
@@ -502,6 +503,23 @@ def advance(eid: str, s: Settings = Depends(settings), c: sqlite3.Connection = D
     return {**_out(s, ep), "job_id": job["id"]}
 
 
+@router.post("/{eid}/cancel")
+def cancel(eid: str, origin: str | None = Header(default=None), s: Settings = Depends(settings),
+           c: sqlite3.Connection = Depends(conn)):
+    if not origin or not netguard.origin_allowed(origin, s.extra_hosts):
+        raise HTTPException(403, "cancel from the Episode page")
+    with tx(c):
+        ep = _episode(c, eid)
+        if ep.status != "cancelled":
+            if (ep.status not in record.EDITABLE or ep.record["outputs"].get("upload_requested")
+                    or ep.record["outputs"].get("upload_job_id")):
+                raise HTTPException(409, f"cannot cancel an episode while it is {ep.status}")
+            record.set_status(ep, "cancelled", "cancelled before upload")
+        settle_cancelled(c, s, ep)
+        record.save(c, ep)
+    return _out(s, ep)
+
+
 @router.post("/{eid}/purge", status_code=202)
 def purge(eid: str, s: Settings = Depends(settings), c: sqlite3.Connection = Depends(conn)):
     """The Purge button: remove the workings once the video is on YouTube (or the episode is
@@ -512,6 +530,13 @@ def purge(eid: str, s: Settings = Depends(settings), c: sqlite3.Connection = Dep
             raise HTTPException(
                 409, f"purge is for published or cancelled episodes, not {ep.status}"
             )
+        if ep.status == "cancelled":
+            settle_cancelled(c, s, ep)
+            active = c.execute("SELECT 1 FROM jobs WHERE project_id=? AND status IN"
+                               " ('queued','running') AND kind NOT IN ('episode_advance',"
+                               " 'episode_purge') LIMIT 1", (ep.project_id,)).fetchone()
+            if active or ledger.unconsumed(c, eid) > 0:
+                raise HTTPException(409, "wait for outstanding work to settle before purging")
         existing = store.find_active_job(c, "episode_purge", ep.id, "episode_id")
         job = existing or store.enqueue(
             c, "episode_purge", project_id=ep.project_id, payload={"episode_id": ep.id}

@@ -70,6 +70,13 @@ export function EpisodePage({ id }: { id: string }) {
           {action === 'advance' && (
             <button disabled={busy} onClick={() => run(() => api.advance(ep.id))}>Advance</button>
           )}
+          {!ep.outputs.upload_requested && !ep.outputs.upload_job_id &&
+            ['draft', 'script_approved', 'budget_approved', 'in_progress', 'needs_dan', 'ready'].includes(ep.status) &&
+            <button disabled={busy} onClick={() => {
+              if (window.confirm('Cancel this episode? Already submitted renders may still finish.')) {
+                void run(() => api.cancel(ep.id))
+              }
+            }}>Cancel episode</button>}
           {action === 'purge' && (
             <button disabled={busy} onClick={() => run(() => api.purge(ep.id))}>Purge workings</button>
           )}

@@ -26,7 +26,7 @@ export interface Episode {
   script: { title: string; scenes: SceneIn[]; hash?: string; [k: string]: unknown }
   budget: { approved_at: string | null; clips: number; seconds: number; usd: number; allowance: { attempts: number; usd: number }; spent: { renders: number; seconds: number; usd: number } }
   scenes_state: Record<string, { take?: number; clip?: boolean; composed_hash?: string | null; qa?: string | null; qa_issues?: string[] }>
-  outputs: { channel?: string; recording_id?: string; youtube_video_id?: string; publish_at?: string | null }
+  outputs: { upload_requested?: boolean; upload_job_id?: string; channel?: string; recording_id?: string; youtube_video_id?: string; publish_at?: string | null }
   log: { at: string; stage: string; message: string; scene?: string }[]
   progress: { clips: number; qa: number; composed: number; total: number }
   validation: { errors: Record<string, string[]>; warnings: Record<string, string[]> }
@@ -81,6 +81,7 @@ export const uploadPrivate = (id: string) => call<Episode>('POST', `/${id}/uploa
 export const refresh = (id: string) => call<Episode>('POST', `/${id}/refresh`)
 export const publish = (id: string, publishAt?: string) => call<Episode>('POST', `/${id}/publish`, publishAt ? { publish_at: publishAt } : {})
 export const advance = (id: string) => call<Episode & { job_id: string }>('POST', `/${id}/advance`)
+export const cancel = (id: string) => call<Episode>('POST', `/${id}/cancel`)
 export const purge = (id: string) => call<Episode & { job_id: string }>('POST', `/${id}/purge`)
 
 /** The one line under the title: what the factory is doing, from counts, never stored. */

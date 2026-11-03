@@ -233,6 +233,11 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
         cfg = heygen.load_config(s.data_dir)
         client = heygen.Client(cfg["api_key"], HEYGEN_TRANSPORT)
         if not state.get("video_id"):
+            if episode_id:
+                row = ctx.conn.execute("SELECT status FROM episodes WHERE id=?", (episode_id,))
+                if row.fetchone()["status"] == "cancelled":
+                    _episode_planner(ctx, episode_id)
+                    return {"cancelled": True}
             if s.heygen_cache_only:
                 raise ValueError("cache-only production: refusing a new avatar render")
             audio = None

@@ -57,12 +57,35 @@ def clip_payload(
     }  # fmt: skip
 
 
+def settle_cancelled(conn, s, ep):
+    """Release unused funds, retaining in-flight submissions until their charge arrives."""
+    charged = {r[0] for r in conn.execute(
+        "SELECT clip_key FROM heygen_ledger WHERE episode_id=? AND kind='charge'", (ep.id,))}
+    jobs = conn.execute(
+        "SELECT id,kind,status,json_extract(payload,'$.key') AS clip_key FROM jobs"
+        " WHERE project_id=? AND json_extract(payload,'$.episode_id')=?", (ep.project_id, ep.id))
+    live = set()
+    for job in jobs.fetchall():
+        key = job["clip_key"]
+        if (job["kind"] == "heygen_clip" and key and key not in charged
+                and (job["status"] == "running" or record.read_clip_state(s, key).get("video_id"))):
+            live.add(key)
+            continue
+        if job["status"] == "queued" and job["kind"] not in ("episode_advance", "episode_purge"):
+            store.cancel_job(conn, job["id"])
+    ledger.release_unsubmitted(conn, ep.id, live, charged)
+    ep.record["budget"]["spent"] = ledger.spent(conn, ep.id)
+
+
 def advance(conn: sqlite3.Connection, s: Settings, episode_id: str) -> dict[str, Any]:
     """One planner pass. Returns what it did, for the job result and the tests."""
     with tx(conn):
         ep = record.load(conn, episode_id)
         if ep is None:
             return {"skipped": "no such episode"}
+        if ep.status == "cancelled":
+            settle_cancelled(conn, s, ep)
+            record.save(conn, ep)
         if ep.status not in record.WORKING:
             return {"skipped": f"episode is {ep.status}"}
         did = _pass(conn, s, ep)

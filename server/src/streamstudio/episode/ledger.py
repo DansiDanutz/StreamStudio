@@ -111,7 +111,7 @@ def unconsumed(conn: sqlite3.Connection, episode_id: str) -> float:
         "SELECT SUM(usd) FROM heygen_ledger WHERE kind = 'release' AND approval_id = ?",
         (group["approval_id"],),
     )
-    return max(0.0, group["usd"] - charged - released)
+    return max(0.0, round(group["usd"] - charged - released, 4))
 
 
 def release(
@@ -135,7 +135,7 @@ def release(
         "SELECT SUM(usd) FROM heygen_ledger WHERE kind = 'release' AND approval_id = ?",
         (approval_id,),
     )
-    left = max(0.0, group["usd"] - charged - released)
+    left = max(0.0, round(group["usd"] - charged - released, 4))
     amount = left if usd is None else max(0.0, min(usd, left))
     if amount <= 0:
         return 0.0
@@ -157,13 +157,11 @@ def release_unsubmitted(
         " AND kind = 'reservation'",
         (group["approval_id"],),
     ).fetchall()
-    free = sum(
-        r["usd"]
-        for r in rows
-        if r["scene_id"] is None
-        or (r["clip_key"] not in live_keys and r["clip_key"] not in charged_keys)
-    )
+    hold = sum(r["usd"] for r in rows
+               if r["clip_key"] in live_keys and r["clip_key"] not in charged_keys)
+    free = max(0, unconsumed(conn, episode_id) - hold)
     return release(conn, episode_id, group["approval_id"], free)
+
 
 
 def month_total(conn: sqlite3.Connection, now: str | None = None) -> float:

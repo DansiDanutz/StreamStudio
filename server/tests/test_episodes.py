@@ -653,3 +653,32 @@ def test_channel_removal_protects_drafts_and_default_and_does_not_reseed(env):
     assert client.delete(url + "/danslab?base_version=1", headers=ORIGIN).status_code == 200
     assert client.get(url + "/danslab").status_code == 404
     assert [r["slug"] for r in client.get(url).json()] == ["engineering"]
+
+
+def test_cancel_releases_only_unsubmitted_clips_and_no_second_release(env):
+    from streamstudio.episode import planner
+
+    client, s, fake, _ = env
+    eid = client.post("/api/episodes", json=small_script()).json()["id"]
+    approve_both(client, eid)
+    c = connection(s)
+    planner.advance(c, s, eid)
+    jobs = [j for j in store.list_jobs(c) if j["kind"] == "heygen_clip"]
+    first = jobs[0]
+    c.execute("UPDATE jobs SET status='running' WHERE id=?", (first["id"],))
+    url = f"/api/episodes/{eid}"
+    assert client.post(url + "/cancel").status_code == 403
+    assert client.post(url + "/cancel", headers=ORIGIN).json()["status"] == "cancelled"
+    held = ledger.unconsumed(c, eid)
+    assert held > 0 and all(store.get_job(c, j["id"])["status"] == "cancelled" for j in jobs[1:])
+    client.post(url + "/cancel", headers=ORIGIN)
+    assert ledger.unconsumed(c, eid) == held
+    assert client.post(url + "/purge").status_code == 409
+    payload = first["payload"]
+    ledger.charge(c, eid, payload["scene_id"], payload["key"], 0, first["id"], 1)
+    store.finish_job(c, first["id"], {})
+    planner.advance(c, s, eid)
+    assert ledger.unconsumed(c, eid) == 0
+    assert client.get(url).json()["budget"]["spent"]["renders"] == 1
+    assert client.post(url + "/purge").status_code == 202
+    assert ("POST", "/v3/videos") not in fake.calls
