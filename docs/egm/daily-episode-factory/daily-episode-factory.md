@@ -1,19 +1,24 @@
 # Daily episode factory
 
 *   **Author:** Dan (DansiDanutz)
-*   **Status:** Final
-*   **Date:** 2026-11-02
+*   **Status:** Amended (channel profiles), in review
+*   **Date:** 2026-11-02; amended 2026-11-03
 *   **Predecessor:** [concepts_brief.md](./concepts_brief.md) (six Goldfish reviews of [hypothesis.md](./hypothesis.md))
 *   **Review:** EGM Stages 5 to 9 complete; findings resolved on 2026-11-02 (see `goldfish_review_report.md`).
+    The 2026-11-03 amendment (channel profiles) is reviewed on its own (see `channel_profiles_review.md`).
 
 --------------------------------------------------------------------------------
 
 ## Overview
 
-StreamStudio becomes the machine that turns a finished DansLab script into a published YouTube
-episode, once a day, on the Mac Studio. A writer (Dan or an agent) delivers a script in the
-channel's question-and-answer shape, split into scenes of about 10 seconds. StreamStudio then
-runs the pipeline:
+StreamStudio becomes the machine that turns a finished script into a published YouTube episode,
+once a day per channel, on the Mac Studio. Nothing in the pipeline belongs to one channel: every
+channel Dan builds has a **channel profile** (its presenter, voice, studio look, intro, music,
+sound effects, production rules, publish text and YouTube channel), edited inside StreamStudio.
+DansLab is the first profile and the default: a script that names no profile is a DansLab
+episode. A writer (Dan or an agent) delivers a script in the channel's question-and-answer shape,
+split into scenes of about 10 seconds. StreamStudio then runs the pipeline with that channel's
+profile:
 
 *   validates the script against the production rules;
 *   shows Dan the HeyGen cost once;
@@ -89,6 +94,17 @@ Each goal names its pass/fail measure. The mechanisms that meet them are in the 
     machine.
 *   **Workings are purged on request once the video is public.** The final MP4, the script and
     the episode record are kept.
+*   **Any channel, no code change.** A new channel is a new profile made in the Channels page:
+    no file in the repository names a channel, presenter, colour, font, intro, music track or
+    YouTube channel id except the DansLab seed. Measured by a test that runs the Stage 1 pipeline
+    for a second, synthetic profile and asserts that its plate, colours, intro, bed, caption
+    language, description footer and YouTube channel are the ones in the output, and by a test
+    that finds no `danslab` (any case) in `server/src/` or `web/src/` outside the seed loader's
+    one constant, the default slug.
+*   **DansLab stays the default.** A script with no `profile` renders with the DansLab profile
+    (a test), and the DansLab seed carries the values Episode 1 v2 shipped with: the plate and
+    seat, the teal-to-violet neon (`#2DE2C4` to `#8C64FF`), Inter, the logo intro, the bed at
+    -36 LUFS, the cue sounds, English captions and the DansLab YouTube channel.
 
 ## Non-Goals
 
@@ -105,8 +121,13 @@ Each goal names its pass/fail measure. The mechanisms that meet them are in the 
 *   Renaming the editor's saved stage layouts ("scenes") in the Library, API or agent catalog;
     this design only fixes the vocabulary in prose (see Future Improvements).
 *   Backing up episode workings to the vault.
-*   Multiple channels per episode, presenters or languages; portrait Shorts; the local-voice cost
-    lever for card scenes.
+*   One episode for several channels, or several presenters or languages inside one episode (each
+    episode has exactly one profile, and each profile one presenter and one language); portrait
+    Shorts; the local-voice cost lever for card scenes.
+*   Theming the live studio (stage, Program window, overlays) from a channel profile; profiles
+    drive the episode factory only in this design (see Future Improvements).
+*   Per-channel HeyGen accounts, allowances or monthly ceilings. HeyGen's key, the allowance and
+    the ceiling stay global settings: one wallet pays for every channel.
 *   Keeping `cuts.py`, `scenecut.py`, `splice.py`, `stitch.py` or `masks.py` in the factory.
 
 ## Open Questions
@@ -182,6 +203,20 @@ answered in the Technical Plan and the Verification Plan.
     approve the budget. Dan sees one panel on his phone with two buttons: Approve budget, and
     Send back to writer (which adds a note to the episode log and leaves the episode in `draft`).
 
+### CUJ 5: Dan starts a second channel without a code change
+
+*   **Given**: DansLab is the only profile; Dan has connected a second YouTube channel and has a
+    HeyGen avatar and voice for its presenter.
+*   **When**: Dan opens the Channels page, duplicates DansLab as `didyouknow`, changes the name,
+    presenter, voice, YouTube channel, colours, plate and music, uploads the intro MP4, and saves.
+    A writer posts a script with `"profile": "didyouknow"`; a second script with no `profile`
+    arrives the same day.
+*   **Then**: The preview frame shows the new look before saving. The first episode is composed
+    on the new plate with the new colours, intro and bed, captioned in the profile's language,
+    and uploaded privately to the second channel; the second episode is a DansLab episode. Both
+    share one HeyGen wallet, one allowance setting and one monthly ceiling. No file in the
+    repository changed.
+
 ## Technical Plan (Architecture)
 
 The work is staged in five stages (Detailed Implementation Plan): Stage 0 measures and installs
@@ -202,6 +237,12 @@ Stage 4 hardens, documents and removes the hand-run pipeline.
     with a name and a line), **chips** (small labels that rise one by one), a title card, the end
     card.
 *   **Plate**: the studio background image behind the presenter.
+*   **Channel profile** (or **profile**): everything that makes an episode belong to one channel:
+    presenter, voice, plate, colours, fonts, intro, music, SFX, production-rule thresholds, publish
+    text, caption language and YouTube channel. Saved as numbered, read-only versions; editing a
+    profile writes a new version. Named by a `slug` (`^[a-z0-9-]{2,32}$`); `danslab` is the seed
+    and the default.
+*   **Pinned profile**: the profile version an episode uses, fixed when its script is approved.
 *   **Take**: one rendering attempt of a scene's clip; re-renders increment the take number.
 *   **Allowance**: the number of re-render attempts, and the USD, that one budget approval
     pre-authorises for the whole episode beyond the first render of each scene. Both caps hold.
@@ -281,7 +322,8 @@ The record:
 ```text
 record
   id, title, status, created_at, updated_at, last_checked_at
-  script: { version, hash, title, tags, channel, look, voice_id, motion, scenes: [ scene ] }
+  script: { version, hash, title, tags, profile, look, voice_id, motion, scenes: [ scene ] }
+  profile: { slug, version, hash }                     # pinned at approve-script
   budget: { approved_at, confirm_token, token_expires_at, clips, seconds, usd,
             allowance: {attempts, usd}, spent: {renders, seconds, usd} }      # spent is a projection of the ledger
   reference: { face: [x,y,w,h], lip_ratio }           # QA medians from the first full pass (Stage 2)
@@ -294,7 +336,8 @@ record
   log: [ { at, stage, scene?, message } ]              # plain-words events for the status page
 ```
 
-Writers of the record: the API writes `script`, `budget`, `outputs.channel` and the gate states;
+Writers of the record: the API writes `script`, `profile`, `budget`, `outputs.channel` and the
+gate states;
 the planner is the only writer of `scenes_state`, `cards`, the other `outputs` fields, `log` and
 the working states. Both hold the `episodes` row lock while writing.
 
@@ -319,6 +362,10 @@ rules:
 *   `needs_dan`: a stage job ends in `error` (network, tool crash, disk full, HeyGen cap), or a
     render fails after the allowance is spent; the reason is written to `log`.
     `POST /{id}/advance` after Dan acts returns the episode to `in_progress`.
+*   `POST /{id}/repin` (the **Use latest profile** button) is allowed from the same states as
+    `PUT /{id}/script`, refused the same way while an upload is live and after
+    `uploaded_private`, and has the same effect: the episode returns to `draft`, the stale
+    downstream outputs are removed, and the next approve-script pins the latest version.
 *   `cancelled` (Stage 2): `POST /{id}/cancel` from any state before `uploaded_private`;
     releases the unsubmitted part of the reservation (see "The paid step") and allows purge.
 *   `uploaded_private`: set by the planner when the upload's state file names a video id.
@@ -330,8 +377,8 @@ rules:
 A script is posted as JSON and stored inside the record. Shape:
 
 ```text
-script: { title, version, tags?: [str], channel?: <YouTube channel id>,
-          look?, voice_id?, motion?,        # default from the saved HeyGen config
+script: { title, version, tags?: [str], profile?: <slug>,   # default: Settings.default_profile
+          look?, voice_id?, motion?,        # override the profile's presenter for this episode
           scenes: [ scene ] }
 scene:  { id: "s12", text: "...on screen...", voice: "...as HeyGen reads it...",
           kind: "avatar" | "card", site?: "https://...",
@@ -351,28 +398,102 @@ for captions when `voice` is empty. `plan` carries the per-scene creative data t
 `episode-01-v2.plan.json` held positionally, with the same keys and meanings as
 `tools/compose/README.md` documents them; it is optional and a scene without it still renders (an
 avatar scene with `question` gets the default table overlay; a card scene gets the generic site
-card). `card_template` accepts `generic` only in v1. `channel` names the connected YouTube
-channel; when omitted and exactly one channel is connected, that one is used. A converter imports
-the Episode 1 v2 files (script JSON, plan JSON, durations) into this shape as the first test
-fixture.
+card). `card_template` accepts `generic` only in v1. `profile` names the channel profile; when
+omitted, `Settings.default_profile` (`danslab`) is used. The YouTube channel comes from the
+profile, not the script (see "Channel profiles"). A converter imports the Episode 1 v2 files
+(script JSON, plan JSON, durations) into this shape as the first test fixture, with no `profile`,
+so the fixture also proves the default.
 
 The validator runs when a script is posted and on every edit, returning `{errors, warnings}` per
 scene id:
 
 | Check | Level | Rule source |
 | --- | --- | --- |
-| estimated length outside 3 to 13 s | warning | DESIGN rule 1 |
-| no scene with `question`, or no scene with `reveal` | warning | DESIGN rule 5 |
+| estimated length outside the profile's `rules.scene_s` (DansLab: 3 to 13 s) | warning | DESIGN rule 1 |
+| profile requires questions (`rules.question_hooks`) and no scene has `question`; profile requires a reveal (`rules.reveal`) and no scene has `reveal` | warning | DESIGN rule 5 |
 | a number, price, date, percentage or ranking word with no `sources` entry | warning | brief F.18 |
-| `voice` contains a name spelled the on-screen way (voice-names table) | warning | DESIGN rule 6 |
-| consecutive avatar scenes with no `plan` element whose estimated lengths sum to more than 8 s | warning | DESIGN rule 4 |
+| `voice` contains a name spelled the on-screen way (the profile's voice-names table) | warning | DESIGN rule 6 |
+| consecutive avatar scenes with no `plan` element whose estimated lengths sum to more than the profile's `rules.event_gap_s` (DansLab: 8 s) | warning | DESIGN rule 4 |
 | `kind: card` without `site` | error | cards need a page |
 | duplicate scene id | error | contract |
 | both `voice` and `text` empty | error | contract |
+| `profile` names no saved profile | error | contract |
 
 Warnings never block approval. Errors do. Stage 1 ships the error rows; the warnings ship in
-Stage 2. The table of names for the voice lives in `assets/brand/voice-names.json` (one entry per
-product: on-screen spelling, voice spelling).
+Stage 2. The thresholds and the table of names for the voice (one entry per product: on-screen
+spelling, voice spelling) come from the profile the script names, or the default; the DansLab
+seed carries the values above.
+
+### Channel profiles
+
+A profile is a JSON document plus the files it names. Profiles live in a `channel_profiles` table
+(slug, version, created_at, hash, profile_json); a save inserts version N+1 and never updates a
+row, so an episode pinned to version N keeps rendering with N while Dan edits. Profile files
+(plate, desk, fonts, intro, music, SFX) are stored once by content under
+`data_dir/channels/<slug>/files/<sha256>.<ext>` and named in the JSON by sha256, so old versions
+keep their files. `data_dir/channels/` is not under the served `assets/`; the editor previews
+files through `GET /api/channels/{slug}/files/{sha256}`. Shape:
+
+```text
+profile:
+  slug, name, language: "en",                      # caption language, BCP 47
+  youtube_channel?: <UC… id>                       # omitted: the one connected channel, if only one
+  presenter: { name, avatar_id, voice_id, motion?, voice_names: [[on_screen, voice]] }
+  look: { plate: {image, desk?, seat: {scale, hands_y, x}},           # files by sha256
+          palette: {accent_a, accent_b, panel, text},                 # "#RRGGBB" or "#RRGGBBAA"
+          fonts: {display, body},                                     # OTF files by sha256
+          intro_kicker, intro_title, intro_tagline }                  # what the intro shows
+  sound: { intro?: <mp4 sha256>, bed?: <audio sha256>,
+           sfx: { riser, pop, whoosh, page, sparkle, impact, glitch, shimmer },  # audio sha256s
+           levels: { intro, voice, bed, sfx } }                       # LUFS; defaults below
+  rules: { scene_s: [min, max], event_gap_s, question_hooks: bool, reveal: bool }
+  publish: { description_footer, default_tags: [str], endcard: [title, link, small] }
+```
+
+Every field has a default except `slug`, `name`, `presenter.avatar_id`, `presenter.voice_id` and
+`look.plate`; a profile missing an optional file runs without it (no intro, no bed, a silent cue),
+and the status page names what was skipped. All strings that reach a composition or a caption are
+escaped like script strings. The palette replaces every colour constant the compositor carries
+from `render.py`: the neon rim runs `accent_a` to `accent_b`, the chip dot and the card ring use
+`accent_a`, the chip outline `accent_b`, panels `panel`, text `text`.
+
+**The default.** `Settings.default_profile` is `danslab`. On start, `profiles.ensure_seed`
+inserts version 1 of `danslab` from `assets/channels/danslab/profile.json` and the files beside
+it when the table has no `danslab` row; it never overwrites a saved version, so Dan's edits to
+DansLab win over the seed. The seed carries Episode 1 v2's values: the plate, desk and seat
+from `assets/studio/`, `#2DE2C4`, `#8C64FF`, `#0A0C14DC`, `#ECEEF6`, Inter, the logo intro, the
+music bed and cue sounds of `tools/compose/mix.py`, the levels table below, scene length 3 to
+13 s, event gap 8 s, questions and reveal on, English, and the DansLab YouTube channel
+(`UCCPMUreEqO1x11YiAhzLusA`). `DELETE` of the default profile is refused with 409; another
+profile can be made the default by changing the setting.
+
+**Pinning.** `approve-script` copies `{slug, version, hash}` of the profile's latest version into
+`record.profile`. Every handler reads the pinned version, never the latest. A profile edit does not
+touch pinned episodes; the Episode page shows "Profile changed since approval" with a **Use latest
+profile** button, which is an edit (it returns the episode to `draft` like `PUT /script`), so a
+new presenter or voice reaches the budget screen before any money is spent. The profile hash
+enters `inputs_hash` (look, fonts, palette, plate) and the mix inputs, so a re-pinned episode
+re-composes and re-mixes every scene; the clip key is unchanged in shape and takes the presenter's
+`avatar_id`, `voice_id` and `motion` from the pinned profile unless the script overrides them, so a
+presenter change re-renders clips (and is charged) while a colour change does not.
+
+**The intro.** A profile's intro is either uploaded as an MP4 or rendered from the profile:
+`POST /api/channels/{slug}/intro` enqueues `channel_intro` (from Stage 3, when the HyperFrames
+workspace exists), which runs the ported `make_intro.py` with the profile's fonts, palette and
+intro texts, stores the MP4 by sha256 and saves a new profile version naming it. The DansLab seed
+ships the existing intro, so no render is needed for the default.
+
+**Editing.** The Channels page (`?channels=1`) lists profiles, creates one by duplicating
+another (DansLab by default), edits every field with a live preview of one composed avatar frame
+and one card frame (`GET /api/channels/{slug}/preview.jpg`, rendered by the compositor from the
+unsaved form), uploads files, and saves a new version. API, under `/api/channels`: `GET /`,
+`POST /` (create from `{slug, name, from?}`), `GET /{slug}` (latest, or `?version=N`),
+`PUT /{slug}` (save as a new version; 422 with the field errors), `POST /{slug}/files` (upload,
+returns the sha256; at most 200 MB; ffprobe or Pillow must open it), `GET /{slug}/files/{sha256}`,
+`POST /{slug}/preview`, `DELETE /{slug}` (refused for the default and for any profile pinned by
+an episode that is not `published`, `purged` or `cancelled`), and from Stage 3
+`POST /{slug}/intro`. MCP gains `channel_list` and `channel_get` (read-only); agents name a
+profile in a script but cannot edit one.
 
 ### The planner: `episode_advance`
 
@@ -439,8 +560,9 @@ the safe side.
 
 `POST /api/episodes/{id}/approve-budget` requires the `confirm_token` and an `Origin` header that
 is present and allowed, which the Episode page sends and the MCP client does not. It runs under
-the row lock: it resolves the YouTube channel (409 when several are connected and the script
-names none), recomputes the month's total, refuses with 409 when the total plus this episode's
+the row lock: it resolves the YouTube channel from the pinned profile's `youtube_channel` (409
+when that channel is not connected, or when the profile names none and several are connected),
+recomputes the month's total, refuses with 409 when the total plus this episode's
 estimate and allowance would pass the monthly ceiling, and otherwise writes the reservation row,
 `outputs.channel` and `budget.approved_at` in the same transaction, so two approvals cannot both
 pass against the same remaining balance. An agent with raw HTTP access could still scrape the
@@ -513,8 +635,8 @@ redirect, and never logs in. A `manual` site is captured once by hand into
 
 `card_render` builds a HyperFrames composition from the capture with the generic card: address
 bar, slow scroll, one zoom to the hero, one callout taken from the scenes' `text`, with beats at
-the scene boundaries measured from the clips. The generic card is a function over the
-composition builder, not a data template. Every script-derived string is HTML-escaped before it
+the scene boundaries measured from the clips, drawn in the pinned profile's palette and font.
+The generic card is a function over the composition builder, not a data template. Every script-derived string is HTML-escaped before it
 enters the composition. The builder emits `cues.json` beside the MP4, a list of
 `{kind: navigate | counter | ring | callout, t}` in seconds from the card's start; the mixer reads
 that file. Rendering runs `npx hyperframes render` as a subprocess from the HyperFrames workspace
@@ -526,13 +648,14 @@ timings follow once the generic card has shipped a few episodes (Future Improvem
 ### Compositor: `scene_compose`, `episode_assemble`
 
 The compositing of `tools/compose/render.py` moves into the server package as functions taking
-`Settings` and a scene, with every path from settings and fonts from `assets/brand/fonts/`.
+`Settings`, the pinned profile and a scene, with every path from settings, and the plate, seat,
+fonts and colours from the profile; no channel constant remains in the code.
 `scene_compose` reads the clip and its cut-out in lock-step at 25 fps (the cut-out through the
-VP9 decoder that keeps alpha), seats the presenter from the plate's seat geometry, draws the plan,
+VP9 decoder that keeps alpha), seats the presenter from the profile's seat geometry, draws the plan,
 and writes `scenes/<scene>.mp4` at 25 fps with the clip's audio (the clip's timing is not
 changed), via a temporary file and rename. It records an inputs hash over the scene text, the
-clip and cut-out checksums, the card checksum and the plan, so "up to date" means inputs
-unchanged.
+clip and cut-out checksums, the card checksum, the plan and the pinned profile's hash, so "up to
+date" means inputs unchanged.
 
 An avatar scene's frame is the plate, the presenter cut-out seated at the desk, and the table
 overlays from its plan. A card scene's frame is the card video slice for that scene (offset by
@@ -544,10 +667,14 @@ and the voice is always the clip's own, so the guard leaves these unchanged; it 
 shared guard fixtures exercise the compositor and the editor's guard alike.
 
 `episode_assemble` concatenates the scene files (identical encode settings, frame counts checked
-against the measured durations), puts the intro in front, and runs the mix from the levels table
-below, with SFX at the cues from each card's `cues.json` and from the plan (`question`,
-`whoosh_at`, `glitch`, `endcard`) through a fixed cue-to-sound table carried over from `mix.py`.
-One frame rate, 25 fps, for clips, cards, intro and final.
+against the measured durations), puts the profile's intro in front, and runs the mix from the
+profile's levels, with SFX at the cues from each card's `cues.json` and from the plan (`question`,
+`whoosh_at`, `glitch`, `endcard`) through a fixed cue-to-slot table carried over from `mix.py`
+(the cues and offsets are fixed; which sound plays in each slot is the profile's).
+One frame rate, 25 fps, for clips, cards, intro and final; an uploaded intro at another rate is
+converted to 25 fps once, when it is uploaded.
+
+Default levels (the DansLab seed's values; every profile may change the first four):
 
 | Track | Level |
 | --- | --- |
@@ -563,7 +690,9 @@ and is corrected to -36.
 ### Publish kit, registration, upload
 
 `episode_publish_kit` writes `kit.json` (`title`, `description`, `tags`, `chapters`, `notes`) and
-`final.srt`. Chapters follow YouTube's rules as `web/src/publish/kit.ts` encodes them: the first
+`final.srt`. The description ends with the profile's `publish.description_footer`; tags are the
+script's plus the profile's `default_tags`, deduplicated; the caption language is the profile's
+`language`. Chapters follow YouTube's rules as `web/src/publish/kit.ts` encodes them: the first
 chapter at 0:00 (the intro), one per `question` scene, chapters shorter than 10 s folded into the
 previous one, and none at all (with a note saying why) when fewer than three remain. Captions come
 from the script's on-screen `text` (or `voice`), not from the transcript, because DESIGN rule 6
@@ -573,7 +702,7 @@ measured duration split by character count. Every time is offset by the intro's 
 the preceding scenes' measured durations.
 
 `episode_register` moves `final.mp4` to `recordings/rec_<YYYYmmdd-HHMMSS>-ep.mp4`, writes
-`rec_...-ep.srt`, a minimal `rec_...-ep.transcript.json` naming the caption language, and
+`rec_...-ep.srt`, a minimal `rec_...-ep.transcript.json` naming the profile's caption language, and
 `rec_...-ep.episode.json` naming the episode, and records the path in `outputs.final_mp4`.
 `finish_recording` is not run: the file is already H.264, AAC, normalised. `GET /api/recordings`
 today discovers takes only through their `rec_*.source.*` upload files, which a registered
@@ -628,37 +757,45 @@ one action that unblocks it. In Stage 2 the MCP server gains `episode_create`, `
 cancel or purge. Every job the planner enqueues carries `project_id` and
 `payload.episode_id`; the worker log line includes it. `heygen_ledger` is the cost ledger;
 `budget.spent` is a cached projection of it. `/api/health` reports the toolchain (ffmpeg, whisper,
-rembg, OpenCV, Playwright Chromium, HyperFrames, fonts, intro, plate, music manifest) with cheap
-existence checks only. A Library group for episodes is deferred (Future Improvements).
+rembg, OpenCV, Playwright Chromium, HyperFrames) and whether the default profile's required files
+exist, with cheap existence checks only. Creating an episode also checks the named profile's
+required files (plate, fonts) and refuses with 503 naming the missing ones. A Library group for episodes is deferred (Future Improvements).
 
 ### Assets and toolchain
 
-`assets/brand/` gains `fonts/` (Inter OTF, the four woff2 web fonts the intro uses), `music/`,
-`sfx/`, `voice-names.json` and `manifest.json` (name, file, sha256, licence note, and which track
-is the bed). The existing `assets/brand/danslab-intro.mp4`, already registered as the editor's
-intro media item, is re-rendered at 25 fps and is the one intro file; the intro's kicker, title
-and tagline are channel constants, and the episode title appears on the opening table overlay.
+`assets/channels/danslab/` is the DansLab seed: `profile.json`, Inter OTF (and the four woff2 web
+fonts the intro uses), the owned music bed and cue sounds, the voice-names table and a
+`manifest.json` (name, file, sha256, licence note for every file). The seed is the only place a
+channel's values live in the repository. The existing `assets/brand/danslab-intro.mp4`, already
+registered as the editor's intro media item, is re-rendered at 25 fps, stays where it is for the
+editor, and is copied into the seed as DansLab's intro; the episode title appears on the opening
+table overlay. Other channels' files are uploaded in the Channels page and never enter the
+repository.
 `assets/models/` holds the OpenCV Haar cascade face detector. The HyperFrames workspace lives
 under `data_dir/cards/` (its `package.json` and lockfile ship in the server package; the launcher
 copies them and runs `npm ci` from Stage 3), so its `node_modules` is never served.
 `pyproject.toml` gains an `episode` extra (OpenCV, Pillow, NumPy, SciPy, rembg, Playwright); the
 Mac launcher, the Makefile and CI install it from Stage 0, and no module in the episode package
 imports any of those libraries at module level, so the API and the worker start without them.
-Settings: `episodes_dir`, `cards_dir`, `sites_dir`, `capture_allowlist`, `hyperframes_browser`,
-`episode_rerender_attempts`, `episode_rerender_usd`, `heygen_month_ceiling_usd`. Frame rate (25)
+Settings: `episodes_dir`, `cards_dir`, `sites_dir`, `channels_dir`, `default_profile`
+(`danslab`), `capture_allowlist`, `hyperframes_browser`, `episode_rerender_attempts`,
+`episode_rerender_usd`, `heygen_month_ceiling_usd`. Frame rate (25)
 and the HyperFrames worker count are constants.
 
 ### The smallest version
 
-The first episode that removes every manual step is Stage 1: a finished script posted to the API
-with error-level validation, approve-script, one estimate and approve-budget with the ledger and
+The first episode that removes every manual step is Stage 1: the profiles table with the DansLab
+seed and its read API, a finished script posted to the API with error-level validation,
+approve-script (pinning the profile), one estimate and approve-budget with the ledger and
 the channel resolved, `heygen_clip` with the take and the claim, `scene_compose` on the plate
 with the guard, concatenation, the intro and the music bed, the kit with chapters, registration,
 private upload, and the publish-now click, with a minimal Episode page (the scene list and three
 buttons: Approve script, Approve budget, Publish). A failed render or an errored job parks the
 episode in `needs_dan`. Its first episodes are ones without site mentions, since still site cards
-are forbidden by the production rules. QA, the allowance, the degrade path, scheduled publish,
-cancel and the full status page are Stage 2; cards are Stage 3.
+are forbidden by the production rules. A second channel can run in Stage 1 by saving a profile
+through the API; the Channels page, file upload and preview are Stage 2. QA, the allowance, the
+degrade path, scheduled publish, cancel and the full status page are Stage 2; cards and the
+intro render are Stage 3.
 
 ## Alternatives Considered
 
@@ -781,8 +918,25 @@ rejected and why. After each, the option chosen in this design is stated.
 
 *   **Pros**: Always current.
 *   **Cons**: They change with branding, not episodes; the intro needs fonts copied by hand.
-*   **Reason for Rejection**: Rejected for the cons above. Rendered once and kept under
-    `assets/brand/`; the intro text is a channel constant.
+*   **Reason for Rejection**: Rejected for the cons above. Rendered once per profile version and
+    kept in the profile's files; the intro texts are profile fields.
+
+### Alternative T: Channel values in code or in one repository folder per channel
+
+*   **Pros**: No new table, API or page; a channel is a pull request.
+*   **Cons**: A new channel, a colour or a music change needs a commit and a release; an agent or
+    Dan cannot change a channel from the phone; channel files (presenter cut-outs, licensed music)
+    end up in a public repository.
+*   **Reason for Rejection**: Dan asked for every channel to be changeable inside the studio.
+    Profiles are data in the app; only the DansLab seed lives in the repository.
+
+### Alternative U: Episodes follow the latest profile instead of a pinned version
+
+*   **Pros**: An edit reaches every running episode at once.
+*   **Cons**: A presenter or voice edit would change clip keys under an approved budget and render
+    clips no one approved; a colour edit mid-run would give one episode two looks.
+*   **Reason for Rejection**: "No money without a click" and "one look per episode" both need the
+    version fixed at approval. Re-pinning is one button and goes back through the budget screen.
 
 ### Alternative O: External fact-checking APIs
 
@@ -839,7 +993,9 @@ rejected and why. After each, the option chosen in this design is stated.
 | Two planners enqueue the same clip | job id recorded under the row lock; claim in the state file | | | one `create_video` per (key, take) |
 | YouTube upload fails or quota exceeded | upload job `error` | `needs_dan` | "Upload failed: reason" | resumable upload continues from its state file on Advance |
 | YouTube OAuth refresh fails | upload, publish or refresh call `error` | `needs_dan` | "Reconnect YouTube" | Dan reconnects the channel; Advance |
-| Several YouTube channels connected, none named | approve-budget 409 | `script_approved` | "Name the channel in the script" | writer adds `channel` |
+| Profile names no YouTube channel and several are connected, or its channel is not connected | approve-budget 409 | `script_approved` | "Set the YouTube channel of profile X" / "Connect channel Y" | Dan edits the profile (then Use latest profile) or connects the channel |
+| Profile edited after approval | pinned hash differs from latest | unchanged | "Profile changed since approval" | Use latest profile (back to `draft`), or keep the pinned version |
+| Profile file missing on disk (deleted by hand) | create 503; handler `error` | refused / `needs_dan` | "Profile X is missing its plate" | re-upload in the Channels page, save, Use latest profile |
 | Disk full | handler `error` on write | `needs_dan` | "Disk full: N GB free; purge published episodes" | Purge button on old episodes; preflight warns under 20 GB |
 | Playwright or HyperFrames crash | capture or card job `error` | `needs_dan` | "Capture of <host> failed" | fix the allowlist or capture by hand; Advance |
 | Whisper missing or wrong language | preflight (Stage 2); QA result | refused at create / transcript unavailable | "whisper not installed" / "transcript unreadable" | install; captions fall back to measured durations |
@@ -863,7 +1019,11 @@ rejected and why. After each, the option chosen in this design is stated.
     response plus a present and allowed `Origin`, and is recorded on the episode so the worker
     checks a server-side record; the monthly ceiling is the backstop against a client that scrapes
     the token. Every script-derived string is HTML-escaped before it enters a HyperFrames
-    composition. HeyGen, YouTube and vault secrets are untouched (0600, masked).
+    composition. HeyGen, YouTube and vault secrets are untouched (0600, masked). Profile uploads
+    are capped at 200 MB, stored by sha256 under `data_dir` (never under the served `assets/`),
+    accepted only when ffprobe or Pillow opens them, and served back only through the channels
+    route; profile strings are escaped like script strings. Profile edits are browser-only (the
+    same `Origin` rule as approve-budget); MCP can read profiles, not write them.
 *   **Cost.** One confirm per episode; retries and QA re-renders charge a visible allowance; a
     monthly ceiling refuses approval; reservations are atomic; one charge per (scene, take);
     cancelled episodes keep submitted work reserved until it is charged. No MCP tool approves.
@@ -876,7 +1036,7 @@ rejected and why. After each, the option chosen in this design is stated.
     publish. `/api/health` is polled by the editor every minute, so its preflight entries are
     existence checks only.
 *   **Rollout and rollback.** Existing surfaces touched, each additive and reverted by reverting
-    the commit with no data migration: migration 4 (two new tables); the clip key (take appended
+    the commit with no data migration: migration 4 (three new tables, with `channel_profiles`); the clip key (take appended
     only above zero, so every existing clip keeps its name); `heygen_clip` and `youtube_upload`
     (new behaviour only when an `episode_id` is present); the worker loop (enqueues the planner
     after an episode job's error); `GET /api/recordings` (additional entries); the YouTube client
@@ -921,6 +1081,10 @@ rejected and why. After each, the option chosen in this design is stated.
     `scene:` artifact kind and the agent actions, as its own small change with aliases.
 *   **A Library group for episodes** with an `episode.status` action, if agents or Dan need
     episodes in the artifact library beside the Episode page and MCP tools.
+*   **The live studio themed by a profile**: the stage, Program window and overlays read the same
+    palette, fonts, plate and intro, so going live on a channel looks like its episodes.
+*   **Per-channel card templates and SFX cue tables**, once a second channel needs a different
+    card or different cue timing rather than different sounds.
 
 --------------------------------------------------------------------------------
 
@@ -972,23 +1136,32 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: `CaptureSite(BaseModel)` with `host: str` and
     `mode: Literal["auto", "manual"]`, defined above `Settings`. Add properties `episodes_dir`
     (`data_dir / "episodes"`), `cards_dir` (`data_dir / "cards"`), `sites_dir`
-    (`data_dir / "sites"`); fields `capture_allowlist: list[CaptureSite] = []`,
+    (`data_dir / "sites"`), `channels_dir` (`data_dir / "channels"`); fields
+    `default_profile: str = "danslab"` (the one place the code names DansLab),
+    `capture_allowlist: list[CaptureSite] = []`,
     `hyperframes_browser: Path | None = None` (`None` means HyperFrames uses the Playwright
     Chromium that `playwright install chromium` produces; preflight reports the resolved path),
     `episode_rerender_attempts: int = 4`, `episode_rerender_usd: float = 1.5`,
-    `heygen_month_ceiling_usd: float = 400`. `ensure_dirs` creates the three directories. Frame
+    `heygen_month_ceiling_usd: float = 400`. `ensure_dirs` creates the four directories. Frame
     rate 25 fps and the HyperFrames worker count are module constants in the episode package.
     README: `core/README.md` Interface (`config.py` field list).
 
-#### 6. `assets/brand/fonts/`, `assets/brand/music/`, `assets/brand/sfx/`, `assets/brand/voice-names.json`, `assets/brand/manifest.json` (Create); `assets/brand/danslab-intro.mp4` (Modify)
+#### 6. `assets/channels/danslab/profile.json`, `fonts/`, `music/`, `sfx/`, `manifest.json` (Create); `assets/brand/danslab-intro.mp4` (Modify)
 
-*   **Type / Scope**: Vendored assets.
-*   **Proposed Changes**: Inter OTF and the four intro woff2 files; the owned music and SFX
-    clips that `tools/compose/mix.py` and the intro used; the names-for-voice table; a manifest
-    with name, file, sha256 and licence note for every entry and a `"bed"` key naming the music
-    loop. The existing `danslab-intro.mp4` is re-rendered at 25 fps in place (file 8), so the
-    editor's intro media item, the catalog entry and `web/src/agent/agent.test.ts` keep working.
-    Needed by Stage 1's assemble step.
+*   **Type / Scope**: The DansLab seed profile.
+*   **Proposed Changes**: `profile.json` in the shape of "Channel profiles", naming files by
+    path relative to the seed folder (the seed loader replaces each path with its sha256 when it
+    stores the files): the plate, desk and seat from `assets/studio/` (copied, not moved, since
+    the editor still serves them), the palette `#2DE2C4`, `#8C64FF`, `#0A0C14DC`, `#ECEEF6`, Inter
+    OTF and the four intro woff2 files under `fonts/`, the owned music bed and the eight cue
+    sounds that `tools/compose/mix.py` used under `music/` and `sfx/`, the voice-names table,
+    the levels table, rules (3 to 13 s, 8 s, questions and reveal on), `language: "en"`,
+    `youtube_channel: "UCCPMUreEqO1x11YiAhzLusA"`, the intro texts from `make_intro.py`'s
+    defaults, and the presenter's HeyGen `avatar_id` and `voice_id` from the saved HeyGen
+    config on the Mac Studio (ids, not secrets). `manifest.json` lists name, file, sha256 and
+    licence note for every file. The existing `danslab-intro.mp4` is re-rendered at 25 fps in
+    place (file 8) and copied into the seed, so the editor's intro media item, the catalog entry
+    and `web/src/agent/agent.test.ts` keep working. Needed by Stage 1.
 
 #### 7. `assets/models/haarcascade_frontalface_default.xml` (Move from `tools/compose/models/`)
 
@@ -999,8 +1172,10 @@ it changes, so the READMEs never lag the code by a stage.
 
 #### 8. `tools/brand/make_intro.py` (Create, ported from `tools/compose/motion/intro/make_intro.py`)
 
-*   **Type / Scope**: One-off brand generator.
-*   **Proposed Changes**: Reads fonts from `assets/brand/fonts/`, writes the composition under
+*   **Type / Scope**: Intro generator, driven by a profile.
+*   **Proposed Changes**: `make_intro.py <profile.json> <out.mp4>` reads the kicker, title,
+    tagline, palette and font files from the profile (the module constants `KICKER`, `TITLE_HTML`
+    and `TAG` and the hard-coded colours become profile reads), writes the composition under
     `data_dir/cards/intro/`, and runs `npx hyperframes render <dir> -o assets/brand/danslab-intro.mp4 -f 25 -q delivery`
     from the HyperFrames workspace. The workspace manifest and lockfile
     (`server/src/streamstudio/episode/templates/package.json` and `package-lock.json`) are
@@ -1011,7 +1186,8 @@ it changes, so the READMEs never lag the code by a stage.
     commit the resulting `package.json` and `package-lock.json` as the templates. Those two
     files are the tested pair from then on; file 46 later makes the launcher and `make setup`
     copy them and run `npm ci`. The `FPS = 30` constant only scales GSAP timings and
-    stays. Documented as "run when the branding changes", not part of the pipeline.
+    stays. In Stage 0 it is run by hand for the DansLab seed; from Stage 3 the `channel_intro`
+    job (file 46a) calls the same function for any profile.
 
 #### 9. `server/src/streamstudio/episode/__init__.py`, `server/src/streamstudio/episode/preflight.py` (Create)
 
@@ -1022,14 +1198,14 @@ it changes, so the READMEs never lag the code by a stage.
     the function body, as `handlers._cutout_clip` does today. `preflight.check(s, stage) -> {ok, missing}`
     uses `shutil.which`, `Path.exists` and `importlib.util.find_spec` (for the `rembg`, `cv2` and
     `playwright` packages, never importing them), and checks the tools of the shipped stage: Stage 1
-    ffmpeg, ffprobe, rembg, fonts, intro, plate, music manifest; Stage 2 adds whisper and the Haar
+    ffmpeg, ffprobe, rembg, and the default profile's seed files (plate, fonts); Stage 2 adds whisper and the Haar
     cascade; Stage 3 adds Playwright Chromium and the HyperFrames workspace.
 
 #### 10. `server/src/streamstudio/api/routes/system.py` (Modify)
 
 *   **Type / Scope**: Health route.
 *   **Proposed Changes**: `tools` gains `opencv`, `rembg`, `playwright_chromium`, `hyperframes`,
-    `fonts`, `intro`, `plate`, `music_manifest`, each a version or path or `None`, plus
+    each a version or path or `None`, and `default_profile` (`{slug, version, missing: [...]}`), plus
     `preflight_ok` and `missing` from `preflight.check`. README: `api/routes/README.md`
     `system.py` entries.
 
@@ -1060,8 +1236,25 @@ it changes, so the READMEs never lag the code by a stage.
     per paid render (the key encodes words and take, so an edited scene's old and new renders
     are distinct charges);
     reservation and release rows are one per estimate line and carry the approval that made them
-    (`approval_id`), so the same scene and take may be reserved again by a later approval. `row()`
-    also decodes `record_json`. README: `core/README.md` `db.py` tables.
+    (`approval_id`), so the same scene and take may be reserved again by a later approval; and
+    `channel_profiles` (slug, version, created_at, hash, profile_json) with primary key
+    `(slug, version)`. `row()` also decodes `record_json` and `profile_json`. README:
+    `core/README.md` `db.py` tables.
+
+#### 13b. `server/src/streamstudio/episode/profiles.py` (Create)
+
+*   **Type / Scope**: Channel profile model and storage.
+*   **Proposed Changes**: Pydantic `Profile` with the fields of "Channel profiles"
+    (`extra="forbid"`; colours `^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$`; slug `^[a-z0-9-]{2,32}$`;
+    file fields `^[0-9a-f]{64}$`; `rules.scene_s` min below max). Functions:
+    `latest(conn, slug) -> (version, Profile) | None`, `get(conn, slug, version)`,
+    `save(conn, s, profile) -> version` (inside `BEGIN IMMEDIATE`: checks every named file exists
+    under `channels_dir/<slug>/files/`, inserts version max+1 with `hash = sha1(profile_json)`),
+    `store_file(s, slug, path) -> sha256` (copies, ffprobe or Pillow must open it, 200 MB cap,
+    temp plus rename), `file_path(s, slug, sha256)`, `missing(s, profile) -> [field]`,
+    `ensure_seed(conn, s)` (inserts `danslab` version 1 from `assets/channels/danslab/` when no
+    `danslab` row exists; never overwrites), `pinned(conn, episode) -> Profile`. Called from the
+    API's startup and the worker's startup, so both see the seed. README: `episode/README.md`.
 
 #### 13a. `server/src/streamstudio/core/store.py`, `server/src/streamstudio/api/deps.py` (Modify)
 
@@ -1081,16 +1274,18 @@ it changes, so the READMEs never lag the code by a stage.
     `card_x`, `end_at`, `end_until: float | None`, `frame: tuple[float, float, float] | None`,
     `endcard: list[str] | None`, `card_template: Literal["generic"] | None`); `Scene` (id, text,
     voice, kind, site, question: int | None, reveal: bool | None, sources, plan); `Script`
-    (title, version, tags, channel, look, voice_id, motion, scenes); `extra="forbid"`;
+    (title, version, tags, profile: slug | None, look, voice_id, motion, scenes); `extra="forbid"`;
     `script_hash(script)`. Ids: scene `^s[0-9]{1,3}$`, card `^c[0-9]{1,3}$`.
 
 #### 15. `server/src/streamstudio/episode/validate.py` (Create)
 
 *   **Type / Scope**: Validator.
-*   **Proposed Changes**: `validate(script, s) -> {errors, warnings}` keyed by scene id. Stage 1
-    ships the three error rows; the warning rows land in Stage 2 (file 40). Duration estimate
-    through `heygen.estimate_seconds(scene.voice or scene.text, None)`; names table from
-    `assets/brand/voice-names.json`.
+*   **Proposed Changes**: `validate(script, profile) -> {errors, warnings}` keyed by scene id,
+    where `profile` is the pinned version after approve-script and the named profile's latest
+    version before it (the route resolves it; an unknown slug is the fourth error row). Stage 1
+    ships the four error rows; the warning rows land in Stage 2 (file 40) with their thresholds
+    and the voice-names table from `profile.rules` and `profile.presenter.voice_names`. Duration
+    estimate through `heygen.estimate_seconds(scene.voice or scene.text, None)`.
 
 #### 16. `server/src/streamstudio/episode/record.py` (Create)
 
@@ -1100,11 +1295,12 @@ it changes, so the READMEs never lag the code by a stage.
     (`outputs.upload_job_id` starts unset), and the episode directory;
     ids from `ids.new_id("ep")` (`^ep_[a-z0-9]{8,40}$`). `load(conn, id)`, `save(conn, episode)`
     (inside the caller's `BEGIN IMMEDIATE`), `set_status`, `log(event)`, `list(conn)`,
-    `export(s, episode)` (writes `episode.json` at purge). Helpers: `scene_key(scene, script, take)`
-    (HeyGen reads `voice`, else `text`; look, voice id and motion from the script or else
-    `heygen.load_config`), `inputs_hash(scene, clip_mp4, cutout_webm, card_mp4, plan)` =
-    sha1 over the scene text, the two clip file checksums, the card checksum or empty, and the
-    plan JSON. `to_out(episode, validation)` builds the `GET /{id}` shape.
+    `export(s, episode)` (writes `episode.json` at purge). Helpers:
+    `scene_key(scene, script, profile, take)` (HeyGen reads `voice`, else `text`; look, voice id
+    and motion from the script, else from `profile.presenter`; `heygen.load_config` supplies only
+    the API key), `inputs_hash(scene, clip_mp4, cutout_webm, card_mp4, plan, profile_hash)` =
+    sha1 over the scene text, the two clip file checksums, the card checksum or empty, the plan
+    JSON and the pinned profile's hash. `to_out(episode, validation)` builds the `GET /{id}` shape.
 
 #### 17. `server/src/streamstudio/episode/ledger.py` (Create)
 
@@ -1151,12 +1347,14 @@ it changes, so the READMEs never lag the code by a stage.
     to `draft`; when the script hash changes, unlinks `final.mp4`, `final.srt` and `kit.json` and
     clears `outputs.recording_id`; 409 while `outputs.upload_job_id` names a job whose
     `jobs.status` is `queued` or `running`, and from `uploaded_private` on),
-    `POST /{id}/approve-script`,
+    `POST /{id}/approve-script` (pins `{slug, version, hash}` of the script's profile, or of
+    `s.default_profile`, into `record.profile`), `POST /{id}/repin` (same states, refusals and
+    effects as `PUT /script`; clears `record.profile`),
     `GET /{id}/estimate` (issues `confirm_token`, ten-minute expiry), `POST /{id}/approve-budget`
     (requires the token, and an `Origin` header that is present and passes
     `netguard.origin_allowed(origin, s.extra_hosts)`, since the middleware treats a missing
-    header as a non-browser request; under the row lock resolves `youtube.pick_channel(s.data_dir, script.channel)`
-    with 409 when it raises, recomputes the month's total, refuses with 409 over the ceiling,
+    header as a non-browser request; under the row lock resolves
+    `youtube.pick_channel(s.data_dir, pinned.youtube_channel)` with 409 when it raises, recomputes the month's total, refuses with 409 over the ceiling,
     reserves one line per distinct (clip key, take): every live `heygen_clip` job plus every
     scene without a clip and without a live job for its current key, then releases any previous
     reservation, writes `outputs.channel` and
@@ -1169,8 +1367,22 @@ it changes, so the READMEs never lag the code by a stage.
 #### 21. `server/src/streamstudio/api/main.py` (Modify)
 
 *   **Type / Scope**: App factory.
-*   **Proposed Changes**: Import and mount `episodes.router`. README: `api/README.md`
-    ("mounts exactly these routers").
+*   **Proposed Changes**: Import and mount `episodes.router` and `channels.router`; call
+    `profiles.ensure_seed` at startup. README: `api/README.md` ("mounts exactly these routers").
+
+#### 21a. `server/src/streamstudio/api/routes/channels.py` (Create)
+
+*   **Type / Scope**: FastAPI router, prefix `/api/channels`.
+*   **Proposed Changes**: Stage 1: `GET /` (slug, name, latest version, default flag),
+    `POST /` (`{slug, name, from?}`: copies the latest version of `from`, default
+    `s.default_profile`, under the new slug and name, sharing files by copying their sha256
+    entries; 409 if the slug exists), `GET /{slug}` (latest, or `?version=N`), `PUT /{slug}`
+    (validates `Profile`, 422 with field errors, saves a new version), `POST /{slug}/files`
+    (multipart upload to `profiles.store_file`; returns `{sha256}`),
+    `GET /{slug}/files/{sha256}` (`FileResponse` with the stored type). Every write requires an
+    `Origin` that passes `netguard.origin_allowed`, as approve-budget does. Stage 2 adds
+    `POST /{slug}/preview` and `DELETE /{slug}`; Stage 3 adds `POST /{slug}/intro`. README:
+    `api/routes/README.md` new section.
 
 #### 22. `server/src/streamstudio/worker/handlers.py` (Modify)
 
@@ -1221,11 +1433,15 @@ it changes, so the READMEs never lag the code by a stage.
 
 *   **Type / Scope**: `scene_compose` handler and compositing functions.
 *   **Proposed Changes**: The compositing of `tools/compose/render.py` (plate, seated cut-out,
-    table overlays, zoom, glitch, neon frame, card slice) as functions with `Settings` injected.
+    table overlays, zoom, glitch, neon frame, card slice) as functions with `Settings` and the
+    pinned `Profile` injected: every colour literal in `render.py` (`[45, 226, 196]`,
+    `[140, 100, 255]`, `(124, 92, 255, 170)`, `(10, 12, 20, 220)`, `(8, 10, 18, 205)`,
+    `(236, 238, 246, 255)`) becomes a palette read, the fonts and plate come from the profile's
+    files, and the lower's default name is `profile.presenter.name`.
     Decoding: the cut-out through `ffmpeg -c:v libvpx-vp9 -i <key>.cutout.webm -vf fps=25 -f rawvideo -pix_fmt rgba -`
     (the built-in VP9 decoder drops alpha) and the clip through `ffmpeg -i <key>.mp4 -vf fps=25 -f rawvideo -pix_fmt rgb24 -`,
-    consumed in lock-step; seat geometry (`scale`, `hands_y`, `x`, `HANDS_IN_CLIP = 0.85`) from
-    `assets/studio/plate-landscape-final.json["seat"]`; frame count `round(duration * 25)`;
+    consumed in lock-step; seat geometry (`scale`, `hands_y`, `x`) from
+    `profile.look.plate.seat` and `HANDS_IN_CLIP = 0.85` as a module constant; frame count `round(duration * 25)`;
     audio mapped from the clip with `-shortest`. `render/lipsync.py:guard_cue` is called per scene
     with the cue derived from the scene kind and the voice literal `"clip"`; degraded scenes use
     `pip_rect`. `render.lipsync` imports PIL at module level, so it is imported inside the
@@ -1237,14 +1453,14 @@ it changes, so the READMEs never lag the code by a stage.
 #### 26. `server/src/streamstudio/episode/mix.py` (Create)
 
 *   **Type / Scope**: `episode_assemble` handler.
-*   **Proposed Changes**: Concat demuxer over `scenes/*.mp4` with frame-count check; the intro
-    from `assets/brand/danslab-intro.mp4`; the bed named by `manifest.json`; SFX from the cue
-    table (`question` → riser at -1.3 s and pop at +0.3 s, `whoosh_at` → whoosh, card `navigate`
-    → page sound, `counter` → sparkle at -0.1 s, `reveal` → deep impact at +0.3 s, `glitch` →
-    glitch hit, `endcard` → warm shimmer; the sounds and offsets are those of
-    `tools/compose/mix.py`, with the pop no longer tied to a lower-third's start) as a module
-    constant; the levels table as one
-    constant dict; writes `final.mp4` and `final.cues.json`. Stage 1 ships intro, bed and the
+*   **Proposed Changes**: Concat demuxer over `scenes/*.mp4` with frame-count check; the intro,
+    bed and levels from the pinned profile (`sound.intro`, `sound.bed`, `sound.levels`, each
+    skipped with a log line when absent); SFX from the cue-to-slot table (`question` → `riser`
+    at -1.3 s and `pop` at +0.3 s, `whoosh_at` → `whoosh`, card `navigate` → `page`, `counter` →
+    `sparkle` at -0.1 s, `reveal` → `impact` at +0.3 s, `glitch` → `glitch`, `endcard` →
+    `shimmer`; offsets are those of `tools/compose/mix.py`, with the pop no longer tied to a
+    lower-third's start) as a module constant, each slot's file from `profile.sound.sfx`;
+    writes `final.mp4` and `final.cues.json`. Stage 1 ships intro, bed and the
     plan cues; card cues arrive in Stage 3.
 
 #### 27. `server/src/streamstudio/episode/kit.py` (Create)
@@ -1256,8 +1472,10 @@ it changes, so the READMEs never lag the code by a stage.
     otherwise `notes` says why; `final.srt` with at most two lines of at most 42 characters per
     caption, timed from `qa/<scene>.words.json` when present, else measured duration split by
     characters; every time offset by the intro's ffprobe duration plus the preceding scenes'
-    durations. Registration moves `final.mp4` to `recordings/rec_<stamp>-ep.mp4`, writes
-    `.srt`, `rec_<stamp>-ep.transcript.json` as `{"language": "en"}` (so `youtube_upload`
+    durations; the description ends with `profile.publish.description_footer` and the tags are
+    the script's plus `profile.publish.default_tags`, deduplicated, in that order. Registration
+    moves `final.mp4` to `recordings/rec_<stamp>-ep.mp4`, writes
+    `.srt`, `rec_<stamp>-ep.transcript.json` as `{"language": profile.language}` (so `youtube_upload`
     attaches captions in the right language) and `rec_<stamp>-ep.episode.json`, records the path
     in `outputs.final_mp4`, returns the recording id.
 
@@ -1289,7 +1507,8 @@ it changes, so the READMEs never lag the code by a stage.
 #### 31. `web/src/episode/EpisodePage.tsx`, `web/src/episode/api.ts`, `web/src/episode/README.md`, `web/src/index.css` (Create; Modify)
 
 *   **Type / Scope**: React view, client and styles.
-*   **Proposed Changes**: Reachable at `?episode=<id>`; Stage 1: the scene list with errors,
+*   **Proposed Changes**: Reachable at `?episode=<id>`; Stage 1: the channel's name and pinned
+    profile version in the header, the scene list with errors,
     the three buttons (Approve script, Approve budget with the estimate screen and the token,
     Publish now); polls `GET /api/episodes/{id}` every 5 s while `in_progress`; usable at a 390 px
     wide viewport (`index.css` gains a `.episode` breakpoint). `api.ts` exports `getEpisode`,
@@ -1329,7 +1548,28 @@ it changes, so the READMEs never lag the code by a stage.
         answers 404 for it;
     *   publish now through the fake YouTube transport sets `published`;
     *   `GET /{id}` has no side effects and returns the `EpisodeOut` shape;
-    *   preflight 503 with missing names.
+    *   preflight 503 with missing names;
+    *   a script with no `profile` pins `danslab`; one naming an unknown profile is a 422 error;
+    *   approve-script pins the latest version; a profile saved afterwards leaves the pin
+        unchanged and makes `GET /{id}` report the profile as changed; `repin` returns the
+        episode to `draft` and the next approve-script pins the new version;
+    *   approve-budget uploads to the pinned profile's `youtube_channel`, and answers 409 when
+        that channel is not connected.
+
+#### 34a. `server/tests/test_channels.py` (Create)
+
+*   **Type / Scope**: Profile storage and API tests.
+*   **Proposed Changes**:
+    *   `ensure_seed` inserts `danslab` version 1 once and never overwrites a saved version;
+    *   the seed validates against `Profile`, every file it names exists, and its palette,
+        levels, rules, language and YouTube channel equal the values listed in file 6;
+    *   `PUT` saves version N+1 and never changes version N; `GET ?version=N` returns N;
+    *   create from another profile copies its latest version; duplicate slug 409;
+    *   upload refuses a file ffprobe and Pillow cannot open and one over 200 MB (size checked
+        from the stream, the test sends 200 MB + 1 byte of zeros through a generator);
+    *   a write without an allowed `Origin` is refused; MCP has no write tool;
+    *   no `danslab` (any case) in `server/src/` or `web/src/` except the `default_profile`
+        default in `config.py` (a source scan in the test).
 
 #### 34. `server/tests/test_episode_pipeline.py` (Create)
 
@@ -1348,7 +1588,13 @@ it changes, so the READMEs never lag the code by a stage.
         `GET /api/recordings` in the right order;
     *   the upload handler enqueues the planner and the planner sets `uploaded_private` and
         releases the reservation;
-    *   purge keeps the right files and writes the export.
+    *   purge keeps the right files and writes the export;
+    *   a second, synthetic profile (a red-and-yellow palette, a one-colour plate, a sine-tone
+        bed, `language: "ro"`, its own footer and YouTube channel) runs the Stage 1 pipeline end
+        to end: a sampled pixel of the neon rim, the bed's frequency in the mix, the SRT
+        language file, the description footer and the upload's channel are all the profile's;
+    *   changing only the palette of the pinned profile and repinning re-composes every scene
+        but enqueues no `heygen_clip`; changing `presenter.voice_id` changes every clip key.
 
 #### 35. `server/tests/fixtures/episode-01-v2/`, `server/tests/convert_episode1.py` (Create)
 
@@ -1410,9 +1656,24 @@ it changes, so the READMEs never lag the code by a stage.
 
 *   **Type / Scope**: MCP server.
 *   **Proposed Changes**: Tools `episode_create(script)`, `episode_list()`,
-    `episode_status(id)`, `episode_estimate(id)`, `episode_refresh(id)`; `youtube_upload`
-    unchanged. No approve, publish, cancel or purge tool; the descriptions say so. README:
+    `episode_status(id)`, `episode_estimate(id)`, `episode_refresh(id)`, `channel_list()`,
+    `channel_get(slug)`; `youtube_upload` unchanged. No approve, publish, cancel, purge or
+    profile-write tool; the descriptions say so. README:
     `server/src/streamstudio/README.md` `mcp.TOOLS`.
+
+#### 41a. `web/src/channels/ChannelsPage.tsx`, `web/src/channels/api.ts`, `web/src/channels/README.md` (Create); `web/src/App.tsx`, `server/src/streamstudio/api/routes/channels.py`, `server/src/streamstudio/episode/compose.py` (Modify)
+
+*   **Type / Scope**: The Channels page, preview and delete.
+*   **Proposed Changes**: `?channels=1` renders `ChannelsPage` before the editor branch: the
+    profile list (default marked), New (duplicate from a chosen profile), and a form for every
+    field grouped as Identity, Presenter, Look, Sound, Rules, Publish, with colour inputs, file
+    pickers that upload through `POST /{slug}/files`, and a Save that `PUT`s a new version and
+    shows the version number. A preview pane posts the unsaved form to
+    `POST /api/channels/{slug}/preview`, which calls `compose.preview_frames(s, profile)` (one
+    avatar frame from a still of the presenter cut-out if a clip exists for the presenter, else a
+    grey silhouette, and one card frame from a solid page) and returns a JPEG; debounced to one
+    request a second. `DELETE /{slug}` with the refusals in "Channel profiles". Usable at a
+    390 px viewport. README: `web/src/README.md` subdirectory list; `api/routes/README.md`.
 
 #### 42. `server/src/streamstudio/episode/publish.py` (Modify)
 
@@ -1427,7 +1688,9 @@ it changes, so the READMEs never lag the code by a stage.
 *   **Proposed Changes**: Warnings beside scenes, inline edit of `text`, `voice`, `sources`,
     per-scene state chips with progress counts, contact-sheet links, the "Needs you" panel with
     Advance and Send-back-to-writer, the schedule control, a Cancel button, one refresh call when
-    a `scheduled` episode is opened after `publish_at`, and "Published. Purge workings?".
+    a `scheduled` episode is opened after `publish_at`, "Published. Purge workings?", and, when
+    the pinned profile is older than the latest, "Profile changed since approval" with a Use
+    latest profile button.
 
 #### 44. `server/tests/test_episode_qa.py` (Create)
 
@@ -1474,13 +1737,28 @@ it changes, so the READMEs never lag the code by a stage.
     copy them to `data_dir/cards/` and run `npm ci` there once per revision; preflight's Stage 3
     set adds the workspace and the Chromium path. README: `mac/README.md` gains the step.
 
+#### 46a. `server/src/streamstudio/episode/intro.py` (Create); `server/src/streamstudio/api/routes/channels.py` (Modify)
+
+*   **Type / Scope**: `channel_intro` handler and route.
+*   **Proposed Changes**: `POST /api/channels/{slug}/intro` enqueues `channel_intro` with the
+    slug and the latest version; the handler builds the intro composition from that version
+    (file 8's function, imported lazily), renders it through `hyperframes.RENDER`, stores the
+    MP4 with `profiles.store_file`, and saves version N+1 naming it in `sound.intro` with every
+    other field unchanged. If a newer version was saved meanwhile, it saves on top of the newest
+    one, changing only `sound.intro`, and logs that it did. Test: with the fake renderer, the
+    intro is stored and a new version names it.
+
 #### 47. `server/src/streamstudio/episode/cards.py` (Create)
 
 *   **Type / Scope**: `card_render` handler.
 *   **Proposed Changes**: Groups consecutive card scenes by `site`; `generic_card(comp, capture, scenes, beats) -> Comp`
     (address bar, slow scroll, one zoom to the hero rect, one callout from the scenes' escaped
     `text`, beats at measured scene boundaries); writes `cards/<card>.mp4` and `cues.json`;
-    records `durations_hash`. `scene_compose` gains the card slice; `episode_assemble` reads card
+    records `durations_hash`. The card's CSS colours and font come from the pinned profile
+    (`accent_a` for rings and highlights, `panel` for the browser chrome, `text` for the URL,
+    `fonts.body`), through CSS variables the builder writes from the palette, so `build.py`'s
+    literals (`#2de2c4`, `#07080d`, `#0c0e15`, `#c9cde0`) do not survive the port; the profile
+    hash enters `durations_hash`. `scene_compose` gains the card slice; `episode_assemble` reads card
     cues; the planner gains rows 4 and 5.
 
 #### 48. `server/tests/test_episode_cards.py` (Create)
