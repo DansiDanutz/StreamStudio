@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from PIL import Image, ImageDraw, ImageFont
 from playwright.sync_api import sync_playwright
 
 
@@ -66,17 +67,22 @@ def main():
                 mapping = ["-filter_complex", "[2:v]scale=1280:720,setpts=PTS+5/TB[demo];"
                            "[0:v][demo]overlay=enable='gte(t,5)':shortest=0[v]", "-map", "[v]"]
             if i == 2:
-                sources += ["-i", args.original, "-i", args.revised]
+                plate = Image.new("RGB", (1280, 720), "#102029")
+                draw = ImageDraw.Draw(plate)
+                font = root/"assets/brand/fonts/inter-latin-600-normal.woff2"
+                draw.text((35, 58), "One capture. Two directions.", fill="white",
+                          font=ImageFont.truetype(str(font), 48))
+                label = ImageFont.truetype(str(font), 22)
+                draw.text((35, 555), "ORIGINAL   /   RIGHT", fill="white", font=label)
+                draw.text((665, 555), "REVISION   /   LEFT", fill="white", font=label)
+                plate.save(d/"comparison.png")
+                sources += ["-i", args.original, "-i", args.revised,
+                            "-loop", "1", "-framerate", "25", "-i", d/"comparison.png"]
                 mapping = ["-filter_complex",
                            "[2:v]scale=614:346,pad=iw+4:ih+4:2:2:color=0x85bbad[a];"
                            "[3:v]scale=614:346,pad=iw+4:ih+4:2:2:color=0x85bbad[b];"
-                           "[a][b]hstack=inputs=2,pad=1280:720:22:180:color=0x102029,"
-                           "drawtext=text='One capture. Two directions.':x=35:y=58:"
-                           "fontsize=48:fontcolor=white,"
-                           "drawtext=text='ORIGINAL     /     RIGHT':x=35:y=555:"
-                           "fontsize=22:fontcolor=white,"
-                           "drawtext=text='REVISION     /     LEFT':x=665:y=555:"
-                           "fontsize=22:fontcolor=white,setpts=PTS+3/TB[demo];"
+                           "[a][b]hstack=inputs=2[pair];"
+                           "[4:v][pair]overlay=22:180,setpts=PTS+3/TB[demo];"
                            "[0:v][demo]overlay=enable='gte(t,3)'[v]", "-map", "[v]"]
             encode(*sources, *mapping, "-map", "1:a:0", "-t", str(seconds),
                    *video, *audio, d/f"{i+1}.mp4")
