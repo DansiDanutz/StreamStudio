@@ -25,7 +25,7 @@ SITES = {
     (15, 16, 17, 18): "https://worldcup26.world",
     (21, 22, 23, 24): "https://danslab-jev.vercel.app",
     (27,): "https://nervix.space/list",
-    (28,): "https://nervix.space/l/nervixpay",
+    (28,): "https://nervix.space",
     (29,): "https://nervix.space/#directory",
 }
 DROP = ("video", "video_at", "cont", "still", "tag", "intro_zoom", "kind", "question")
