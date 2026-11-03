@@ -335,7 +335,7 @@ def callout_image(renderer, text: str, site: str):
 
 def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path,
             *, outline: tuple = (171, 191, 198, 255), track: tuple[int, int] | None = None,
-            callout=None) -> None:
+            callout=None, next_callout=None) -> None:
     """Render a 1920x1080 scene. Preserve the base soundtrack and hold the capture after reveal."""
     from .compose import probe_duration
 
@@ -361,13 +361,24 @@ def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path,
     with TemporaryDirectory(dir=out.parent) as temp:
         result = Path(temp) / "scene.mp4"
         inputs = ["-i", str(base), "-i", str(card)]
-        if callout is not None:
-            label = Path(temp) / "callout.png"
-            callout.save(label)
-            inputs += ["-i", str(label)]
-            at = max(0, reveal-offset) / FPS
+        switch = spec.page_switch
+        at = max(0, reveal-offset) / FPS
+        first_range = f"gte(t,{at})"
+        if switch:
+            first_range += f"*lt(t,{switch.at_s})"
+        labels = [(callout, first_range)]
+        if switch:
+            labels.append((next_callout, f"gte(t,{switch.at_s})"))
+        for idx, (label, interval) in enumerate(labels):
+            if label is None:
+                continue
+            path = Path(temp) / f"callout-{idx}.png"
+            label.save(path)
+            stream = len(inputs) // 2
+            inputs += ["-i", str(path)]
             filters = filters.removesuffix("[v]") + (
-                f"[scene];[scene][2:v]overlay=x={x}:y=H-h-32:enable='gte(t,{at})'[v]")
+                f"[scene{idx}];[scene{idx}][{stream}:v]overlay=x={x}:y=H-h-32:"
+                f"enable='{interval}'[v]")
         subprocess.run([s.ffmpeg_bin, "-loglevel", "error", *inputs,
                         "-filter_complex", filters, "-map", "[v]", "-map", "0:a?",
                         "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-c:a", "copy",

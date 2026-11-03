@@ -478,8 +478,13 @@ def compose_scene(
             callout = None
             if not spec.focus_label:
                 callout = callout_image(comp, scene.text or scene.spoken, scene.site)
+            next_callout = None
+            if spec.page_switch and not spec.page_switch.focus_label:
+                next_callout = callout_image(
+                    comp, scene.text or scene.spoken, spec.page_switch.site
+                )
             overlay(s, tmp, card_mp4, spec, out_mp4, outline=comp.colors["outline"],
-                    track=card_track, callout=callout)
+                    track=card_track, callout=callout, next_callout=next_callout)
         finally:
             tmp.unlink(missing_ok=True)
     else:
