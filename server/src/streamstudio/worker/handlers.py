@@ -233,6 +233,8 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
         cfg = heygen.load_config(s.data_dir)
         client = heygen.Client(cfg["api_key"], HEYGEN_TRANSPORT)
         if not state.get("video_id"):
+            if s.heygen_cache_only:
+                raise ValueError("cache-only production: refusing a new avatar render")
             audio = None
             if p.get("silent_s"):
                 audio = client.upload_asset(

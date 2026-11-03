@@ -167,6 +167,8 @@ def render(
     }
     if not body.confirm or not planned:
         return out
+    if s.heygen_cache_only:
+        raise HTTPException(409, "cache-only production: a matching avatar clip is missing")
     with tx(c):
         for entry, payload in planned:
             job = store.enqueue(c, "heygen_clip", payload=payload)

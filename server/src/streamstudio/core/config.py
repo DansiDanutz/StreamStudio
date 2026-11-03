@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     episode_rerender_attempts: int = 4
     episode_rerender_usd: float = 1.5
     # HeyGen spend ceiling per calendar month (charges plus open reservations).
+    # Cache-only production. Enforced again at the worker before paid submission.
+    heygen_cache_only: bool = False
     heygen_month_ceiling_usd: float = 400
 
     @property

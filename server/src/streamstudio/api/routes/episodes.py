@@ -192,6 +192,8 @@ def _estimate(s: Settings, c: sqlite3.Connection, ep: record.Episode) -> dict[st
     lines = _lines(s, c, ep)
     est = heygen.estimate(lines)
     allowance = {"attempts": s.episode_rerender_attempts, "usd": s.episode_rerender_usd}
+    if s.heygen_cache_only:
+        allowance = {"attempts": 0, "usd": 0.0}
     before = ledger.month_total(c)
     previous = ledger.unconsumed(c, ep.id)
     after = round(before - previous + est["usd"] + allowance["usd"], 2)
@@ -267,6 +269,10 @@ def approve_budget(
         ):
             raise HTTPException(409, "the estimate expired: open the cost screen again")
         est = _estimate(s, c, ep)
+        if s.heygen_cache_only and any(
+            not record.clip_paths(s, line["clip_key"])[0].exists() for line in est["_lines"]
+        ):
+            raise HTTPException(409, "cache-only production: matching avatar footage is missing")
         if est["over_ceiling"]:
             raise HTTPException(
                 409,
