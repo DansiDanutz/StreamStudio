@@ -22,6 +22,7 @@ in `server/pyproject.toml`: `streamstudio-api`, `streamstudio-worker`,
   - [avatar](./avatar/README.md) — cut-out and object matte tools
   - [core](./core/README.md) — settings, SQLite, safety guards, integrations
   - [edl](./edl/README.md) — Edit Decision List model and operations
+  - [episode](./episode/README.md) — the episode factory (Stage 0: constants, preflight, the HyperFrames workspace templates)
   - [objects](./objects/README.md) — particle dissolve render
   - [render](./render/README.md) — lip-sync guard, opener and preview renders
   - [worker](./worker/README.md) — job worker and handlers

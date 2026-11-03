@@ -9,7 +9,7 @@
 **What it does when opened:**
 
 1. The first time, it downloads StreamStudio into `~/StreamStudio/app`. Every time after, it updates it with `git pull`.
-2. It sets up the server once per version: Python 3.12 via `uv`, which fetches Python itself, or via a system `python3.12`, `python3.13` or `python3.14` (for example from Homebrew).
+2. It sets up the server once per version: Python 3.12 via `uv`, which fetches Python itself, or via a system `python3.12`, `python3.13` or `python3.14` (for example from Homebrew), installed with the `episode` extra (OpenCV, rembg, Playwright), then Playwright's Chromium (`playwright install chromium`, needed for site cards).
 3. It builds the web app once per version, which needs `node`.
 4. It starts the API and the worker in the background (`127.0.0.1:8787`, logs in `~/StreamStudioData/logs`).
 5. It opens the studio in its own window: Chrome, Brave, Edge, Chromium or Arc in app mode. Recording and going live need a Chromium browser.
@@ -45,7 +45,7 @@
 
 - Clones or pulls `https://github.com/DansiDanutz/StreamStudio.git` into `APPDIR`. [MacOS/StreamStudio:REPO]
 - Creates `~/StreamStudioData/logs` and `~/StreamStudioData/run`; appends to `setup.log`, `api.log`, `worker.log`; writes `api.pid` and `worker.pid`. [MacOS/StreamStudio:LOG, RUN]
-- Creates `server/.venv` (via `uv` or `python -m venv` + `pip install -e .`) and runs `npm ci` + `npm run build` in `web/`. [MacOS/StreamStudio:step 2, step 3]
+- Creates `server/.venv` (via `uv` or `python -m venv` + `pip install -e ".[episode]"`), downloads Playwright's Chromium into `~/Library/Caches/ms-playwright`, and runs `npm ci` + `npm run build` in `web/`. [MacOS/StreamStudio:step 2, step 3]
 - Kills processes: pids in `run/*.pid`, any listener on TCP 8787 whose command line contains `streamstudio`, and any `streamstudio.worker.main`. [MacOS/StreamStudio:stop_server]
 - Starts `streamstudio.api.main` and `streamstudio.worker.main` with `nohup` in the background. [MacOS/StreamStudio:step 4]
 - Prepends `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin`, `~/.cargo/bin` to `PATH` for the launcher's own process. [MacOS/StreamStudio:PATH]
