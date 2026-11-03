@@ -153,6 +153,8 @@ def youtube_upload(ctx: JobContext) -> dict[str, Any]:
         lang = json.loads(transcript.read_text()).get("language") if transcript.exists() else None
         captions = youtube.add_captions(api, video_id, srt, lang or "en")
         youtube._write_private(state, {**done, "captions": captions})
+    if p.get("episode_id"):
+        _episode_planner(ctx, p["episode_id"])
     return {
         "video_id": video_id,
         "url": f"https://youtu.be/{video_id}",
@@ -213,6 +215,19 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
     state_dir.mkdir(parents=True, exist_ok=True)
     state_file = state_dir / f"{p['key']}.json"
     state = json.loads(state_file.read_text()) if state_file.exists() else {}
+    episode_id = p.get("episode_id")
+
+    if episode_id and not mp4.exists():
+        # the claim: one paid render per key, even with two planners running at once
+        claim = state.get("claim")
+        if claim and claim != ctx.job["id"]:
+            other = store.get_job(ctx.conn, claim)
+            if other and other["status"] in ("queued", "running"):
+                return {"skipped": "another job holds the claim", "claim": claim}
+        if state.get("failed"):
+            return {"failed": state["failed"], "video_id": state.get("video_id")}
+        state["claim"] = ctx.job["id"]
+        state_file.write_text(json.dumps(state))
 
     if not mp4.exists():
         cfg = heygen.load_config(s.data_dir)
@@ -237,10 +252,17 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
             if st == "completed" and v.get("video_url"):
                 break
             if st == "failed":
+                reason = f"{v.get('failure_message') or v.get('failure_code') or 'failed'}"
+                if episode_id:
+                    # recorded, charged as if billed, and handed back to the planner
+                    state["failed"] = reason
+                    state["at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    state_file.write_text(json.dumps(state))
+                    _episode_charge(ctx, p, float(p.get("seconds") or 0))
+                    _episode_planner(ctx, episode_id)
+                    return {"failed": reason, "video_id": state.get("video_id")}
                 state_file.unlink(missing_ok=True)  # a failed render can be retried as a new one
-                raise ValueError(
-                    f"HeyGen failed: {v.get('failure_message') or v.get('failure_code')}"
-                )
+                raise ValueError(f"HeyGen failed: {reason}")
             if time.time() > deadline:
                 raise TimeoutError("HeyGen is still rendering after 30 minutes")
             if ctx.cancelled():
@@ -266,6 +288,13 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
     else:
         cut = f"/avatar/{out_dir.name}/{webm.name}"
     queue_vault_push(ctx.conn, s)
+    if episode_id:
+        try:
+            seconds = media.summarize(media.probe(mp4, s.ffprobe_bin))["duration_us"] / 1e6
+        except media.MediaError:
+            seconds = float(p.get("seconds") or 0)
+        _episode_charge(ctx, p, seconds)
+        _episode_planner(ctx, episode_id)
     return {
         "clip": url,
         "cutout": cut,
@@ -273,6 +302,24 @@ def heygen_clip(ctx: JobContext) -> dict[str, Any]:
         "name": name,
         "video_id": state.get("video_id"),
     }
+
+
+def _episode_charge(ctx: JobContext, p: dict[str, Any], seconds: float) -> None:
+    """A render's cost, once per clip key. The ledger imports only `core` (no cycle)."""
+    from ..episode import ledger
+
+    with ctx.conn:
+        ledger.charge(
+            ctx.conn, p["episode_id"], p.get("scene_id") or "", p["key"], int(p.get("take") or 0),
+            ctx.job["id"], seconds,
+        )  # fmt: skip
+
+
+def _episode_planner(ctx: JobContext, episode_id: str) -> None:
+    store.enqueue(
+        ctx.conn, "episode_advance", project_id=ctx.job.get("project_id"),
+        payload={"episode_id": episode_id},
+    )  # fmt: skip
 
 
 def shutil_copy(src: Any, dst: Any) -> None:

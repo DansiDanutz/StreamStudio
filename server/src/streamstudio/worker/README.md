@@ -15,14 +15,15 @@ push, noop). The API enqueues jobs; only this process executes them.
 
 - `JobContext` — `job`, `conn`, `settings`; `progress(p, message=None)`, `cancelled() -> bool`
 - `Handler = Callable[[JobContext], dict]`, `HANDLERS: dict[str, Handler]`, `handler(kind)` decorator
-- Registered kinds: `probe` (`probe_asset`), `noop`, `finish_recording`, `transcribe` (`transcribe_recording`), `youtube_upload`, `heygen_clip`, `vault_push`
+- Registered kinds: `probe` (`probe_asset`), `noop`, `finish_recording`, `transcribe` (`transcribe_recording`), `youtube_upload`, `heygen_clip`, `vault_push`; and, registered by `episode/handlers.py` when `main.py` imports it: `episode_advance`, `scene_compose`, `episode_assemble`, `episode_publish_kit`, `episode_register`, `episode_purge`
+- `_episode_charge(ctx, payload, seconds)` (a ledger charge through `episode.ledger`, imported inside the function), `_episode_planner(ctx, episode_id)` (enqueues `episode_advance`)
 - `queue_vault_push(conn, s) -> dict | None`
 - Test hooks: `YOUTUBE_TRANSPORT`, `HEYGEN_TRANSPORT`, `HEYGEN_POLL_S = 8.0`, `CUTOUT` (defaults to `_cutout_clip`)
 - `_cutout_clip(mp4, out_webm, plate) -> bool`, `shutil_copy(src, dst)`
 
 ### `main.py`
 
-- `run_one(conn, settings, worker_id) -> bool`
+- `run_one(conn, settings, worker_id) -> bool` — honours a per-job `max_attempts` in the payload; after a `fail_job` that ends in `error` for a job whose payload carries `episode_id` (and is not itself `episode_advance`), enqueues `episode_advance`
 - `loop(settings, worker_id, stop, poll_s=0.5)`
 - `run()`
 
@@ -30,7 +31,8 @@ push, noop). The API enqueues jobs; only this process executes them.
 
 - `[handlers.py:handler]` Handlers are keyed by kind; `[main.py:run_one]` fails a job with no handler immediately (`max_attempts=0`).
 - Handlers are idempotent (module docstring) and each one checks its own output before working: `[handlers.py:finish_recording]` keeps an MP4 whose mtime is not older than the source; `[handlers.py:transcribe_recording]` keeps a transcript newer than the MP4; `[handlers.py:youtube_upload]` resumes from `<data_dir>/youtube/uploads/<channel>-<id>.json` through `core.youtube.upload` and never creates a second video; `[handlers.py:heygen_clip]` writes the HeyGen `video_id` to `<data_dir>/heygen/<key>.json` before polling, so a retry resumes the same paid render, and skips the render entirely when the MP4 exists; `[handlers.py:vault_push]` is idempotent by checksum (`core.vault.push`).
-- `[handlers.py:heygen_clip]` gives up after 30 minutes (`TimeoutError`), deletes the state file on a `failed` status so the next attempt starts a new render, returns `{"cancelled": True}` when the job is cancelled mid-poll, and re-cuts the clip only when the `.cutout.webm` is older than the MP4. The downloaded URL is presigned; the API key is not sent to it.
+- `[handlers.py:heygen_clip]` with a payload `episode_id` behaves differently in four ways: it writes a claim (its job id) into the state file before `create_video` and returns a no-op when another queued or running job holds the claim; it never unlinks the state file, recording a HeyGen `failed` there as `{failed, at}` and returning it as the result; it writes one ledger charge per clip key (measured duration for `completed`, the payload's estimated `seconds` for `failed`); and it enqueues `episode_advance`. `[handlers.py:youtube_upload]` with an `episode_id` enqueues `episode_advance` on return.
+- `[handlers.py:heygen_clip]` without an `episode_id` (the editor's clips) is unchanged: it gives up after 30 minutes (`TimeoutError`), deletes the state file on a `failed` status so the next attempt starts a new render, returns `{"cancelled": True}` when the job is cancelled mid-poll, and re-cuts the clip only when the `.cutout.webm` is older than the MP4. The downloaded URL is presigned; the API key is not sent to it.
 - `[handlers.py:queue_vault_push]` returns `None` when no vault is configured and reuses an already queued `vault_push` job instead of adding another.
 - `[handlers.py:finish_recording]` rejects a source outside `recordings_dir`; output is H.264 (`h264_videotoolbox` when `core.media.hw_encoders` lists it, else `libx264`), AAC 192k, 48 kHz, 30 fps, `loudnorm=I=-14:TP=-1.5:LRA=11`.
 - `[main.py:run_one]` A job whose status became `cancelled` while running is not marked done. Any exception is recorded with `core.store.fail_job`, which requeues until `Settings.job_max_attempts`.

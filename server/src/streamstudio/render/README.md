@@ -8,7 +8,10 @@ presenter card. `opener.py` is a frame-exact render of the reusable opener
 (plate, Dan cut-out, desk layer, table objects, titles, synthesized sound).
 `preview.py` records the web app's render mode with Playwright and re-encodes
 it with ffmpeg. `opener.py` and `preview.py` are command-line scripts;
-`lipsync.py` is a library used by them and by tests.
+`lipsync.py` is a library used by them, by tests, and by the episode factory's
+compositor (`episode/compose.py`, which calls `guard_cue` for every scene and
+`composite_pip` for degraded scenes, importing this module inside its functions
+because it loads Pillow at module level).
 
 ## Interface
 

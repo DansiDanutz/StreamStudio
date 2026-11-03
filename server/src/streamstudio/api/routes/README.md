@@ -68,7 +68,7 @@ into `streamstudio.core`, and enqueue work for the worker through
 
 - `router` (prefix `/api/recordings`), `REC_ID`, `MAX_BYTES` (16 GiB), `EXT` (content-type to extension)
 - `_dir(s)`, `_check(rid)` (also imported by `youtube.py`)
-- Routes: `upload` (POST ``, 201, raw body), `list_recordings` (GET ``), `download` (GET `/{rid}.mp4`), `queue_transcript` (POST `/{rid}/transcribe`, 202), `get_transcript` (GET `/{rid}/transcript`), `get_captions` (GET `/{rid}.srt`)
+- Routes: `upload` (POST ``, 201, raw body), `list_recordings` (GET ``; takes found through `rec_*.source.*` plus episodes registered by the factory found through `rec_*.episode.json`, each with `episode: <id>` and `source_bytes: null`, merged and sorted by id descending), `download` (GET `/{rid}.mp4`), `queue_transcript` (POST `/{rid}/transcribe`, 202), `get_transcript` (GET `/{rid}/transcript`), `get_captions` (GET `/{rid}.srt`)
 
 ### `scenes.py`
 
