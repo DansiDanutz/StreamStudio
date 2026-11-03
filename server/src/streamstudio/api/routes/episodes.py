@@ -21,7 +21,7 @@ from ...core import heygen, netguard, store, youtube
 from ...core.config import Settings
 from ...core.db import tx
 from ...core.ids import now_iso
-from ...episode import ledger, preflight, record, validate
+from ...episode import ledger, preflight, profiles, record, validate
 from ...episode.contract import EPISODE_ID, SCENE_ID, Script, WebsiteDemo
 from ...episode.website_demo import CATALOG
 from ..deps import conn, settings
@@ -77,7 +77,13 @@ def create(body: Script, s: Settings = Depends(settings), c: sqlite3.Connection 
     if v["errors"]:
         raise HTTPException(422, {"errors": v["errors"]})
     with tx(c):
+        profiles.seed(c, s)
+        slug = body.profile or profiles.default(c)
+        if not profiles.get(c, slug):
+            raise HTTPException(409, "channel profile not found")
         ep = record.create(c, s, body)
+        ep.record["profile_slug"] = slug
+        record.save(c, ep)
     return record.to_out(s, ep, v)
 
 
@@ -117,6 +123,8 @@ def put_script(
             or _live(c, outputs.get("upload_job_id"))
         ):
             raise HTTPException(409, f"the script cannot change while the episode is {ep.status}")
+        if body.profile and body.profile != ep.record.get("profile_slug", "danslab"):
+            raise HTTPException(409, "create a new episode to change its channel")
         previous_scenes = {sc.id: sc for sc in ep.script.scenes}
         old_hash = ep.record["script"].get("hash")
         if expected_hash is not None and expected_hash != old_hash:
@@ -164,8 +172,11 @@ def approve_script(
         v = validate.validate(ep.script, s)
         if v["errors"]:
             raise HTTPException(422, {"errors": v["errors"]})
+        if ep.record.get("profile") is None:
+            profiles.seed(c, s)
+            ep.record["profile"] = profiles.get(c, ep.record.get("profile_slug", "danslab"))
         if ep.record.get("presenter_defaults") is None:
-            cfg = heygen.load_config(s.data_dir)
+            cfg = ep.record["profile"]["profile"]["presenter"]
             ep.record["presenter_defaults"] = {
                 "avatar_id": cfg["avatar_id"] or ep.script.look,
                 "voice_id": cfg["voice_id"] or ep.script.voice_id,
@@ -357,7 +368,8 @@ def upload_private(
         if ep.status != "ready":
             raise HTTPException(409, f"the episode is {ep.status}")
         try:
-            channel = youtube.pick_channel(s.data_dir, ep.script.channel)
+            requested = ep.script.channel or ep.channel_settings.get("youtube_channel")
+            channel = youtube.pick_channel(s.data_dir, requested)
         except youtube.YouTubeError as e:
             raise HTTPException(409, str(e)) from e
         ep.record["outputs"].update(channel=channel, upload_requested=True)

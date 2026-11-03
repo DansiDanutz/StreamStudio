@@ -55,6 +55,10 @@ class Episode:
         raw = {k: v for k, v in self.record["script"].items() if k != "hash"}
         return Script.model_validate(raw)
 
+    @property
+    def channel_settings(self) -> dict:
+        return (self.record.get("profile") or {}).get("profile", {})
+
     def render_script(self) -> Script:
         """Apply the presenter defaults captured at approval to the writer's script."""
         script = self.script
@@ -64,6 +68,7 @@ class Episode:
         return script.model_copy(update={
             "look": script.look or pin["avatar_id"],
             "voice_id": script.voice_id or pin["voice_id"],
+            "motion": script.motion or self.channel_settings.get("presenter", {}).get("motion"),
         })
 
     def scene_state(self, scene_id: str) -> dict[str, Any]:

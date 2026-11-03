@@ -497,6 +497,12 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env):
     rules = client.get("/api/episodes/workflows").json()
     assert rules[0]["id"] == "website-demo/v1"
     eid = client.post("/api/episodes", json=small_script(scenes=[scene.model_dump()])).json()["id"]
+    profile = client.get("/api/channels/danslab").json()
+    profile["profile"].update(language="en-GB", publish={
+        "description_footer": "Engineering at DansLab", "default_tags": ["walkthrough"]})
+    saved = client.put("/api/channels/danslab", headers=ORIGIN, json={
+        "base_version": profile["version"], "profile": profile["profile"]})
+    assert saved.status_code == 200
     card = asset_path(record.episode_dir(s, eid), scene)
     make_clip(card)
     preview = f"/api/episodes/{eid}/scenes/s10/preview"
@@ -510,6 +516,11 @@ def test_cached_website_demo_reaches_library_and_serves_scene_preview(env):
     assert tube.inits == 0
 
     original = client.get(f"/api/episodes/{eid}").json()["outputs"]["recording_id"]
+    metadata = json.loads((record.episode_dir(s, eid) / "kit.json").read_text())
+    assert metadata["description"].endswith("Engineering at DansLab")
+    assert "walkthrough" in metadata["tags"]
+    assert json.loads((s.recordings_dir / f"{original}.transcript.json").read_text())[
+        "language"] == "en-GB"
     scene.plan.website_demo.side = "left"
     scene.plan.website_demo.reveal_at = .55
     body = small_script(scenes=[scene.model_dump()])

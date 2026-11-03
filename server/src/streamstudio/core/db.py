@@ -116,6 +116,14 @@ MIGRATIONS: list[str] = [
     CREATE UNIQUE INDEX heygen_ledger_charge_once ON heygen_ledger(episode_id, clip_key)
         WHERE kind = 'charge';
     """,
+    """
+    CREATE TABLE channel_profiles (
+        slug TEXT NOT NULL, version INTEGER NOT NULL, hash TEXT NOT NULL,
+        profile_json TEXT NOT NULL, PRIMARY KEY (slug, version)
+    );
+    CREATE TABLE channel_default (singleton INTEGER PRIMARY KEY CHECK(singleton=1), slug TEXT);
+    INSERT INTO channel_default(singleton, slug) VALUES(1, 'danslab');
+    """,
 ]
 
 

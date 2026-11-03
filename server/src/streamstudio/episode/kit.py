@@ -156,7 +156,7 @@ def build_kit(
 
 def register(
     s: Settings, episode_id: str, final_mp4: Path, final_srt: Path, kit: dict[str, Any],
-    *, revision: int = 0,
+    *, revision: int = 0, language: str = "en",
 ) -> dict[str, str]:
     """Move the final video into the recordings library as a take named `rec_<stamp>-ep`, with
     its captions, a minimal transcript file naming the language, and the episode sidecar."""
@@ -178,7 +178,7 @@ def register(
         if final_srt.exists():
             shutil.copy2(final_srt, staged / f"{rid}.srt")
         (staged / f"{rid}.transcript.json").write_text(
-            json.dumps({"language": "en", "source": "script"})
+            json.dumps({"language": language, "source": "script"})
         )
         (staged / f"{rid}.episode.json").write_text(json.dumps({
             "episode": episode_id, "revision": revision, "title": kit.get("title"),

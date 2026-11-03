@@ -547,3 +547,27 @@ def test_approval_keeps_dans_presenter_when_global_voice_changes(env):
     jobs = [job for job in store.list_jobs(c) if job["kind"] == "heygen_clip"]
     assert jobs and all(j["payload"]["voice"] == "v1" and j["payload"]["look"] == "look1"
                         for j in jobs)
+
+def test_channel_versions_and_approval_pin(env):
+    client, _, _, _ = env
+    create = {"slug": "engineering", "name": "Engineering"}
+    assert client.post("/api/channels", json=create).status_code == 403
+    v1 = client.post("/api/channels", json=create, headers=ORIGIN).json()
+    assert v1["version"] == 1 and v1["profile"]["youtube_channel"] is None
+    client.put("/api/channels/default", json={"slug": "engineering"}, headers=ORIGIN)
+    eid = client.post("/api/episodes", json=small_script()).json()["id"]
+    client.put("/api/channels/default", json={"slug": "danslab"}, headers=ORIGIN)
+    publishing = {"default_tags": ["local"], "description_footer": "Lab"}
+    settings = {**v1["profile"], "publish": publishing}
+    url = "/api/channels/engineering"
+    body = {"base_version": 1, "profile": settings}
+    v2 = client.put(url, json=body, headers=ORIGIN).json()
+    assert v2["version"] == 2 and v2["hash"] != v1["hash"]
+    assert client.put(url, json=body, headers=ORIGIN).status_code == 409
+    assert client.get(url, params={"version": 1}).json() == v1
+    base = f"/api/episodes/{eid}"
+    assert client.post(base + "/approve-script").json()["profile"] == v2
+    assert client.put(url, json={"base_version": 2, "profile": v1["profile"]},
+                      headers=ORIGIN).status_code == 200
+    assert client.put(base + "/script", json=small_script(title="Edited")).status_code == 200
+    assert client.post(base + "/approve-script").json()["profile"] == v2

@@ -150,6 +150,11 @@ def episode_publish_kit(ctx: JobContext) -> dict[str, Any]:
                     for w in json.loads(wf.read_text()).get("words", [])
                 ]
     k, srt = kit.build_kit(ep.script, starts, timing["durations"], timing["intro_s"], words)
+    publishing = ep.channel_settings.get("publish", {})
+    footer = publishing.get("description_footer")
+    if footer:
+        k["description"] = (k["description"] + "\n\n" + footer).strip()
+    k["tags"] = list(dict.fromkeys([*k["tags"], *publishing.get("default_tags", [])]))
     (d / "final.srt").write_text(srt)
     kit_json.write_text(json.dumps(k, indent=1, ensure_ascii=False))
     _enqueue_planner(ctx, ep.id)
@@ -178,7 +183,8 @@ def episode_register(ctx: JobContext) -> dict[str, Any]:
             raise ValueError("final.mp4 is missing")
         k = json.loads((d / "kit.json").read_text())
         revision = ep.record.get("revision", 0)
-        result = kit.register(s, ep.id, final, d / "final.srt", k, revision=revision)
+        result = kit.register(s, ep.id, final, d / "final.srt", k, revision=revision,
+                              language=ep.channel_settings.get("language", "en"))
         _enqueue_planner(ctx, ep.id)
         return result
 

@@ -78,6 +78,7 @@ class Scene(Strict):
 
 
 class Script(Strict):
+    profile: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{0,47}$")
     title: str = Field(min_length=1, max_length=100)
     version: str = Field(default="1", max_length=40)
     tags: list[str] = []
