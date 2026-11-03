@@ -12,6 +12,7 @@ const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${Str
 
 /** The Program window: clean output that mirrors the editor, plays the sound, and records itself. */
 export function ProgramView() {
+  const [frameRate, setFrameRate] = useState<30 | 60>(30)
   const [recording, setRecording] = useState(false)
   const [secs, setSecs] = useState(0)
   const [last, setLast] = useState<{ take: Take; url: string; id: string | null; mp4: boolean } | null>(null)
@@ -51,7 +52,7 @@ export function ProgramView() {
     setErr(null)
     const base = root.current?.querySelector('.base')
     if (!base) return
-    try { await rec.start(base, timeslice, !!liveCfg); setRecording(true) } catch { setErr('Recording needs permission to capture this tab: pick "This tab" and allow audio.') }
+    try { await rec.start(base, timeslice, !!liveCfg, frameRate); setRecording(true) } catch { setErr('Recording needs permission to capture this tab: pick "This tab" and allow audio.') }
   }
   const goLive = async () => {
     setErr(null)
@@ -87,6 +88,10 @@ export function ProgramView() {
       <div className="program-bar">
         <b>Program</b>
         <span className={`dot ${linked ? 'on' : ''}`}>{linked ? 'linked to the editor' : 'waiting for the editor…'}</span>
+        <label>Capture rate <select value={frameRate} disabled={recording}
+          onChange={e => setFrameRate(e.target.value === '60' ? 60 : 30)}>
+          <option value="30">30 fps</option><option value="60">60 fps</option>
+        </select></label>
         {recording
           ? <button className="rec on" onClick={stop}>■ Stop · {fmt(secs)}</button>
           : <button className="rec" onClick={() => start(500)} disabled={!linked}>● Record</button>}

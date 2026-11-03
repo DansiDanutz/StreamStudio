@@ -32,10 +32,10 @@ export class Recorder {
   get recording() { return !!this.rec && this.rec.state === 'recording' }
   get seconds() { return this.recording ? Math.floor((performance.now() - this.t0) / 1000) : 0 }
 
-  async start(target: Element, timeslice = 1000, streamable = true): Promise<void> {
+  async start(target: Element, timeslice = 1000, streamable = true, frameRate: 30 | 60 = 30): Promise<void> {
     const md = navigator.mediaDevices as MediaDevices & { getDisplayMedia: (o: object) => Promise<MediaStream> }
     this.stream = await md.getDisplayMedia({
-      video: { frameRate: 30, displaySurface: 'browser' },
+      video: { frameRate, displaySurface: 'browser' },
       audio: { suppressLocalAudioPlayback: false },
       preferCurrentTab: true, selfBrowserSurface: 'include', surfaceSwitching: 'exclude', systemAudio: 'include',
     })
