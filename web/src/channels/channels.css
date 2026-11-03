@@ -1,0 +1,7 @@
+.channels-page { position: fixed; inset: 0; overflow: auto; background: #10191e; color: #e5eeeb; padding: 2rem max(1rem, calc((100vw - 48rem)/2)); }
+.channels-page h1 { margin: .75rem 0; }
+.channels-page a { color: #8de1cc; }
+.channels-page fieldset { border: 1px solid #49605f; border-radius: .6rem; padding: 1rem; margin: 1rem 0; min-width: 0; }
+.channels-page label { display: grid; gap: .25rem; margin: .65rem 0; }
+.channels-page input,.channels-page select,.channels-page textarea { padding: .55rem; background: #19292e; color: inherit; border: 1px solid #63817d; border-radius: .3rem; font: inherit; min-width: 0; }
+.channels-page button { margin: .5rem .5rem 0 0; }
