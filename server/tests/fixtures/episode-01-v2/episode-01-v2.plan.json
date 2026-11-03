@@ -246,7 +246,13 @@
   "video": "g15.mp4",
   "video_at": 9.6,
   "cont": true,
-  "tag": "worldcup26.world \u00b7 a free collecting game"
+  "tag": "worldcup26.world \u00b7 a free collecting game",
+  "website_demo": {
+   "page_switch": {
+    "at_s": 4.38,
+    "site": "https://worldcup26.world/#collector-quest"
+   }
+  }
  },
  {
   "kind": "card",

@@ -319,6 +319,12 @@
    "kind": "card",
    "site": "https://worldcup26.world",
    "plan": {
+    "website_demo": {
+     "page_switch": {
+      "at_s": 4.38,
+      "site": "https://worldcup26.world/#collector-quest"
+     }
+    },
     "card_template": "generic"
    }
   },
