@@ -5,12 +5,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import * as api from './api'
+import { SceneEditor } from './SceneEditor'
 import { progressLabel, primaryAction, usd, type Episode, type Estimate } from './api'
 
 const POLL_MS = 5_000
 const BUSY: api.EpisodeStatus[] = ['budget_approved', 'in_progress']
 
 export function EpisodePage({ id }: { id: string }) {
+  const [editing, setEditing] = useState<string | null>(null)
   const [ep, setEp] = useState<Episode | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [est, setEst] = useState<Estimate | null>(null)
@@ -143,6 +145,15 @@ export function EpisodePage({ id }: { id: string }) {
                 </div>
                 <div className="scene-text">{sc.text || sc.voice}</div>
                 {sc.voice && sc.text && sc.voice !== sc.text && <div className="scene-voice">voice: {sc.voice}</div>}
+                {!ep.outputs.upload_requested && !ep.outputs.upload_job_id && ep.script.hash &&
+                  ['draft', 'script_approved', 'budget_approved', 'in_progress', 'ready', 'needs_dan'].includes(ep.status) &&
+                  <div><button disabled={busy || (editing !== null && editing !== sc.id)}
+                    onClick={() => setEditing(editing === sc.id ? null : sc.id)}>
+                    {editing === sc.id ? 'Close editor' : 'Edit scene'}
+                  </button>
+                  {editing === sc.id && <SceneEditor episode={ep} scene={sc} saved={next => {
+                    setEp(next); setEditing(null); setEst(null)
+                  }} />}</div>}
                 {st.capture_url && <details><summary>Website capture evidence</summary>
                   <a href={st.capture_url} target="_blank" rel="noreferrer">Inspect capture metadata</a>
                   <img loading="lazy" style={{width: '100%'}} alt="Source capture used for this scene"

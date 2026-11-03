@@ -476,3 +476,6 @@ video.cutout { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%
 .scene-error { margin-top: 4px; color: var(--accent); font-size: 13px }
 .episode-log ul { list-style: none; margin: 0; padding: 0; font-size: 13px; display: grid; gap: 3px }
 @media (max-width: 480px) { .episode { padding: 12px } .episode h1 { font-size: 20px } .episode-cost dl { grid-template-columns: 1fr } .episode-actions button { flex: 1 } }
+
+.scene-editor label { display: grid; gap: .25rem; margin: .65rem 0; }
+.scene-editor textarea { width: 100%; min-width: 0; color: inherit; background: #19292e; padding: .5rem; }

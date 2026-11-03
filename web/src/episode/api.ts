@@ -14,6 +14,7 @@ export interface SceneIn {
   site?: string
   question?: number
   reveal?: boolean
+  sources?: { claim: string; source: string }[]
   plan?: Record<string, unknown>
 }
 
@@ -73,7 +74,11 @@ export const getEpisode = (id: string) => call<Episode>('GET', `/${id}`)
 export const listEpisodes = () => call<{ id: string; title: string; status: EpisodeStatus; scenes: number }[]>('GET', '')
 export const createEpisode = (script: Episode['script']) => call<Episode>('POST', '', script)
 export const repin = (id: string) => call<Episode>('POST', `/${id}/repin`, {})
-export const putScript = (id: string, script: Episode['script']) => call<Episode>('PUT', `/${id}/script`, script)
+export function putScript(id: string, script: Episode['script']) {
+  const { hash, ...body } = script
+  const query = hash ? '?' + new URLSearchParams({expected_hash: hash}).toString() : ''
+  return call<Episode>('PUT', `/${id}/script${query}`, body)
+}
 export const approveScript = (id: string) => call<Episode>('POST', `/${id}/approve-script`)
 export const estimate = (id: string) => call<Estimate>('GET', `/${id}/estimate`)
 export const approveBudget = (id: string, token: string) => call<Episode & { job_id: string }>('POST', `/${id}/approve-budget`, { confirm_token: token })
