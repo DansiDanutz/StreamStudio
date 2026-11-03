@@ -87,7 +87,8 @@ def plan_cues(scenes: list[Scene], starts: list[float], durations: list[float]) 
             offset, reveal = tracks[sc.id]
             if offset == 0:
                 cue("navigate", t0, f"{sc.id}: show website")
-                cue("counter", t0 + reveal / FPS, f"{sc.id}: focus on {p.website_demo.focus_label}")
+                focus = p.website_demo.focus_label or "page hero"
+                cue("counter", t0 + reveal / FPS, f"{sc.id}: focus on {focus}")
         if sc.question:
             cue("question_riser", t0, f"{sc.id}: question {sc.question} coming")
             cue("question_pop", t0, f"{sc.id}: question card")

@@ -734,7 +734,7 @@ def test_manual_capture_is_scoped_to_page_and_worker_uses_it_offline(env, tmp_pa
     manual = {**saved.json()["manual"], "focus_x": .8, "focus_y": .4}
     scene = Scene.model_validate({"id": "s1", "kind": "card", "text": "Inspect the new report.",
                                   "site": site, "plan": {"website_demo": {
-                                      "focus_label": "Report", "manual": manual}}})
+                                      "manual": manual}}})
     import playwright.sync_api as pw
     monkeypatch.setattr(pw, "sync_playwright", lambda: pytest.fail("unexpected browser"))
     invalid = {**scene.model_dump(), "site": site + "/other"}

@@ -11,7 +11,7 @@ import hashlib
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 SCENE_ID = re.compile(r"^s[0-9]{1,3}$")
 CARD_ID = re.compile(r"^c[0-9]{1,3}$")
@@ -35,7 +35,7 @@ class WebsiteDemo(Strict):
 
     workflow: Literal["website-demo/v1"] = "website-demo/v1"
     manual: ManualCapture | None = None
-    focus_label: str = Field(min_length=1, max_length=160)
+    focus_label: str | None = Field(default=None, min_length=1, max_length=160)
     side: Literal["left", "right"] = "right"
     reveal_at: float = Field(default=0.30, ge=0, lt=1)
 
@@ -73,6 +73,12 @@ class Plan(Strict):
     connected_cards: ConnectedCards | None = None
     website_demo: WebsiteDemo | None = None
     card_template: Literal["generic"] | None = None
+
+    @model_validator(mode="after")
+    def select_generic_website(self):
+        if self.card_template == "generic" and self.website_demo is None:
+            self.website_demo = WebsiteDemo()
+        return self
 
 
 class Source(Strict):

@@ -17,7 +17,9 @@ from .contract import Scene, WebsiteDemo
 CATALOG = {
     "id": "website-demo/v1",
     "choose_when": "A card scene explains a visible feature on an allowed HTTPS site.",
-    "requires": ["scene.site", "visible accessible label for the feature"],
+    "requires": ["scene.site"],
+    "focus_label": "Optional exact label. Otherwise scroll to the largest visible hero graphic.",
+    "callout": "Without an explicit label, show the page address and scene text at the reveal.",
     "manual": "For a manual host, upload a screenshot and supply its sha256 and focal point.",
     "capture": "Playwright Chromium viewport and a camera move to the labeled feature",
     "editable_without_capture": ["side", "reveal_at"],
@@ -79,6 +81,27 @@ def asset_path(folder: Path, scene: Scene) -> Path | None:
     return folder / "cards" / (hashlib.sha256(key.encode()).hexdigest() + ".mp4")
 
 
+def automatic_hero(page):
+    """Find the largest visible illustration, with the page heading as a text-only fallback."""
+    return page.evaluate("""() => {
+        const visible = el => {
+            const r = el.getBoundingClientRect();
+            const css = getComputedStyle(el);
+            return { x: r.x, y: r.y, width: r.width, height: r.height,
+                     area: css.visibility === 'hidden' || css.display === 'none' ||
+                           Number(css.opacity) === 0 ? 0 :
+                           Math.max(0, Math.min(r.right, innerWidth) - Math.max(0, r.left)) *
+                           Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(0, r.top)) };
+        };
+        const graphics = [...document.querySelectorAll('img,video,canvas,svg,[role="img"]')]
+          .filter(el => !el.closest('header,nav,[aria-hidden="true"]'))
+          .map(visible).filter(r => r.area >= 4096);
+        const headings = [...document.querySelectorAll('main h1,h1,h2')].map(visible);
+        return graphics.sort((a,b) => b.area-a.area)[0] || headings.find(r => r.area>0)
+          || {x: innerWidth/4, y: innerHeight/4, width: innerWidth/2, height: innerHeight/2};
+    }""")
+
+
 def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
     from playwright.sync_api import sync_playwright
 
@@ -94,6 +117,7 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
     with TemporaryDirectory(dir=dst.parent) as temp:
         image = Path(temp) / "page.png"
         movie = Path(temp) / "card.mp4"
+        scroll = 0
         if manual:
             image = manual_folder(s, scene.site) / (manual.sha256 + ".png")
             with image.open("rb") as stream:
@@ -120,20 +144,28 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
                 response = page.goto(scene.site, wait_until="load")
                 if not response or not response.ok:
                     raise ValueError("website capture failed")
-                target = page.get_by_label(scene.plan.website_demo.focus_label, exact=True)
-                target.scroll_into_view_if_needed()
                 page.evaluate("document.fonts.ready")
-                box = target.bounding_box()
-                if not box:
-                    raise ValueError("the capture target is not visible")
-                page.screenshot(path=image, animations="disabled")
+                label = scene.plan.website_demo.focus_label
+                if label:
+                    target = page.get_by_label(label, exact=True)
+                    target.scroll_into_view_if_needed()
+                    box = target.bounding_box()
+                    if not box:
+                        raise ValueError("the capture target is not visible")
+                    page.screenshot(path=image, animations="disabled")
+                else:
+                    box = automatic_hero(page)
+                    extra = page.evaluate("Math.max(0, document.documentElement.scrollHeight-740)")
+                    scroll = min(160, extra, max(0, round(box["y"] + box["height"]/2 - height*.32)))
+                    page.screenshot(path=image, animations="disabled",
+                                    clip={"x": 0, "y": 0, "width": width, "height": height+scroll})
+                page.unroute_all(behavior="wait")
                 browser.close()
             cx = (box["x"] + box["width"] / 2) / width
             cy = (box["y"] + box["height"] / 2) / height
         # Ease from the full viewport into the product detail; hold its final frame in the scene.
         zoom = "1+0.78*(1-cos(PI*min(on/35,1)))/2"
-        camera = (f"zoompan=z='{zoom}':x='clip(iw*{cx}-iw/zoom/2,0,iw-iw/zoom)'"
-                  f":y='clip(ih*{cy}-ih/zoom/2,0,ih-ih/zoom)':d=36:s=1200x740:fps=25")
+        prefix = ""
         if manual:
             # Preserve aspect ratio; focal coordinates refer to the submitted image.
             from PIL import Image
@@ -141,9 +173,17 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
                 scale = min(width/source.width, height/source.height)
                 cx = .5 + (cx-.5)*source.width*scale/width
                 cy = .5 + (cy-.5)*source.height*scale/height
-            camera = ("scale=1200:740:force_original_aspect_ratio=decrease,"
-                      "pad=1200:740:(ow-iw)/2:(oh-ih)/2," + camera)
-        subprocess.run([s.ffmpeg_bin, "-loglevel", "error", "-i", str(image), "-vf", camera,
+            prefix = ("scale=1200:740:force_original_aspect_ratio=decrease,"
+                      "pad=1200:740:(ow-iw)/2:(oh-ih)/2,")
+        if scroll:
+            prefix = f"crop=1200:740:0:'{scroll}*min(n/35,1)',"
+        target_y = f"{cy}" if not scroll else f"({cy}-{scroll/height}*min(on/35,1))"
+        repeats = 1 if scroll else 36
+        camera = (prefix + f"zoompan=z='{zoom}':x='clip(iw*{cx}-iw/zoom/2,0,iw-iw/zoom)'"
+                  f":y='clip(ih*{target_y}-ih/zoom/2,0,ih-ih/zoom)':d={repeats}:s=1200x740:fps=25")
+        loop = ["-loop", "1", "-framerate", "25"] if scroll else []
+        subprocess.run([s.ffmpeg_bin, "-loglevel", "error", *loop, "-i", str(image), "-vf", camera,
+                        "-frames:v", "36",
                         "-pix_fmt", "yuv420p", "-c:v", "libx264", "-crf", "16", str(movie)],
                        check=True)
         movie.replace(dst)
@@ -171,8 +211,38 @@ def card_timeline(scenes: list[Scene], durations: list[float]) -> dict[str, tupl
     return tracks
 
 
+def callout_image(renderer, text: str, site: str):
+    """Render script copy as pixels, including untrusted punctuation, in the approved font."""
+    from PIL import Image, ImageDraw
+
+    font = renderer.font(32, "SemiBold")
+    words = text.split()
+    lines = []
+    while words and len(lines) < 2:
+        line = words.pop(0)
+        while words and font.getlength(line + " " + words[0]) <= 1090:
+            line += " " + words.pop(0)
+        needs_ellipsis = font.getlength(line) > 1090 or (len(lines) == 1 and words)
+        if needs_ellipsis:
+            while line and font.getlength(line + "…") > 1090:
+                line = line[:-1]
+            line = line.rstrip() + "…"
+        lines.append(line)
+    image = Image.new("RGBA", (1188, 54 + 42*len(lines)))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((0, 0, image.width-1, image.height-1), 14,
+                           fill=renderer.colors.get("panel", (8, 14, 20, 235)),
+                           outline=renderer.colors["outline"], width=2)
+    draw.text((24, 8), urlsplit(site).hostname or "", font=renderer.font(22, "Medium"),
+              fill=renderer.colors.get("tag_text", renderer.colors["accent_a"]))
+    for i, line in enumerate(lines):
+        draw.text((24, 42+42*i), line, font=font, fill=renderer.colors["text"])
+    return image
+
+
 def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path,
-            *, outline: tuple = (171, 191, 198, 255), track: tuple[int, int] | None = None) -> None:
+            *, outline: tuple = (171, 191, 198, 255), track: tuple[int, int] | None = None,
+            callout=None) -> None:
     """Render a 1920x1080 scene. Preserve the base soundtrack and hold the capture after reveal."""
     from .compose import probe_duration
 
@@ -188,7 +258,15 @@ def overlay(s: Settings, base: Path, card: Path, spec: WebsiteDemo, out: Path,
     out.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=out.parent) as temp:
         result = Path(temp) / "scene.mp4"
-        subprocess.run([s.ffmpeg_bin, "-loglevel", "error", "-i", str(base), "-i", str(card),
+        inputs = ["-i", str(base), "-i", str(card)]
+        if callout is not None:
+            label = Path(temp) / "callout.png"
+            callout.save(label)
+            inputs += ["-i", str(label)]
+            at = max(0, reveal-offset) / FPS
+            filters = filters.removesuffix("[v]") + (
+                f"[scene];[scene][2:v]overlay=x={x}:y=H-h-32:enable='gte(t,{at})'[v]")
+        subprocess.run([s.ffmpeg_bin, "-loglevel", "error", *inputs,
                         "-filter_complex", filters, "-map", "[v]", "-map", "0:a?",
                         "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-c:a", "copy",
                         "-movflags", "+faststart", str(result)], check=True)

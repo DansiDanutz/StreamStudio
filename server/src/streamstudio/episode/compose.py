@@ -469,13 +469,17 @@ def compose_scene(
         tmp.unlink(missing_ok=True)
         raise RuntimeError(f"compose of {scene.id} produced no frames")
     if plan.website_demo:
-        from .website_demo import overlay
+        from .website_demo import callout_image, overlay
 
         try:
             if not card_mp4:
                 raise ValueError("website demo capture missing")
-            overlay(s, tmp, card_mp4, plan.website_demo, out_mp4, outline=comp.colors["outline"],
-                    track=card_track)
+            spec = plan.website_demo
+            callout = None
+            if not spec.focus_label:
+                callout = callout_image(comp, scene.text or scene.spoken, scene.site)
+            overlay(s, tmp, card_mp4, spec, out_mp4, outline=comp.colors["outline"],
+                    track=card_track, callout=callout)
         finally:
             tmp.unlink(missing_ok=True)
     else:
