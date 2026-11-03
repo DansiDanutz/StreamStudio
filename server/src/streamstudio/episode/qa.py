@@ -171,7 +171,11 @@ def inspect(folder: Path, key: str, clip: Path, s: Settings, expected: str, firs
     result = folder / f"{key}.json"
     if result.exists():
         cached = json.loads(result.read_text())
-        if "transcript_available" in cached:
+        if cached.get("transcript_available") is True:
+            return cached
+        if cached.get("transcript_available") is False and not all(
+            transcribe.whisper_status(s).values()
+        ):
             return cached
     with TemporaryDirectory(dir=folder) as tmp:
         sheet = Path(tmp) / "sheet.jpg"
