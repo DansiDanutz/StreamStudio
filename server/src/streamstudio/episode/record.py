@@ -303,6 +303,15 @@ def progress(s: Settings, episode: Episode) -> dict[str, int]:
 
 def to_out(s: Settings, episode: Episode, validation: dict[str, Any]) -> dict[str, Any]:
     rec = json.loads(json.dumps(episode.record))
+    from .website_demo import asset_path
+
+    folder = episode_dir(s, episode.id)
+    for scene in episode.script.scenes:
+        card = asset_path(folder, scene)
+        if card and (folder / "caps" / card.stem / "metadata.json").is_file():
+            rec["scenes_state"].setdefault(scene.id, {})["capture_url"] = (
+                f"/api/episodes/{episode.id}/scenes/{scene.id}/capture"
+            )
     rec["budget"].pop("confirm_token", None)
     rec["budget"].pop("token_expires_at", None)
     rec["status"] = episode.status

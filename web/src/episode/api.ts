@@ -25,7 +25,7 @@ export interface Episode {
   status: EpisodeStatus
   script: { title: string; scenes: SceneIn[]; hash?: string; [k: string]: unknown }
   budget: { retries?: { scene: string; take: number; usd: number }[]; approved_at: string | null; clips: number; seconds: number; usd: number; allowance: { attempts: number; usd: number }; spent: { renders: number; seconds: number; usd: number } }
-  scenes_state: Record<string, { take?: number; clip?: boolean; composed_hash?: string | null; qa?: string | null; qa_issues?: string[] }>
+  scenes_state: Record<string, { take?: number; clip?: boolean; composed_hash?: string | null; qa?: string | null; capture_url?: string; qa_issues?: string[] }>
   outputs: { upload_requested?: boolean; upload_job_id?: string; channel?: string; recording_id?: string; youtube_video_id?: string; publish_at?: string | null }
   log: { at: string; stage: string; message: string; scene?: string }[]
   progress: { clips: number; qa: number; composed: number; total: number }

@@ -744,7 +744,18 @@ def test_manual_capture_is_scoped_to_page_and_worker_uses_it_offline(env, tmp_pa
     jobs = drain(s)
     assert all(j["status"] == "done" for j in jobs), [(j["kind"], j["error"]) for j in jobs]
     assert client.get(f"/api/episodes/{eid}").json()["status"] == "ready"
-    assert website_demo.asset_path(record.episode_dir(s, eid), scene).is_file()
+    folder = record.episode_dir(s, eid)
+    card = website_demo.asset_path(folder, scene)
+    assert card.is_file()
+    url = client.get(f"/api/episodes/{eid}").json()["scenes_state"]["s1"]["capture_url"]
+    metadata = client.get(url).json()
+    assert metadata["url"] == site and metadata["sha256"] == manual["sha256"]
+    assert metadata["title"] is None and metadata["focus_x"] == .8
+    assert client.get(url + "?image=true").content == (
+        website_demo.manual_folder(s, site) / (manual["sha256"] + ".png")).read_bytes()
+    original = card.read_bytes()
+    card.unlink()
+    assert website_demo.prepare(s, scene, folder).read_bytes() == original
 
 
 def test_adjacent_card_slices_continue_the_same_camera_move(env, tmp_path):

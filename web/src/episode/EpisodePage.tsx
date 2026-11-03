@@ -143,6 +143,10 @@ export function EpisodePage({ id }: { id: string }) {
                 </div>
                 <div className="scene-text">{sc.text || sc.voice}</div>
                 {sc.voice && sc.text && sc.voice !== sc.text && <div className="scene-voice">voice: {sc.voice}</div>}
+                {st.capture_url && <details><summary>Website capture evidence</summary>
+                  <a href={st.capture_url} target="_blank" rel="noreferrer">Inspect capture metadata</a>
+                  <img loading="lazy" style={{width: '100%'}} alt="Source capture used for this scene"
+                    src={st.capture_url + '?image=true'} /></details>}
                 {st.qa && ep.status !== 'purged' && <details>
                   <summary>Avatar review · {st.qa}</summary>
                   {st.qa_issues?.map(issue => <p key={issue}>{issue}</p>)}

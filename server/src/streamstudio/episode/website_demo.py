@@ -6,6 +6,7 @@ import hashlib
 import http.client
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -118,56 +119,89 @@ def prepare(s: Settings, scene: Scene, folder: Path) -> Path:
     with TemporaryDirectory(dir=dst.parent) as temp:
         image = Path(temp) / "page.png"
         movie = Path(temp) / "card.mp4"
-        scroll = 0
-        if manual:
-            image = manual_folder(s, scene.site) / (manual.sha256 + ".png")
-            with image.open("rb") as stream:
-                if hashlib.file_digest(stream, "sha256").hexdigest() != manual.sha256:
-                    raise ValueError("manual screenshot failed its integrity check")
-            cx, cy = manual.focus_x, manual.focus_y
-        else:
-            from .capture_network import CaptureOrigin
+        caps = folder / "caps"
+        caps.mkdir(exist_ok=True)
+        snapshot = caps / dst.stem
+        if not snapshot.is_dir():
+            scroll = 0
+            evidence = {"url": scene.site, "mode": mode, "title": None, "heading": None,
+                        "description": None, "focus_label": scene.plan.website_demo.focus_label}
+            if manual:
+                image = manual_folder(s, scene.site) / (manual.sha256 + ".png")
+                with image.open("rb") as stream:
+                    if hashlib.file_digest(stream, "sha256").hexdigest() != manual.sha256:
+                        raise ValueError("manual screenshot failed its integrity check")
+                cx, cy = manual.focus_x, manual.focus_y
+            else:
+                from .capture_network import CaptureOrigin
 
-            origin = CaptureOrigin(urlsplit(scene.site).hostname)
-            with sync_playwright() as pw:
-                browser = pw.chromium.launch(executable_path=s.hyperframes_browser)
-                context = browser.new_context(viewport={"width": width, "height": height},
-                                              reduced_motion="reduce", service_workers="block",
-                                              offline=True)
-                context.route_web_socket("**/*", lambda ws: ws.close())
+                origin = CaptureOrigin(urlsplit(scene.site).hostname)
+                with sync_playwright() as pw:
+                    browser = pw.chromium.launch(executable_path=s.hyperframes_browser)
+                    context = browser.new_context(viewport={"width": width, "height": height},
+                                                  reduced_motion="reduce", service_workers="block",
+                                                  offline=True)
+                    context.route_web_socket("**/*", lambda ws: ws.close())
 
-                def same_site(route):
-                    req = route.request
-                    try:
-                        response = origin.fetch(req.url, req.method, req.headers)
-                    except (ValueError, OSError, http.client.HTTPException):
-                        return route.abort()
-                    return route.fulfill(**response)
+                    def same_site(route):
+                        req = route.request
+                        try:
+                            response = origin.fetch(req.url, req.method, req.headers)
+                        except (ValueError, OSError, http.client.HTTPException):
+                            return route.abort()
+                        return route.fulfill(**response)
 
-                context.route("**/*", same_site)
-                page = context.new_page()
-                response = page.goto(scene.site, wait_until="load")
-                if not response or not response.ok:
-                    raise ValueError("website capture failed")
-                page.evaluate("document.fonts.ready")
-                label = scene.plan.website_demo.focus_label
-                if label:
-                    target = page.get_by_label(label, exact=True)
-                    target.scroll_into_view_if_needed()
-                    box = target.bounding_box()
-                    if not box:
-                        raise ValueError("the capture target is not visible")
-                    page.screenshot(path=image, animations="disabled")
-                else:
-                    box = automatic_hero(page)
-                    extra = page.evaluate("Math.max(0, document.documentElement.scrollHeight-740)")
-                    scroll = min(160, extra, max(0, round(box["y"] + box["height"]/2 - height*.32)))
-                    page.screenshot(path=image, animations="disabled",
-                                    clip={"x": 0, "y": 0, "width": width, "height": height+scroll})
-                context.unroute_all(behavior="wait")
-                browser.close()
-            cx = (box["x"] + box["width"] / 2) / width
-            cy = (box["y"] + box["height"] / 2) / height
+                    context.route("**/*", same_site)
+                    page = context.new_page()
+                    response = page.goto(scene.site, wait_until="load")
+                    if not response or not response.ok:
+                        raise ValueError("website capture failed")
+                    page.evaluate("document.fonts.ready")
+                    label = scene.plan.website_demo.focus_label
+                    if label:
+                        target = page.get_by_label(label, exact=True)
+                        target.scroll_into_view_if_needed()
+                        box = target.bounding_box()
+                        if not box:
+                            raise ValueError("the capture target is not visible")
+                        page.screenshot(path=image, animations="disabled")
+                    else:
+                        box = automatic_hero(page)
+                        extra = page.evaluate("document.documentElement.scrollHeight-740")
+                        focus = box["y"] + box["height"]/2
+                        scroll = max(0, min(160, extra, round(focus-height*.32)))
+                        clip = {"x": 0, "y": 0, "width": width, "height": height+scroll}
+                        page.screenshot(path=image, animations="disabled", clip=clip)
+                    evidence.update(page.evaluate("""() => ({
+                        title: document.title.slice(0, 500),
+                        heading: document.querySelector('h1')?.innerText?.slice(0, 500) ?? null,
+                        description: document.querySelector('meta[name="description" i]')
+                            ?.content?.slice(0, 2000) ?? null
+                    })"""))
+                    evidence["hero_box"] = {k: box[k] for k in ("x", "y", "width", "height")}
+                    context.unroute_all(behavior="wait")
+                    browser.close()
+                cx = (box["x"] + box["width"] / 2) / width
+                cy = (box["y"] + box["height"] / 2) / height
+            # Publish the image and its provenance together. Concurrent workers reuse the winner.
+            bundle = Path(temp) / "snapshot"
+            bundle.mkdir()
+            shutil.copyfile(image, bundle / "page.png")
+            with image.open("rb") as source:
+                evidence["sha256"] = hashlib.file_digest(source, "sha256").hexdigest()
+            evidence.update(focus_x=cx, focus_y=cy, scroll_px=scroll)
+            (bundle / "metadata.json").write_text(json.dumps(evidence), encoding="utf8")
+            try:
+                bundle.rename(snapshot)
+            except OSError:
+                if not snapshot.is_dir():
+                    raise
+        image = snapshot / "page.png"
+        evidence = json.loads((snapshot / "metadata.json").read_text(encoding="utf8"))
+        with image.open("rb") as source:
+            if hashlib.file_digest(source, "sha256").hexdigest() != evidence["sha256"]:
+                raise ValueError("saved capture failed its integrity check")
+        cx, cy, scroll = evidence["focus_x"], evidence["focus_y"], evidence["scroll_px"]
         # Ease from the full viewport into the product detail; hold its final frame in the scene.
         zoom = "1+0.78*(1-cos(PI*min(on/35,1)))/2"
         prefix = ""

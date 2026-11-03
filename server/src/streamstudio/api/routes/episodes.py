@@ -599,3 +599,24 @@ def scene_qa_sheet(eid: str, sid: str, s: Settings = Depends(settings),
     if not sheet.is_file():
         raise HTTPException(404, "review sheet is not ready for this take")
     return FileResponse(sheet, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+@router.get("/{eid}/scenes/{sid}/capture")
+def scene_capture(eid: str, sid: str, image: bool = False, s: Settings = Depends(settings),
+                  c: sqlite3.Connection = Depends(conn)):
+    from ...episode.website_demo import asset_path
+
+    ep = _episode(c, eid)
+    scene = next((sc for sc in ep.script.scenes if sc.id == sid), None)
+    if scene is None:
+        raise HTTPException(404, "scene not found")
+    folder = record.episode_dir(s, eid)
+    card = asset_path(folder, scene)
+    if not card:
+        raise HTTPException(404, "scene has no website capture")
+    snapshot = folder / "caps" / card.stem
+    path = snapshot / ("page.png" if image else "metadata.json")
+    if not path.is_file():
+        raise HTTPException(404, "capture evidence unavailable for this render")
+    return FileResponse(path, media_type="image/png" if image else "application/json",
+                        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
