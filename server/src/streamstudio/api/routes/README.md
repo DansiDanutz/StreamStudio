@@ -42,7 +42,7 @@ into `streamstudio.core`, and enqueue work for the worker through
 ### `jobs.py`
 
 - `router` (prefix `/api/jobs`), `JobIn`
-- Routes: `list_jobs` (GET ``), `create_job` (POST ``, 201), `get_job` (GET `/{jid}`), `cancel` (POST `/{jid}/cancel`)
+- Routes: `list_jobs` (GET ``), `create_job` (POST ``, 201; only `OPEN_KINDS`: `noop`, `probe`, `transcribe`, anything else 403), `get_job` (GET `/{jid}`), `cancel` (POST `/{jid}/cancel`)
 
 ### `live.py`
 

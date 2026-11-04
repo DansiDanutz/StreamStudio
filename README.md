@@ -97,8 +97,9 @@ the length of the broadcast. Agents reach the editor through the server's agent 
   check their own output before working, and `store.find_active_job` prevents duplicate transcript and
   upload jobs. Vault fetches and the live ingest are the request-time exceptions named above.
 - **Paid APIs need an explicit confirm.** HeyGen renders run only with `confirm: true` after the estimate
-  (`api/routes/heygen.py:render`, `HeygenPanel.tsx`); the MCP server never sends `confirm` and always
-  uploads to YouTube as `private` (`streamstudio/mcp.py:call`).
+  (`api/routes/heygen.py:render`, `HeygenPanel.tsx`); the MCP server never sends `confirm` and has no
+  upload tool. A YouTube upload starts only from a click in the browser (`api/routes/youtube.py:queue_upload`
+  needs an allowed `Origin`), and `POST /api/jobs` queues only free, local kinds (`api/routes/jobs.py:OPEN_KINDS`).
 - **Secrets stay masked.** HeyGen, live and vault configs are written `0600` and returned masked.
 
 ## Global Side Effects
