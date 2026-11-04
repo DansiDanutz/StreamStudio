@@ -265,3 +265,19 @@ def test_health_is_not_stale_when_code_matches_checkout(env, monkeypatch):
     client, _ = env
     monkeypatch.setattr(system, "_git_head", lambda: system.STARTUP_REV)
     assert client.get("/api/health").json()["stale"] is False
+
+
+@pytest.mark.parametrize(
+    "kind", ["youtube_upload", "heygen_clip", "vault_push", "finish_recording"]
+)
+def test_job_route_refuses_uploads_and_paid_work(env, kind):
+    client, _ = env
+    r = client.post("/api/jobs", json={"kind": kind, "payload": {"id": "rec_1", "channel": "UC"}})
+    assert r.status_code == 403
+    assert client.get("/api/jobs").json() == []
+
+
+def test_job_route_still_takes_free_local_jobs(env):
+    client, _ = env
+    assert client.post("/api/jobs", json={"kind": "noop"}).status_code == 201
+    assert client.post("/api/jobs", json={"kind": "no_such_kind"}).status_code == 403

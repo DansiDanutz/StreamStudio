@@ -94,7 +94,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(youtube, "_urlopen", google)
     monkeypatch.setattr(handlers, "YOUTUBE_TRANSPORT", google)
     monkeypatch.setattr(youtube, "CHUNK", 256 * 1024)
-    client = TestClient(create_app(s))
+    client = TestClient(create_app(s), headers={"Origin": "http://localhost"})
     return client, s, downloads, google
 
 
@@ -223,6 +223,18 @@ def test_upload_needs_a_connection_an_mp4_and_a_known_privacy(env):
     assert bad.status_code == 422
     other = "rec_20261101-030000"
     assert client.post(f"/api/recordings/{other}/youtube", json={"title": "x"}).status_code == 404
+
+
+@pytest.mark.parametrize("headers", [{}, {"Origin": "https://evil.example"}])
+def test_upload_needs_the_browser_click(env, headers):
+    client, s, downloads, _ = env
+    _connect(client, downloads)
+    _take(s)
+    # no shared Origin here: agents, MCP and curl send none
+    bare = TestClient(client.app)
+    r = bare.post(f"/api/recordings/{RID}/youtube", json={"title": "x"}, headers=headers)
+    assert r.status_code == 403
+    assert client.get("/api/jobs").json() == []
 
 
 def test_clean_meta_respects_youtube_limits():

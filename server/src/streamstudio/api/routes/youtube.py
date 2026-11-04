@@ -1,5 +1,6 @@
 """Connect YouTube channels (one sign-in each) and upload takes to any of them. Uploads are
-private unless the request says otherwise; agents (MCP) can only upload private."""
+private unless the request says otherwise; uploads start only from a click in the browser;
+agents (MCP) cannot upload."""
 
 from __future__ import annotations
 
@@ -7,11 +8,11 @@ import html
 import sqlite3
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
-from ...core import store, youtube
+from ...core import netguard, store, youtube
 from ...core.config import Settings
 from ...core.db import tx
 from ..deps import conn, settings
@@ -100,9 +101,12 @@ class UploadIn(BaseModel):
 
 @router.post("/api/recordings/{rid}/youtube", status_code=202)
 def queue_upload(
-    rid: str, body: UploadIn, s: Settings = Depends(settings),
+    rid: str, body: UploadIn, origin: str | None = Header(default=None),
+    s: Settings = Depends(settings),
     c: sqlite3.Connection = Depends(conn),
 ) -> dict:  # fmt: skip
+    if origin is None or not netguard.origin_allowed(origin, s.extra_hosts):
+        raise HTTPException(403, "upload from the Library")
     _check(rid)
     if not (s.recordings_dir / f"{rid}.mp4").exists():
         raise HTTPException(404, "no MP4 for this take yet")
