@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>The Evolution — Opening v4</title>
+<style>
+@font-face{font-family:Inter;src:url(inter-latin-400-normal.woff2)}
+@font-face{font-family:Inter;src:url(inter-latin-700-normal.woff2);font-weight:700}
+@font-face{font-family:News;src:url(newsreader-latin-500-italic.woff2);font-style:italic}
+@font-face{font-family:Mono;src:url(jetbrains-mono-latin-500-normal.woff2)}
+@font-face{font-family:Hand;src:url(caveat-latin-600-normal.woff2)}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0a09}
+main{position:relative;width:1920px;height:1080px;overflow:hidden;color:#fbf0dc;font-family:Inter;
+ background:#05070c}
+#paper{position:absolute;inset:0;background:url(paper.jpg) center/cover;opacity:0;z-index:0}
+#sheen{position:absolute;inset:0;z-index:0;background:linear-gradient(115deg,#0000 30%,#ffffff07 45%,#0000 60%),radial-gradient(ellipse 40% 30% at 50% 0%,#7fb6ff14,#0000 70%)}
+.dots{position:absolute;inset:0;background-image:radial-gradient(#f4cda638 1.4px,transparent 1.6px);background-size:22px 22px;
+ -webkit-mask-image:radial-gradient(ellipse 80% 70% at 52% 55%,#000 30%,transparent 85%);mask-image:radial-gradient(ellipse 80% 70% at 52% 55%,#000 30%,transparent 85%)}
+#stage{position:absolute;inset:0;z-index:3;perspective:2400px;perspective-origin:990px 540px}
+.art{position:absolute;left:465px;top:170px;width:1050px;height:735px;opacity:0;will-change:transform,filter}
+.art svg{width:100%;height:100%;overflow:visible;display:block}
+#art-moon{left:1010px;top:215px;width:820px;height:510px}
+#art-moon svg{border-radius:28px;background:radial-gradient(ellipse at 50% 30%,#1b2233,#07090f)}
+#art-moon{border-radius:28px;box-shadow:0 30px 100px #000c,0 0 0 1px #9fb3d655;overflow:hidden}
+#art-phone{left:832px;top:200px;width:316px;height:647px}
+
+/* darkness + travelling spotlight = the mystery */
+#spot{position:absolute;left:-1010px;top:-1460px;width:4000px;height:4000px;z-index:15;opacity:0;pointer-events:none;
+ background:radial-gradient(circle at 50% 50%,#0000 0px,#0000 380px,#2b1a0c55 720px,#1d1209aa 1150px)}
+/* questions */
+#q{position:absolute;left:96px;top:78px;z-index:30;opacity:0;max-width:1300px}
+#q small{display:block;font:20px Mono;letter-spacing:.22em;color:#f0783c;margin-bottom:12px}
+#q h2{margin:0;font:italic 64px/1.05 News;letter-spacing:-.02em;color:#fbf0dc}
+#q h2 span{opacity:0}
+#q h2 .cur{display:inline-block;width:3px;height:52px;background:#f0783c;margin-left:6px;vertical-align:-6px;opacity:1}
+.bug{position:absolute;right:64px;top:62px;font:700 26px Inter;letter-spacing:-.02em;color:#f0783c;opacity:.75;z-index:30}
+.bug i{font:italic 26px News;color:#fbf0dc}
+
+.counter{position:absolute;left:1430px;top:250px;width:178px;height:196px;border-radius:16px;background:#fbf3e4;color:#2b1d14;
+ box-shadow:0 18px 40px #0007;opacity:0;text-align:center;overflow:hidden;z-index:22}
+.counter b{display:block;background:#b2452f;color:#fbf0dc;font:20px Mono;letter-spacing:.14em;padding:12px 0}
+.counter span{display:block;font:700 92px Inter;letter-spacing:-.05em;margin-top:10px}
+
+#hub-glow{position:absolute;left:690px;top:230px;width:600px;height:600px;border-radius:50%;opacity:0;
+ background:radial-gradient(circle,#ff8a4c50,#ff8a4c00 65%);z-index:5}
+#wires{position:absolute;inset:0;width:1920px;height:1080px;z-index:6;overflow:visible}
+#wires path{fill:none;stroke:#f1c18e;stroke-width:3;stroke-linecap:round}
+#wires path.radio{stroke:#5a7fb8;stroke-width:4}
+#wires circle.orbit{fill:none;stroke:#f1c18e40;stroke-width:2;stroke-dasharray:3 12}
+.chip{position:absolute;display:flex;align-items:center;gap:14px;padding:12px 24px 12px 14px;border-radius:999px;background:#2c211bf2;
+ border:1px solid #f0783c66;font:700 30px Inter;letter-spacing:-.01em;opacity:0;z-index:18;white-space:nowrap;box-shadow:0 14px 34px #0008}
+.chip .ic{width:50px;height:50px;border-radius:14px;display:grid;place-items:center}
+.chip .ic svg{width:44px;height:44px}
+.chip.ai{font-size:40px;background:#3a2618f5;border-color:#ff8a4c;box-shadow:0 0 60px #ff9d5a66,0 14px 34px #0008}
+
+.hand{position:absolute;font:600 50px/1 Hand;color:#fff3df;opacity:0;z-index:25;white-space:nowrap;text-shadow:0 3px 14px #000c}
+svg.draw{position:absolute;overflow:visible;z-index:25;pointer-events:none}
+svg.draw path{fill:none;stroke:#fff3df;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+
+#presenter{position:absolute;left:0;top:0;width:1920px;height:1080px;border-radius:0;overflow:hidden;z-index:40;
+ box-shadow:0 24px 70px #000b;background:#0d1b1f;container-type:size}
+#presenter video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%}
+#presenter .slot{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 35%,#1f4a52 0%,#10262b 55%,#0a1517 100%)}
+#presenter .slot .frame{position:absolute;inset:3.5%;border:3px dashed #8fd3d877}
+#presenter .slot .lbl{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font:700 3.3cqw Inter;color:#cfeff0}
+#presenter .slot .lbl small{display:block;font:500 1.5cqw Mono;letter-spacing:.14em;color:#8fd3d8;margin-top:.8cqw}
+#presenter .slot .meter{position:absolute;left:50%;bottom:16%;transform:translateX(-50%);display:flex;gap:.7cqw;align-items:center;height:7cqw}
+#presenter .slot .meter i{display:block;width:1.1cqw;border-radius:1cqw;background:#8fd3d8;height:10%}
+
+#glass{position:absolute;left:110px;top:170px;width:800px;height:760px;border-radius:30px;padding:56px 60px;opacity:0;z-index:41;
+ background:linear-gradient(135deg,#fbf0dc1f,#fbf0dc0a);border:1px solid #fbf0dc40;backdrop-filter:blur(26px) saturate(1.2);-webkit-backdrop-filter:blur(26px);
+ box-shadow:inset 0 1px 0 #ffffff30,0 30px 90px #0009}
+#glass small{font:22px Mono;letter-spacing:.18em;color:#f0783c}
+#glass h1{font:700 168px/1 Inter;letter-spacing:-.06em;margin:18px 0 6px}
+#glass .role{font:italic 52px/1.15 News;color:#ffb27a;letter-spacing:-.01em}
+#glass .role span{opacity:0;display:inline-block}
+#glass .trio{display:flex;gap:30px;margin-top:44px;font:700 44px Inter;letter-spacing:-.03em}
+#glass .trio div{position:relative;opacity:0}
+#glass .trio svg{position:absolute;left:-6px;bottom:-16px;width:110%;height:24px;overflow:visible}
+#glass .trio path{fill:none;stroke:#f0783c;stroke-width:5;stroke-linecap:round}
+
+#wall-wrap{position:absolute;inset:0;perspective:1600px;perspective-origin:50% 40%;opacity:0;z-index:2}
+#wall{position:absolute;left:-520px;top:-260px;width:3100px;display:grid;grid-template-columns:repeat(7,420px);gap:26px;
+ transform:rotateX(26deg) rotateZ(-6deg) translateZ(-260px)}
+#wall div{height:236px;border-radius:18px;background:#2b211b center/80% no-repeat;box-shadow:0 18px 40px #0009,inset 0 0 0 1px #f3cc9c33}
+#wall-shade{position:absolute;inset:0;background:radial-gradient(ellipse 55% 45% at 52% 48%,#0e0a09f0 0%,#0e0a09b8 50%,#0e0a0955 100%)}
+#rewind{position:absolute;inset:0;z-index:12;opacity:0;background:repeating-linear-gradient(0deg,#ffffff08 0 2px,#0000 2px 5px)}
+#title{position:absolute;left:0;right:0;top:400px;text-align:center;z-index:31;opacity:0}
+#title small{display:block;font:24px Mono;letter-spacing:.24em;color:#f0783c;margin-bottom:18px}
+#title h1{margin:0;font:700 190px/1 Inter;letter-spacing:-.065em}
+#title h1 em{font:italic 1em News;color:#ff9a5c;letter-spacing:-.035em}
+#title h1 span{display:inline-block}
+#next{position:absolute;right:96px;bottom:110px;font:22px Mono;letter-spacing:.18em;color:#e8c39a;opacity:0;z-index:31}
+
+#guide{position:absolute;left:400px;right:120px;bottom:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;font:23px/1.35 Inter;color:#fbf0dc99;z-index:50}
+#guide b{font:17px Mono;letter-spacing:.14em;color:#8fd3d8;margin-right:14px}
+#guide .on{color:#fff;text-shadow:0 0 12px #ff8a4c}
+
+#grain{position:absolute;inset:0;z-index:16;opacity:0;mix-blend-mode:overlay;pointer-events:none}
+#leak{position:absolute;inset:0;z-index:16;opacity:0;mix-blend-mode:screen;pointer-events:none;
+ background:radial-gradient(circle at 12% 18%,#ff9a4a55,#0000 32%),radial-gradient(circle at 88% 80%,#ffcf8a40,#0000 30%)}
+#flicker{position:absolute;inset:0;z-index:16;background:#000;opacity:0;pointer-events:none}
+#flash{position:absolute;inset:0;z-index:45;background:#eaf6ff;opacity:0;pointer-events:none}
+#year{position:absolute;right:64px;top:110px;z-index:30;text-align:right;opacity:0}
+#year small{display:block;font:18px Mono;letter-spacing:.22em;color:#f0783c}
+#year b{display:block;font:italic 92px/1 News;color:#f6dcb4;letter-spacing:-.02em}
+#year.now b{font:700 92px/1 Mono;color:#3ee08f;letter-spacing:-.04em}
+#year.now small{color:#3ee08f}
+#viewers{position:absolute;left:1030px;top:770px;z-index:22;opacity:0;padding:18px 28px;border-radius:20px;background:#1a1f2cf0;border:1px solid #9fb3d677;box-shadow:0 20px 50px #000a}
+#viewers b{display:block;font:700 64px/1 Inter;letter-spacing:-.03em;color:#fff}
+#viewers span{font:20px Mono;letter-spacing:.12em;color:#bcd3ff}
+#glass .comm{margin-top:34px}
+#glass .comm small{display:block;opacity:0;margin-bottom:14px}
+#glass .it{position:relative;opacity:0;font:700 46px/1.25 Inter;letter-spacing:-.03em;width:max-content}
+#glass .it svg{position:absolute;left:-4px;bottom:-6px;width:104%;height:20px;overflow:visible}
+#glass .it path{fill:none;stroke:#f0783c;stroke-width:5;stroke-linecap:round}
+#rich{position:absolute;left:380px;right:120px;top:250px;z-index:31;text-align:center}
+#rich h1{margin:0;font:700 110px/1.02 Inter;letter-spacing:-.055em}
+#rich h1 span{display:inline-block;opacity:0}
+#rich h1 em{font:italic 1em News;color:#ff9a5c}
+#rich .row{display:flex;justify-content:center;gap:28px;margin-top:56px}
+#rich .row div{opacity:0;padding:22px 38px;border-radius:22px;font:700 44px Inter;letter-spacing:-.03em;background:#2c211bf2;border:1px solid #f0783c66;box-shadow:0 18px 44px #0009}
+.qblk h2{color:#fbf0dc}.qblk small{color:#f0783c}
+main.past .qblk h2{color:#2a1a10}main.past .qblk small{color:#8a4a22}main.past .qblk i{background:#8a4a22!important}
+main.past .hand{color:#2a1a10;text-shadow:none}main.past svg.draw path{stroke:#2a1a10}
+main.past #year b{color:#5a3218}main.past #year small{color:#8a4a22}
+main.past .bug{color:#8a4a22}main.past .bug i{color:#2a1a10}main.past #guide{color:#3a2614bb}
+</style></head>
+<body>
+<main id="film" data-composition-id="evolution-opening-v4" data-start="0" data-width="1920" data-height="1080" data-duration="__DURATION__">
+<canvas id="sky" width="1920" height="1080" style="position:absolute;inset:0;z-index:0"></canvas><div id="sheen"></div><div id="paper"></div>
+<div id="wall-wrap"><div id="wall"></div><div id="wall-shade"></div></div>
+<div id="stage">
+ <div class="art" id="art-telephone" data-artifact="telephone"><!--ART:telephone--></div>
+ <div class="art" id="art-letter" data-artifact="letter"><!--ART:letter--></div>
+ <div class="art" id="art-radio" data-artifact="radio"><!--ART:radio--></div>
+ <div class="art" id="art-moon" data-artifact="moon"><!--ART:moon--></div>
+ <div class="art" id="art-turntable" data-artifact="turntable"><!--ART:turntable--></div>
+</div>
+<svg id="wires" viewBox="0 0 1920 1080"></svg>
+<div id="hub-glow"></div>
+<div class="art" id="art-phone" data-artifact="phone" style="z-index:7"><!--ART:phone--></div>
+<div id="spot"></div>
+<svg id="grain" width="1920" height="1080"><filter id="gn"><feTurbulence id="gnt" type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="1"/><feColorMatrix type="saturate" values="0"/></filter><rect width="1920" height="1080" filter="url(#gn)"/></svg>
+<div id="leak"></div><div id="flicker"></div><div id="flash"></div>
+<div id="year"><small>MEMORY · YEAR</small><b>2026</b></div>
+<div id="viewers"><b>0</b><span>PEOPLE FOLLOWED IT LIVE · NASA ESTIMATE</span></div>
+<div id="rewind"></div>
+<div class="counter"><b>DAY</b><span>1</span></div>
+<div id="q"><small></small><h2></h2></div>
+<div class="bug">Dan’s <i>Lab</i></div>
+<div id="title"><small>TODAY’S SUBJECT</small><h1></h1></div>
+<div id="next">CHAPTER 1  ·  THE TELEPHONE</div>
+<div id="glass"><small>DAN’S LAB  ·  YOUR HOST</small><h1>Dan</h1>
+ <div class="role"><span>An entrepreneur,</span> <span>in love with technology &amp; AI.</span></div>
+ <div class="comm"><small>BUILDING A COMMUNITY THAT LEARNS TO</small>
+  <div class="it">make life easier<svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M2 12 Q30 4 55 10 T98 8"/></svg></div>
+  <div class="it">build its own business<svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M2 10 Q35 16 60 8 T98 11"/></svg></div>
+  <div class="it">be independent<svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M2 13 Q28 5 52 11 T98 7"/></svg></div></div>
+</div>
+<div id="rich"><h1></h1><div class="row"><div>School</div><div>Information</div><div>Resources</div></div></div>
+<div id="presenter">__PRESENTER__</div>
+<div id="guide"></div>
+__MEDIA__
+</main>
+<script src="gsap.min.js"></script>
+<script src="timeline.js"></script>
+<script src="cues.js"></script>

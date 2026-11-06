@@ -1,0 +1,313 @@
+{
+ "_doc": "cue: [line index in script.json, spoken word (first match in that line), offset seconds]",
+ "shrink": [
+  0,
+  "called",
+  -0.2
+ ],
+ "phoneIn": [
+  0,
+  "called",
+  0.0
+ ],
+ "finger": [
+  0,
+  "Finger",
+  -0.1
+ ],
+ "wind": [
+  0,
+  "way",
+  -0.25
+ ],
+ "ret": [
+  0,
+  "back",
+  -0.1
+ ],
+ "letterIn": [
+  1,
+  "writing",
+  -0.45
+ ],
+ "post": [
+  1,
+  "letter",
+  0.0
+ ],
+ "flap": [
+  1,
+  "hand",
+  -0.55
+ ],
+ "slide": [
+  1,
+  "hand",
+  -0.3
+ ],
+ "loved": [
+  1,
+  "loved",
+  0.0
+ ],
+ "waitStart": [
+  1,
+  "waiting",
+  0.0
+ ],
+ "waitEnd": [
+  1,
+  "answer",
+  0.3
+ ],
+ "radioIn": [
+  2,
+  "listening",
+  -0.45
+ ],
+ "tune": [
+  2,
+  "radio",
+  -0.35
+ ],
+ "tuneLock": [
+  2,
+  "night",
+  0.0
+ ],
+ "moonIn": [
+  2,
+  "Armstrong",
+  -0.25
+ ],
+ "step": [
+  2,
+  "Moon",
+  0.0
+ ],
+ "viewers": [
+  2,
+  "six",
+  0.0
+ ],
+ "viewersEnd": [
+  2,
+  "live",
+  0.2
+ ],
+ "recordIn": [
+  3,
+  "putting",
+  -0.45
+ ],
+ "drop": [
+  3,
+  "record",
+  0.0
+ ],
+ "needle": [
+  3,
+  "needle",
+  0.0
+ ],
+ "crackle": [
+  3,
+  "crackle",
+  0.0
+ ],
+ "dance": [
+  3,
+  "dance",
+  0.0
+ ],
+ "present": [
+  4,
+  "Now",
+  0.0
+ ],
+ "gadget": [
+  4,
+  "gadget",
+  -0.2
+ ],
+ "hasAll": [
+  4,
+  "all",
+  0.0
+ ],
+ "wireCall": [
+  4,
+  "call",
+  0.0
+ ],
+ "wireLetter": [
+  4,
+  "letter",
+  0.0
+ ],
+ "wireRadio": [
+  4,
+  "radio",
+  0.0
+ ],
+ "wireMusic": [
+  4,
+  "music",
+  0.0
+ ],
+ "absorb": [
+  5,
+  "And",
+  -0.15
+ ],
+ "swallow": [
+  5,
+  "swallow",
+  0.0
+ ],
+ "internet": [
+  5,
+  "internet",
+  0.0
+ ],
+ "money": [
+  5,
+  "Money",
+  0.0
+ ],
+ "ai": [
+  5,
+  "AI",
+  0.0
+ ],
+ "news": [
+  5,
+  "News",
+  0.0
+ ],
+ "friends": [
+  5,
+  "Friends",
+  0.0
+ ],
+ "travel": [
+  5,
+  "Travel",
+  0.0
+ ],
+ "business": [
+  5,
+  "Business",
+  0.0
+ ],
+ "danBig": [
+  6,
+  "I'm",
+  -0.5
+ ],
+ "dan": [
+  6,
+  "Dan",
+  0
+ ],
+ "entre": [
+  6,
+  "entrepreneur",
+  0
+ ],
+ "loveAI": [
+  6,
+  "love",
+  0
+ ],
+ "danBack": [
+  7,
+  "Because",
+  -0.3
+ ],
+ "goBack": [
+  8,
+  "evolved",
+  0.0
+ ],
+ "subject": [
+  8,
+  "AI",
+  -0.2
+ ],
+ "title": [
+  8,
+  "Evolution",
+  -0.3
+ ],
+ "community": [
+  6,
+  "community",
+  0
+ ],
+ "easier": [
+  6,
+  "easier",
+  0
+ ],
+ "ownbiz": [
+  6,
+  "business",
+  0
+ ],
+ "independent": [
+  6,
+  "independent",
+  0
+ ],
+ "rich": [
+  7,
+  "rich",
+  0
+ ],
+ "school": [
+  7,
+  "school",
+  0
+ ],
+ "info": [
+  7,
+  "information",
+  0
+ ],
+ "resources": [
+  7,
+  "resources",
+  0
+ ],
+ "dreams": [
+  7,
+  "dreams",
+  0
+ ],
+ "wallIn": [
+  8,
+  "So",
+  -0.2
+ ],
+ "pTech": [
+  8,
+  "technology",
+  0
+ ],
+ "pHealth": [
+  8,
+  "health",
+  0
+ ],
+ "pEdu": [
+  8,
+  "education",
+  0
+ ],
+ "pFin": [
+  8,
+  "financial",
+  0
+ ]
+}
