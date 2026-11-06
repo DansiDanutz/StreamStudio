@@ -21,7 +21,29 @@ with sync_playwright() as p:
     pg.wait_for_timeout(400)
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    seek = "t=>{const tl=Object.values(window.__timelines)[0];tl.seek(t,false);const v=document.querySelector('#dan-take');if(v)v.currentTime=t;}"
+    # Seek GSAP, then (when the presenter take is loaded) wait until the video has
+    # finished seeking and decoded the requested frame, so the screenshot never
+    # pairs the animation at t with a stale presenter frame.
+    seek = """async t=>{
+      const tl=Object.values(window.__timelines)[0]; tl.seek(t,false);
+      const v=document.querySelector('#dan-take');
+      const ev=(name)=>new Promise((r,j)=>{v.addEventListener(name,r,{once:true});
+        setTimeout(()=>j(new Error('dan-take: no '+name+' at t='+t)),8000);});
+      if(v){
+        if(v.error) throw new Error('dan-take failed to load');
+        if(v.readyState<1) await ev('loadedmetadata');
+        const tt=Math.min(t,Math.max(0,v.duration-1e-3));
+        if(Math.abs(v.currentTime-tt)>1e-4||v.seeking){
+          const done=ev('seeked');
+          v.currentTime=tt; await done;
+        }
+        if(v.readyState<2) await ev('loadeddata');
+        await new Promise(r=>'requestVideoFrameCallback' in v
+          ? (v.requestVideoFrameCallback(()=>r()), setTimeout(r,250))
+          : requestAnimationFrame(()=>requestAnimationFrame(r)));
+      }
+      await new Promise(r=>requestAnimationFrame(()=>r()));
+    }"""
     if a.stills:
         out = Path(a.out); out.mkdir(exist_ok=True)
         for t in [float(x) for x in a.stills.split(",")]:
